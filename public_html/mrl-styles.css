@@ -1,0 +1,461 @@
+body {
+	font-size: 14pt;
+	line-height: 140%;
+	font-family: 'Century Gothic', sans-serif;
+	color: #dfcca8;
+	background-color: #222222;
+	padding-bottom: 20px;
+	padding-left: 20px;
+}
+
+@media only screen and (max-width: 600px) {
+	body {
+		background-color: #222222;
+	}
+}
+
+a:any-link {
+	color: #08c;
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+	color: #08c;
+}
+
+/* =========================================
+   Admin status (top line)
+   ========================================= */
+.admin-status {
+	margin: 0;
+	padding: 0;
+	font: inherit;
+	line-height: 1.2;
+}
+
+.admin-yes {
+	color: green !important;
+}
+
+.admin-no {
+	color: red !important;
+}
+
+/* =========================================
+   Basic tables
+   ========================================= */
+table {
+	border-collapse: collapse;
+}
+
+th, td {
+	padding: 6px;
+}
+
+/* =========================================
+   MRL table look
+   ========================================= */
+.mrl-table {
+	border: 1px solid #666;
+	background-color: transparent;
+}
+
+.mrl-table th {
+	color: #bbbbbb;
+	border-bottom: 1px solid #666;
+}
+
+.mrl-table td {
+	color: #dfcca8;
+}
+
+/* =========================================
+   Utility
+   ========================================= */
+.center {
+	text-align: center;
+}
+
+.left {
+	text-align: left;
+}
+
+.right {
+	text-align: right;
+}
+
+.bold {
+	font-weight: bold;
+}
+
+.red {
+	color: #ff4c4c;
+}
+
+.green {
+	color: #3ee06f;
+}
+
+.small-note {
+	font-size: 12px;
+	color: #bbbbbb;
+}
+
+/* =========================================
+   Layout helpers
+   ========================================= */
+.container {
+	width: 80%;
+	margin: 0 auto;
+}
+/* =========================================
+   Headings
+   ========================================= */
+h1, h2, h3 {
+	color: #dfcca8;
+	margin: 0 0 10px 0;
+}
+
+hr {
+	border: 0;
+	border-top: 1px solid #444;
+	margin: 18px 0;
+}
+
+/* =========================================
+   Inputs / selects (legacy pages rely on browser defaults)
+   ========================================= */
+input[type="text"],
+input[type="number"],
+input[type="date"],
+input[type="time"],
+select {
+	/* intentionally light-touch */
+}
+
+/* =========================================
+   Buttons (legacy pages rely on browser defaults)
+   ========================================= */
+input[type="submit"],
+button {
+	/* intentionally light-touch */
+}
+
+/* =========================================
+   Paid status tables (legacy styling)
+   ========================================= */
+.paid-status-title {
+	font-weight: bold;
+	font-size: 18pt;
+	color: #000;
+	background: #fabf8f;
+	text-align: center;
+}
+
+.paid-status-header {
+	font-weight: bold;
+	font-size: 14pt;
+	color: #000;
+	background: #fabf8f;
+	text-align: center;
+}
+
+.paid-status-cell {
+	font-size: 13pt;
+	color: #000;
+	background: #b8cce4;
+	border: 1px solid #000;
+	padding: 3px;
+}
+
+.paid-status-total-label {
+	font-weight: bold;
+	font-size: 14pt;
+	color: #000;
+	background: #fabf8f;
+	border: 1px solid #000;
+	text-align: center;
+}
+
+.paid-status-total-value {
+	font-size: 14pt;
+	color: #000;
+	background: #d8e4bc;
+	border: 1px solid #000;
+	text-align: left;
+	padding: 6px;
+}
+
+/* =========================================
+   Driver group tables (legacy styling)
+   ========================================= */
+.group-title {
+	font-weight: bold;
+	font-size: 18pt;
+	color: #000;
+	background: #fabf8f;
+	text-align: center;
+}
+
+.group-header {
+	font-weight: bold;
+	font-size: 14pt;
+	color: #000;
+	background: #fabf8f;
+	text-align: center;
+}
+
+.group-a { background: #d9d9d9; }
+.group-b { background: #c4bd97; }
+.group-c { background: #b8cce4; }
+.group-d { background: #d8e4bc; }
+
+.group-cell {
+	font-size: 13pt;
+	color: #000;
+	border: 1px solid #000;
+	padding: 3px;
+	text-align: left;
+}
+
+/* =========================================
+   Misc
+   ========================================= */
+.notice-success {
+	color: #3ee06f;
+	font-size: 22px;
+	font-weight: 800;
+	margin-bottom: 14px;
+}
+
+.notice-error {
+	color: #ff4c4c;
+	font-size: 18px;
+	font-weight: 700;
+	margin-bottom: 14px;
+}
+
+.notice-gate {
+    color: red !important;
+    font-size: 16pt;
+    font-weight: bold;
+}
+
+
+/* =========================================
+   Spacing helpers
+   ========================================= */
+.mt-10 { margin-top: 10px; }
+.mt-20 { margin-top: 20px; }
+.mb-10 { margin-bottom: 10px; }
+.mb-20 { margin-bottom: 20px; }
+
+/* =========================================
+   Simple panels
+   ========================================= */
+.panel {
+	border: 1px solid #444;
+	padding: 12px;
+	background: rgba(255,255,255,0.02);
+}
+
+/* =========================================
+   End of existing file
+   ========================================= */
+
+
+/* =========================================================
+   Form controls (reuse addDrivers-style defaults)
+   - These classes DO NOTHING until you add the class names
+     to elements in a page (next step).
+   ========================================================= */
+
+.mrl-control {
+    font-family: Tahoma, Verdana, Segoe, sans-serif;
+    font-size: 13pt;
+    line-height: normal;
+    padding: 2px 6px;
+}
+
+.mrl-button {
+    font-family: Tahoma, Verdana, Segoe, sans-serif;
+    font-size: 13pt;
+    line-height: normal;
+    padding: 2px 10px;
+    cursor: pointer;
+}
+
+/* Optional: tight, centered row (matches how addDrivers lays out forms) */
+.mrl-form-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
+
+/* =========================================================
+   Team Chart page (scoped styles — legacy grid, NO WRAP)
+   Tightened columns + centered table + reduced top gap
+   ========================================================= */
+
+.teamchart-container {
+  width: 98% !important;
+  margin: 0 auto !important;
+}
+
+/* reduce gap under dropdowns */
+.teamchart-form {
+  margin: 4px 0 4px 0 !important;
+}
+
+.teamchart-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  flex-wrap: nowrap !important;
+}
+
+.teamchart-label {
+  font-size: 16px !important;
+}
+
+.teamchart-select {
+  width: 120px !important;
+  height: 30px !important;
+  border: 1px solid #999 !important;
+  font-size: 18px !important;
+  color: #000 !important;
+  background-color: #eee !important;
+  border-radius: 4px !important;
+  box-shadow: 4px 4px #ccc !important;
+  padding: 2px 6px !important;
+}
+
+.teamchart-button {
+  height: 32px !important;
+  padding: 0 12px !important;
+  border: 1px solid #999 !important;
+  background: #eee !important;
+  border-radius: 4px !important;
+  cursor: pointer !important;
+}
+
+/* scroll horizontally instead of wrapping */
+.teamchart-scroll {
+  overflow-x: auto !important;
+  text-align: center !important; /* centers the inline-table below */
+}
+
+/* IMPORTANT CHANGE:
+   - Auto layout so columns tighten to content (like your original)
+   - No fixed 1600px width
+*/
+.teamchart-table {
+  border-collapse: collapse !important;
+  border: 1px solid #000 !important;
+  color: #000 !important;
+  table-layout: auto !important;
+  width: auto !important;
+  margin: 0 auto !important;
+  display: inline-table !important; /* allows centering via parent text-align */
+}
+
+/* Keep the table centered, but keep cell text left-aligned */
+.teamchart-table th,
+.teamchart-table td {
+  text-align: left !important;
+}
+
+/* (Optional) keep header labels centered like the original */
+.teamchart-header-row th,
+.teamchart-title-row th {
+  text-align: center !important;
+}
+
+.teamchart-table th,
+.teamchart-table td {
+  border: 1px solid #000 !important;
+  padding: 2px 6px !important;     /* tighter than before */
+  white-space: nowrap !important;  /* your “no wrap anywhere” requirement */
+  vertical-align: middle !important;
+}
+
+/* Header rows */
+.teamchart-title-row th {
+  background-color: #fabf8f !important;
+  text-align: center !important;
+  font-weight: bold !important;
+  padding: 4px 6px !important;
+}
+
+.teamchart-header-row th {
+  background-color: #fabf8f !important;
+  color: #222 !important;
+  text-align: center !important;
+  font-weight: bold !important;
+}
+
+/* Column fills */
+.teamchart-cell-team,
+.teamchart-cell-owner,
+.teamchart-cell-time {
+  background-color: #b7dee8 !important;
+}
+
+.teamchart-cell-a { background-color: #d9d9d9 !important; }
+.teamchart-cell-b { background-color: #c4bd97 !important; }
+.teamchart-cell-c { background-color: #b8cce4 !important; }
+.teamchart-cell-d { background-color: #d8e4bc !important; }
+
+.teamchart-empty {
+  text-align: center !important;
+  padding: 10px !important;
+  background-color: #b7dee8 !important;
+  font-weight: bold !important;
+}
+
+/* =========================================================
+   Team Chart - Print support
+   - Prints only the chart area
+   - White background
+   - Landscape
+   - Preserve colors
+   ========================================================= */
+
+@media print {
+
+    @page {
+        size: landscape;
+        margin: 0.5in;
+    }
+
+    /* Force white print page + preserve colors */
+    html, body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Hide anything you don't want printed */
+    .teamchart-no-print,
+    .admin-status {
+        display: none !important;
+    }
+
+    /* Remove outer margins/padding that waste space */
+    body {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* Ensure chart is visible and centered nicely */
+    .teamchart-scroll {
+        overflow: visible !important;
+    }
+
+    .teamchart-table {
+        margin: 0 auto !important;
+    }
+}

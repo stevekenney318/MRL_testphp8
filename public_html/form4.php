@@ -1,0 +1,26 @@
+<?php
+
+?>
+
+<form action="#" method="post">
+      <div>
+        <label for="State">State</label>
+        <select name="group-a-driver"style="width:25%" required>
+          <option value="">Choose</option>
+          <option value="act">ACT</option>
+          <option value="nsw">NSW</option>
+          <option value="nt">NT</option>
+          <option value="qld">QLD</option>
+          <option value="sa">SA</option>
+          <option value="tas">TAS</option>
+          <option value="vic">VIC</option>
+          <option value="wa">WA</option>
+        </select>
+      </div>
+    </form>   
+
+
+
+<?php
+
+?>

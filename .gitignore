@@ -1,0 +1,100 @@
+# --- Secrets / config (DO NOT COMMIT) ---
+wp-config.php
+**/wp-config.php
+config.php
+**/config.php
+config_mrl.php
+**/config_mrl.php
+dbconfig.php
+**/dbconfig.php
+dbconfig*.php
+**/dbconfig*.php
+conf.inc.php
+**/conf.inc.php
+*.env
+.env
+.env.*
+**/*.env
+**/.env
+**/.env.*
+
+# --- Keys / certs / credentials ---
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+*.p7b
+id_rsa
+id_ed25519
+**/id_rsa
+**/id_ed25519
+
+# --- Local / OS junk ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Editor / tooling ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Logs / temp / caches ---
+*.log
+logs/
+log/
+tmp/
+temp/
+cache/
+*.cache
+
+# --- Backups / exports / archives ---
+backup/
+backups/
+*.bak
+*.old
+*.sql
+*.sql.gz
+*.zip
+*.rar
+*.7z
+*.tar
+*.tar.gz
+*.tgz
+*.gz
+
+# --- Dependency folders you don't want in this repo copy ---
+vendor/
+node_modules/
+
+# --- WordPress heavy folders you usually don't want in a test-code repo ---
+wp-admin/
+wp-includes/
+wp-content/cache/
+wp-content/uploads/
+
+# --- WordPress (under public_html) ---
+public_html/wp-admin/
+public_html/wp-includes/
+public_html/wp-content/
+
+# --- Hostinger / hosting metadata junk ---
+public_html/.ftpquota
+public_html/.well-known/
+public_html/.q/
+public_html/.q*
+public_html/.quarantine/
+public_html/.trash/
+public_html/error_log
+public_html/*error_log*
+
+# Hostinger / hosting metadata junk (more robust)
+**/.ftpquota
+**/.well-known/
+**/.q/
+**/.q*
+**/error_log
+**/*error_log*

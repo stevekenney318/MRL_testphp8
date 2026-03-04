@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MRL Race Results System — Read Me</title>
+  <style>
+    :root{
+      --bg: #151515;
+      --panel: #1f1f1f;
+      --panel2: #232323;
+      --text: #e9e9e9;
+      --muted: #bdbdbd;
+      --accent: #d7b98a;   /* warm tan/gold */
+      --accent2: #caa56a;  /* slightly deeper */
+      --line: rgba(215,185,138,.35);
+      --link: #8cc7ff;
+      --ok: #63d18d;
+      --warn: #ffcc66;
+      --bad: #ff6b6b;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      --sans: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    html, body { height: 100%; }
+    body{
+      margin:0;
+      background: radial-gradient(1200px 800px at 30% 0%, rgba(215,185,138,.08), transparent 55%),
+                  radial-gradient(900px 700px at 90% 10%, rgba(140,199,255,.07), transparent 55%),
+                  var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      line-height: 1.55;
+    }
+
+    .wrap{
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 28px 18px 60px;
+    }
+
+    header{
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 14px;
+      padding: 22px 20px;
+      box-shadow: 0 8px 30px rgba(0,0,0,.35);
+    }
+
+    h1{
+      margin: 0 0 8px 0;
+      font-size: clamp(28px, 3.2vw, 40px);
+      letter-spacing: .5px;
+      color: var(--accent);
+      text-shadow: 0 2px 0 rgba(0,0,0,.35);
+    }
+
+    .sub{
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .meta{
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .pillrow{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .pill{
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.04);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .pill b{ color: var(--text); font-weight: 650; }
+
+    a{ color: var(--link); text-decoration: none; }
+    a:hover{ text-decoration: underline; }
+
+    .card{
+      margin-top: 18px;
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.02));
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 14px;
+      padding: 18px 18px;
+      box-shadow: 0 6px 24px rgba(0,0,0,.30);
+    }
+
+    h2{
+      margin: 0 0 10px 0;
+      font-size: 20px;
+      color: var(--accent);
+      letter-spacing: .3px;
+    }
+
+    .underline{
+      display:inline-block;
+      border-bottom: 2px solid rgba(215,185,138,.55);
+      padding-bottom: 2px;
+    }
+
+    ul{ margin: 10px 0 0 22px; }
+    li{ margin: 6px 0; }
+
+    .kbd, code{
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+
+    code{
+      background: rgba(0,0,0,.35);
+      border: 1px solid rgba(255,255,255,.10);
+      padding: 2px 6px;
+      border-radius: 8px;
+      color: #f0f0f0;
+    }
+
+    pre{
+      background: rgba(0,0,0,.45);
+      border: 1px solid rgba(255,255,255,.10);
+      padding: 12px 12px;
+      border-radius: 12px;
+      overflow:auto;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.45;
+      margin: 10px 0 0 0;
+    }
+
+    .grid2{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    @media (min-width: 880px){
+      .grid2{ grid-template-columns: 1fr 1fr; }
+    }
+
+    .callouts{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .callout{
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      border: 1px solid rgba(255,255,255,.10);
+      border-left-width: 4px;
+      border-radius: 12px;
+      padding: 12px 12px;
+    }
+
+    .ok{ border-left-color: var(--ok); }
+    .warn{ border-left-color: var(--warn); }
+    .bad{ border-left-color: var(--bad); }
+
+    .callout h3{
+      margin: 0 0 6px 0;
+      font-size: 15px;
+      color: var(--text);
+    }
+    .callout p{
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    footer{
+      margin-top: 18px;
+      color: rgba(233,233,233,.70);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .hr{
+      height:1px;
+      background: var(--line);
+      margin: 12px 0;
+    }
+
+    .small{
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .tag{
+      font-family: var(--mono);
+      font-size: 12px;
+      color: rgba(233,233,233,.75);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+
+    <header>
+      <h1>MRL Race Results System</h1>
+      <p class="sub">Backfill + Monitor + Snapshot storage for ESPN race results (MRL /race_results/ folder)</p>
+
+      <div class="meta">
+        <div class="pillrow">
+          <span class="pill"><b>Doc Version:</b> v1.00.00.01</span>
+          <span class="pill"><b>Generated (America/New_York):</b> <span id="genTime">loading…</span></span>
+          <span class="pill"><b>PHP Target:</b> 7.3</span>
+        </div>
+        <div class="pillrow">
+          <span class="pill"><b>Naming:</b> R## / E## / Z##</span>
+          <span class="pill"><b>Index:</b> <code>&lt;year&gt;/_year_index.json</code></span>
+          <span class="pill"><b>Scripts:</b> engine / backfill / monitor</span>
+        </div>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2><span class="underline">What this system does</span></h2>
+      <ul>
+        <li><b>Backfill</b> pulls an entire ESPN season year page and creates year/race folders.</li>
+        <li><b>Monitor (cron)</b> periodically checks ESPN for the latest race and saves snapshots only when needed.</li>
+        <li><b>Snapshots</b> are saved only on:
+          <ul>
+            <li>first FINAL detection (non-zero scoring)</li>
+            <li>hash changes (e.g., penalties / result updates)</li>
+          </ul>
+        </li>
+      </ul>
+
+      <div class="callouts">
+        <div class="callout ok">
+          <h3>Normal behavior</h3>
+          <p>When there is no new race or no results change, cron runs quietly: logs/heartbeat update, but no new snapshots and no email.</p>
+        </div>
+        <div class="callout warn">
+          <h3>Email behavior</h3>
+          <p>Email sends only when the monitor sees non-zero scoring for the race (and again only if the hash changes later).</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="underline">Folder structure</span></h2>
+
+      <pre>/public_html/race_results/
+  race_results_engine.php
+  race_results_backfill.php
+  race_results_monitor.php
+  _race_results_monitor.log
+  _race_results_monitor_state.json
+  _race_results_monitor_heartbeat.txt
+  (optional) other logs / state files...
+
+  2026/
+    _year_index.json
+    R01_..._&lt;raceId&gt;/
+      _meta.json
+      final_table_hash.txt
+      snapshot_YYYYMMDD_HHMMSSsss.html
+      snapshot_summary_YYYYMMDD_HHMMSSsss.txt
+    E01_..._&lt;raceId&gt;/   (exhibition)
+    Z01_..._&lt;raceId&gt;/   (anomaly / placeholder)</pre>
+
+      <p class="small">
+        Each race folder contains a <code>_meta.json</code> and (when FINAL has been detected) snapshot files plus the last known <code>final_table_hash.txt</code>.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2><span class="underline">Naming rules (R / E / Z)</span></h2>
+
+      <div class="grid2">
+        <div class="card" style="margin:0; background: var(--panel); border-color: rgba(255,255,255,.10);">
+          <h2 style="font-size:18px; margin-bottom:8px;">R## — Points races</h2>
+          <p class="small">
+            Points races are numbered <b>R01</b> through <b>R36</b> (season schedule alignment).
+            The numbering is driven by include-phrase logic and preserved by <code>_year_index.json</code>.
+          </p>
+        </div>
+
+        <div class="card" style="margin:0; background: var(--panel); border-color: rgba(255,255,255,.10);">
+          <h2 style="font-size:18px; margin-bottom:8px;">E## — Exhibitions</h2>
+          <p class="small">
+            Exhibitions are numbered <b>E01</b>, <b>E02</b>, etc.
+            These do <i>not</i> consume R numbers and are still fetched/snapshotted for long-term usefulness.
+          </p>
+        </div>
+
+        <div class="card" style="margin:0; background: var(--panel); border-color: rgba(255,255,255,.10);">
+          <h2 style="font-size:18px; margin-bottom:8px;">Z## — Anomalies</h2>
+          <p class="small">
+            Rare “placeholder / duplicate listing” oddities (example: a duplicate Daytona entry with zero scoring).
+            Z items do <b>not</b> consume R or E numbering.
+          </p>
+        </div>
+
+        <div class="card" style="margin:0; background: var(--panel); border-color: rgba(255,255,255,.10);">
+          <h2 style="font-size:18px; margin-bottom:8px;">_year_index.json</h2>
+          <p class="small">
+            Backfill writes the index. Monitor uses it to keep naming stable and avoid renumbering mistakes.
+            If you delete year folders, the index will be rebuilt on the next backfill.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="underline">How to run</span></h2>
+
+      <div class="grid2">
+        <div>
+          <h2 style="font-size:18px; margin-bottom:8px;">Backfill (browser)</h2>
+          <pre>https://manliusracingleague.com/race_results/race_results_backfill.php?year=2026</pre>
+          <p class="small">Use this for initial population (or after a “clean slate” wipe).</p>
+        </div>
+
+        <div>
+          <h2 style="font-size:18px; margin-bottom:8px;">Backfill (CLI)</h2>
+          <pre>php race_results_backfill.php 2026</pre>
+          <p class="small">Equivalent to the browser run, but via command line.</p>
+        </div>
+
+        <div>
+          <h2 style="font-size:18px; margin-bottom:8px;">Monitor (CLI test)</h2>
+          <pre>php race_results_monitor.php 2026</pre>
+          <p class="small">Good for quick testing (no cron needed).</p>
+        </div>
+
+        <div>
+          <h2 style="font-size:18px; margin-bottom:8px;">Monitor (cron)</h2>
+          <pre>*/10 * * * * /usr/bin/php /home/u809830586/domains/manliusracingleague.com/public_html/race_results/race_results_monitor.php 2026</pre>
+          <p class="small">Runs every 10 minutes (adjust as desired).</p>
+        </div>
+      </div>
+
+      <div class="callouts">
+        <div class="callout ok">
+          <h3>Best practice for “go live”</h3>
+          <p>Backfill the year first (build folders + index), then enable cron monitor.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="underline">What to check when something looks wrong</span></h2>
+
+      <div class="callouts">
+        <div class="callout warn">
+          <h3>No email / no new snapshots</h3>
+          <p>This is normal if ESPN is still showing zero scoring or if the results haven’t changed. Check <code>_race_results_monitor_heartbeat.txt</code> and <code>_race_results_monitor.log</code> timestamps to confirm cron is running.</p>
+        </div>
+
+        <div class="callout bad">
+          <h3>HTTP 500</h3>
+          <p>Check <code>_race_results_monitor_php_errors.log</code> (or backfill equivalent). Also verify the PHP file contents didn’t get a stray character before <code>&lt;?php</code>.</p>
+        </div>
+
+        <div class="callout warn">
+          <h3>Unexpected extra race entry</h3>
+          <p>ESPN sometimes lists odd “placeholder” items. The system uses Z## for anomalies to avoid breaking the R01–R36 schedule alignment.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="underline">Changelog (Doc)</span></h2>
+      <ul>
+        <li><b>v1.00.00.01</b> — Initial documentation page for the current stable R/E/Z + year index behavior.</li>
+      </ul>
+      <div class="hr"></div>
+      <p class="tag">form-mrl007 • race_results_README.html</p>
+    </section>
+
+    <footer>
+      Manlius Racing League • Race Results System documentation
+    </footer>
+  </div>
+
+  <script>
+    (function(){
+      try{
+        // Always show in America/New_York (matches your ask; avoids UTC surprises)
+        var now = new Date();
+        var fmt = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'America/New_York',
+          year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', second: '2-digit',
+          hour12: false
+        });
+        document.getElementById('genTime').textContent = fmt.format(now);
+      } catch(e){
+        // Fallback: local browser time
+        document.getElementById('genTime').textContent = new Date().toLocaleString();
+      }
+    })();
+  </script>
+</body>
+</html>

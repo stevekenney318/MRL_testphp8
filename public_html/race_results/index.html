@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MRL Race Results System — User Guide</title>
+
+  <!--
+    README_race_results_system.html
+
+    DOCUMENT: MRL Race Results System — User Guide
+    VERSION:  v1.00.00.03
+    LAST MODIFIED: 2026-02-28
+    BUILD TS: 20260228.195958607  (local time on your side is fine to edit)
+
+    CHANGELOG:
+      v1.00.00.01 (2026-02-28)
+        - Initial HTML user guide for race_results system (engine/monitor/backfill).
+      v1.00.00.02 (2026-02-28)
+        - SK - misc tweaks.
+      v1.00.00.03 (2026-02-28)
+        - SK - misc tweaks.
+  -->
+
+  <style>
+    :root{
+      --bg: #0c1220;
+      --panel: #111a2e;
+      --panel2: #0f1730;
+      --text: #e9eefc;
+      --muted: #b7c2e6;
+      --muted2:#91a0d6;
+      --border: rgba(255,255,255,.12);
+      --shadow: 0 18px 45px rgba(0,0,0,.35);
+      --accent: #3aa0ff;
+      --accent2:#57d1ff;
+      --good: #3ddc97;
+      --warn: #ffca3a;
+      --bad:  #ff6b6b;
+      --codebg: rgba(0,0,0,.35);
+      --chipbg: rgba(58,160,255,.15);
+      --chipbd: rgba(58,160,255,.35);
+      --link: #7dc2ff;
+      --maxw: 1020px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background:
+        radial-gradient(900px 450px at 15% 5%, rgba(58,160,255,.18), transparent 60%),
+        radial-gradient(900px 450px at 85% 0%, rgba(87,209,255,.10), transparent 60%),
+        radial-gradient(900px 500px at 40% 110%, rgba(61,220,151,.10), transparent 60%),
+        var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+    }
+
+    a{ color: var(--link); text-decoration: none; }
+    a:hover{ text-decoration: underline; }
+
+    .topbar{
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: linear-gradient(180deg, rgba(12,18,32,.95), rgba(12,18,32,.78));
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+    }
+    .topbar .wrap{
+      max-width: var(--maxw);
+      margin: 0 auto;
+      padding: 14px 18px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 18px;
+    }
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      min-width: 0;
+    }
+    .logo{
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, rgba(58,160,255,.95), rgba(87,209,255,.80));
+      box-shadow: 0 10px 25px rgba(58,160,255,.20);
+      border: 1px solid rgba(255,255,255,.15);
+      display:grid;
+      place-items:center;
+      flex: 0 0 auto;
+    }
+    .logo svg { width: 22px; height: 22px; opacity: .95; }
+    .titleblock{
+      min-width: 0;
+    }
+    .titleblock h1{
+      font-size: 16px;
+      margin: 0;
+      letter-spacing: .2px;
+      white-space: nowrap;
+      overflow:hidden;
+      text-overflow: ellipsis;
+    }
+    .titleblock .sub{
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow:hidden;
+      text-overflow: ellipsis;
+    }
+
+    .chips{
+      display:flex;
+      gap:8px;
+      flex-wrap: wrap;
+      justify-content:flex-end;
+    }
+    .chip{
+      font-size: 12px;
+      color: var(--text);
+      background: var(--chipbg);
+      border: 1px solid var(--chipbd);
+      padding: 6px 10px;
+      border-radius: 999px;
+      display:inline-flex;
+      gap: 8px;
+      align-items:center;
+      white-space: nowrap;
+    }
+    .dot{
+      width: 9px; height: 9px; border-radius: 99px;
+      background: var(--good);
+      box-shadow: 0 0 0 3px rgba(61,220,151,.12);
+    }
+
+    .container{
+      max-width: var(--maxw);
+      margin: 0 auto;
+      padding: 18px;
+    }
+
+    .hero{
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 14px;
+      margin-top: 16px;
+    }
+    @media (max-width: 860px){
+      .hero{ grid-template-columns: 1fr; }
+      .chips{ justify-content:flex-start; }
+    }
+
+    .card{
+      background: linear-gradient(180deg, rgba(17,26,46,.92), rgba(15,23,48,.92));
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+    .card h2{
+      font-size: 14px;
+      margin: 0 0 10px 0;
+      letter-spacing: .2px;
+      color: #f3f6ff;
+    }
+    .card p{
+      margin: 10px 0;
+      color: var(--muted);
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+    @media (max-width: 860px){
+      .grid{ grid-template-columns: 1fr; }
+    }
+
+    .callout{
+      border-radius: 14px;
+      padding: 12px 12px;
+      border: 1px solid var(--border);
+      background: rgba(0,0,0,.18);
+      color: var(--muted);
+    }
+    .callout strong{ color: var(--text); }
+
+    code, pre{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+    }
+    pre{
+      background: var(--codebg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      overflow:auto;
+      margin: 10px 0 0 0;
+      color: #eaf1ff;
+    }
+    .k{
+      color: var(--accent2);
+    }
+
+    .section{
+      margin-top: 16px;
+    }
+    .section h3{
+      margin: 0 0 10px 0;
+      font-size: 13px;
+      color: #f3f6ff;
+      letter-spacing: .2px;
+    }
+
+    .list{
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+    }
+    .list li{ margin: 6px 0; }
+
+    .table{
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      overflow: hidden;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+    }
+    .table th, .table td{
+      padding: 10px 10px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      text-align: left;
+      vertical-align: top;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .table th{
+      background: rgba(0,0,0,.22);
+      color: #eaf1ff;
+      font-weight: 600;
+      letter-spacing: .15px;
+    }
+    .table tr:last-child td{ border-bottom: none; }
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(0,0,0,.20);
+      color: var(--muted);
+      font-size: 12px;
+      margin-right: 8px;
+      white-space: nowrap;
+    }
+    .b-good .dot{ background: var(--good); box-shadow: 0 0 0 3px rgba(61,220,151,.12); }
+    .b-warn .dot{ background: var(--warn); box-shadow: 0 0 0 3px rgba(255,202,58,.12); }
+    .b-bad  .dot{ background: var(--bad);  box-shadow: 0 0 0 3px rgba(255,107,107,.12); }
+
+    .footer{
+      margin: 18px 0 10px 0;
+      color: var(--muted2);
+      font-size: 12px;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="topbar">
+    <div class="wrap">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M4 15c2.4-4.2 5.7-6.5 9.9-6.8 2.3-.2 4.2.2 6.1 1.3" stroke="rgba(12,18,32,.95)" stroke-width="2" stroke-linecap="round"/>
+            <path d="M4 18c2.6-3.4 6-5.3 10.3-5.5 1.9-.1 3.8.2 5.7 1.1" stroke="rgba(12,18,32,.95)" stroke-width="2" stroke-linecap="round" opacity=".85"/>
+          </svg>
+        </div>
+        <div class="titleblock">
+          <h1>MRL Race Results System — User Guide</h1>
+          <!-- <div class="sub">Drop this file in <span class="k">/race_results/</span> for quick reference</div> -->
+        </div>
+      </div>
+      <div class="chips">
+        <!-- <span class="chip"><span class="dot"></span> Status: Running</span> -->Doc 
+        <span class="chip">Doc v1.00.00.03</span>
+        <span class="chip">Build TS: 20260228.195958607</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="hero">
+      <div class="card">
+        <h2>What this system does</h2>
+        <p>
+          This folder contains a small set of PHP scripts that pull ESPN race results, store snapshots
+          on meaningful changes, and (optionally) send an email only when “FINAL” is detected by
+          <strong>non-zero scoring values</strong>.
+        </p>
+        <div class="callout">
+          <strong>Design goal:</strong> no noise.
+          Snapshots only happen on first FINAL (per race) and on later results changes (hash change).
+        </div>
+
+        <div class="section">
+          <h3>Files in this system</h3>
+          <table class="table">
+            <tr>
+              <th>File</th>
+              <th>Purpose</th>
+              <th>Typical run</th>
+            </tr>
+            <tr>
+              <td><code>race_results_engine.php</code></td>
+              <td>Shared helper functions (fetch, parse year page, final detector, file helpers)</td>
+              <td>Included by monitor/backfill</td>
+            </tr>
+            <tr>
+              <td><code>race_results_backfill.php</code></td>
+              <td>One-time / occasional: populate a full year, create folders, save snapshots when FINAL</td>
+              <td>Manual (browser) or CLI</td>
+            </tr>
+            <tr>
+              <td><code>race_results_monitor.php</code></td>
+              <td>Cron: checks latest race and only snapshots/emails when needed</td>
+              <td>Automated via cron</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Quick start</h2>
+
+        <div class="section">
+          <h3>1) One-time: populate a year</h3>
+          <pre>https://manliusracingleague.com/race_results/race_results_backfill.php?year=2026</pre>
+          <p>Backfill writes folders + state for that year and creates snapshots only when FINAL is detected.</p>
+        </div>
+
+        <div class="section">
+          <h3>2) Turn on cron (monitor)</h3>
+          <p>Run monitor on a schedule (ex: every 10 minutes). The monitor should not create duplicate snapshots if nothing changes.</p>
+          <pre><span class="k">/usr/bin/php</span> /home/u809830586/domains/domains/manliusracingleague.com/public_html/race_results/race_results_monitor.php</pre>
+        </div>
+
+        <div class="section">
+          <h3>Where to look when things run</h3>
+          <div class="badge b-good"><span class="dot"></span><code>_race_results_monitor_heartbeat.txt</code></div>
+          <div class="badge b-good"><span class="dot"></span><code>_race_results_monitor.log</code></div>
+          <div class="badge b-warn"><span class="dot"></span><code>_race_results_monitor_state.json</code></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Folder naming rules (R / E / Z)</h2>
+        <p>This system uses a predictable folder naming scheme to keep the year aligned to the schedule.</p>
+
+        <div class="section">
+          <h3>Prefixes</h3>
+          <ul class="list">
+            <li><strong>R##</strong> — points races (schedule-aligned numbering, e.g., R03…)</li>
+            <li><strong>E##</strong> — exhibition races (stored like points races, but separate numbering)</li>
+            <li><strong>Z##</strong> — anomalies (rare). Used when something looks like a duplicate/placeholder and should NOT consume R##/E##.</li>
+          </ul>
+        </div>
+
+        <div class="section">
+          <h3>Typical layout</h3>
+          <pre>/race_results/
+  race_results_engine.php
+  race_results_backfill.php
+  race_results_monitor.php
+
+  _race_results_monitor.log
+  _race_results_monitor_state.json
+  _race_results_monitor_heartbeat.txt
+
+  2026/
+    R01_..._&lt;raceId&gt;/
+      _meta.json
+      final_table_hash.txt
+      snapshot_YYYYMMDD_HHMMSSmmm.html
+      snapshot_summary_YYYYMMDD_HHMMSSmmm.txt
+    E01_..._&lt;raceId&gt;/
+    Z01_..._&lt;raceId&gt;/</pre>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>What triggers a snapshot?</h2>
+        <p>Snapshots are stored only when they matter.</p>
+
+        <div class="section">
+          <h3>Rules</h3>
+          <ul class="list">
+            <li><strong>First FINAL</strong> for that race → snapshot saved</li>
+            <li><strong>Hash change</strong> later (penalty/update) → snapshot saved again</li>
+            <li>If ESPN changes nothing meaningful, monitor should log activity but <strong>not</strong> create duplicates</li>
+          </ul>
+        </div>
+
+        <div class="section">
+          <h3>How “FINAL” is detected</h3>
+          <ul class="list">
+            <li>Find a scoring-style table containing <code>PTS/POINTS</code> + <code>BONUS</code> or <code>PENALTY</code></li>
+            <li>Require at least one non-zero value in those columns</li>
+          </ul>
+        </div>
+
+        <div class="section">
+          <h3>Helpful “sanity checks”</h3>
+          <div class="badge b-warn"><span class="dot"></span> If you see only <code>_meta.json</code> and no snapshot files, it usually means: not final yet.</div>
+          <div class="badge b-bad"><span class="dot"></span> If you see HTTP 500, check the script’s configured PHP error log file in the same folder.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card section">
+      <h2>Operational notes</h2>
+
+      <div class="section">
+        <h3>Recommended workflow</h3>
+        <ul class="list">
+          <li>Use <strong>backfill</strong> to populate past seasons (2017–2026) quickly.</li>
+          <li>Use <strong>monitor</strong> via cron for ongoing season updates.</li>
+          <li>If you ever change folder naming rules or file outputs, you may choose to wipe year folders and re-backfill.</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h3>Document + code versioning</h3>
+        <ul class="list">
+          <li>This HTML guide has its own doc version (above).</li>
+          <li>Each PHP file has its own VERSION and BUILD TS in the header block.</li>
+          <li>Signatures (constants) appear in monitor/backfill (engine doesn’t need one).</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h3>Changelog (this document)</h3>
+        <table class="table">
+          <tr>
+            <th>Version</th>
+            <th>Date</th>
+            <th>Notes</th>
+          </tr>
+          <tr>
+            <td><code>v1.00.00.03</code></td>
+            <td>2026-02-28</td>
+            <td>Initial HTML guide with MRL-style layout.</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="footer">
+      Manlius Racing League — race_results documentation • Place this file in <code>/race_results/</code>
+    </div>
+  </div>
+</body>
+</html>

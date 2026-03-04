@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>User Fee Form</title>
+</head>
+<body>
+    <h1>User Fee Form</h1>
+    <form method="post" action="add_user_fee.php">
+        <label for="user">User:</label>
+        <input type="text" name="user" required><br><br>
+        <label for="fee_paid">Fee Paid:</label>
+        <input type="number" name="fee_paid" min="0" step="0.01" required><br><br>
+        <label for="payment_method">Payment Method:</label>
+        <select name="payment_method" required>
+            <option value="">Select a payment method</option>
+            <option value="Cash">Cash</option>
+            <option value="Check">Check</option>
+            <option value="Credit Card">Credit Card</option>
+        </select><br><br>
+        <label for="date_paid">Date Paid:</label>
+        <input type="date" name="date_paid" required><br><br>
+        <input type="submit" value="Submit">
+    </form>
+</body>
+</html>
