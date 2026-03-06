@@ -58,6 +58,8 @@ require_once $_SERVER['DOCUMENT_ROOT'] . '/config.php';
 require_once $_SERVER['DOCUMENT_ROOT'] . '/config_mrl.php';
 require_once $_SERVER['DOCUMENT_ROOT'] . '/class.user.php';
 
+echo "<div style='padding:8px;color:#fff;background:#333;'>Connected DB: " . h(dbName()) . "</div>";
+
 $user_home = new USER();
 
 if (!$user_home->is_logged_in()) {

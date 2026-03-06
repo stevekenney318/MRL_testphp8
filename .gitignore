@@ -98,3 +98,6 @@ public_html/*error_log*
 **/.q*
 **/error_log
 **/*error_log*
+
+# Ignore generated race result data folders only
+public_html/race_results/20*/

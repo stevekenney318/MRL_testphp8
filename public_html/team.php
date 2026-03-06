@@ -16,6 +16,72 @@ require "config.php";
 require "config_mrl.php";
 $currentTimeIs = date("n/j/Y g:i a");
 
+/**
+ * Figure out which DB each connection is actually using.
+ * - $user_home (USER class) likely uses its own PDO internally
+ * - $dbo is your PDO from config.php
+ * - $dbconnect is your mysqli from config_mrl.php
+ */
+$userDbName  = '';
+$pdoDbName   = '';
+$myDbName    = '';
+
+try {
+    $stmtDb = $user_home->runQuery("SELECT DATABASE() AS db");
+    $stmtDb->execute();
+    $rowDb = $stmtDb->fetch(PDO::FETCH_ASSOC);
+    $userDbName = isset($rowDb['db']) ? (string)$rowDb['db'] : '';
+} catch (Exception $e) {
+    $userDbName = '';
+}
+
+try {
+    if (isset($dbo) && $dbo instanceof PDO) {
+        $pdoDbName = (string)$dbo->query("SELECT DATABASE()")->fetchColumn();
+    }
+} catch (Exception $e) {
+    $pdoDbName = '';
+}
+
+try {
+    if (isset($dbconnect) && $dbconnect instanceof mysqli) {
+        $res = mysqli_query($dbconnect, "SELECT DATABASE() AS db");
+        if ($res) {
+            $row = mysqli_fetch_assoc($res);
+            $myDbName = isset($row['db']) ? (string)$row['db'] : '';
+        }
+    }
+} catch (Exception $e) {
+    $myDbName = '';
+}
+
+function mrl_debug_db_banner($userDbName, $pdoDbName, $myDbName)
+{
+    $parts = array();
+
+    if ($userDbName !== '') {
+        $parts[] = "USER(PDO): " . htmlspecialchars($userDbName, ENT_QUOTES, 'UTF-8');
+    } else {
+        $parts[] = "USER(PDO): (unknown)";
+    }
+
+    if ($pdoDbName !== '') {
+        $parts[] = "dbo(PDO): " . htmlspecialchars($pdoDbName, ENT_QUOTES, 'UTF-8');
+    } else {
+        $parts[] = "dbo(PDO): (unknown)";
+    }
+
+    if ($myDbName !== '') {
+        $parts[] = "dbconnect(mysqli): " . htmlspecialchars($myDbName, ENT_QUOTES, 'UTF-8');
+    } else {
+        $parts[] = "dbconnect(mysqli): (unknown)";
+    }
+
+    return '<div style="padding:8px 12px; color:#fff; background:#333; font-family:Arial, sans-serif; font-size:14px;">Connected DBs: '
+        . implode(' | ', $parts)
+        . '</div>';
+}
+
 $stmt = $user_home->runQuery("SELECT * FROM users WHERE userID=:uid");
 $stmt->execute(array(":uid" => $_SESSION['userSession']));
 $row = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -59,7 +125,6 @@ if (isset($dbconnect)) {
 //     include 'maintenance.php'; // currently in maintenance mode for non-admins
 //     die(); // STOP for non-admins
 // }
-
 ?>
 
 <!DOCTYPE html>
@@ -80,6 +145,11 @@ if (isset($dbconnect)) {
 </head>
 
 <body>
+
+    <?php
+    // Debug banner: shows which DB each connection is actually using
+    echo mrl_debug_db_banner($userDbName, $pdoDbName, $myDbName);
+    ?>
 
     <div class="navbar navbar-fixed-top">
         <div class="navbar-inner">
@@ -124,25 +194,25 @@ if (isset($dbconnect)) {
                 echo "<br>";
                 echo "*******************************************************************";
                 echo "<br>";
-                echo "<a href='https://manliusracingleague.com/admin_setup.php' target='_blank'>- Setup Year/Segment & Submission Date</a>";
+                echo "<a href='/admin_setup.php' target='_blank'>- Setup Year/Segment & Submission Date</a>";
                 echo "<br>";
-                echo "<a href='https://manliusracingleague.com/Paid_Status_Year.php' target='_blank'>- See Paid Status for selectable year</a>";
+                echo "<a href='/Paid_Status_Year.php' target='_blank'>- See Paid Status for selectable year</a>";
                 echo "<br>";
-                echo "<a href='https://manliusracingleague.com/team_view_as.php' target='_blank'>- View Team page as alternate user</a>";
+                echo "<a href='/team_view_as.php' target='_blank'>- View Team page as alternate user</a>";
                 echo "<br>";
-                echo "<a href='https://manliusracingleague.com/email.php' target='_blank'>- List all  email addresses - active & inactive</a>";
+                echo "<a href='/email.php' target='_blank'>- List all  email addresses - active & inactive</a>";
                 echo "<br>";
-                echo "<a href='https://manliusracingleague.com/change_user_auth.php' target='_blank'>- Toggle user status to make late picks or change driver</a>";
+                echo "<a href='/change_user_auth.php' target='_blank'>- Toggle user status to make late picks or change driver</a>";
                 echo "<br>";
-                echo "<a href='https://manliusracingleague.com/addDrivers.php' target='_blank'>- Add drivers for a new year.</a>";
+                echo "<a href='/addDrivers.php' target='_blank'>- Add drivers for a new year.</a>";
                 echo "<br>";
-                echo "<a href='https://manliusracingleague.com/current_segment_chart_by_entry_time.php' target='_blank'>- Show current segment team chart sorted by Entry Time.</a>";
+                echo "<a href='/current_segment_chart_by_entry_time.php' target='_blank'>- Show current segment team chart sorted by Entry Time.</a>";
                 echo "<br>";
                 echo "*******************************************************************";
                 echo "<br>";
-                echo "<a href='https://auth-db1928.hstgr.io/index.php?db=u809830586_MRL_DB' target='_blank'>- phpMyAdmin (Hostinger)</a>";
+                echo "<a href='https://auth-db1928.hstgr.io/index.php?db=u809830586_MRL_DB_PHP8' target='_blank'>- phpMyAdmin (Hostinger)</a>";
                 echo "<br>";
-                echo "<a href='https://manliusracingleague.com/wp-admin/?platform=hpanel&client_id=1017612160' target='_blank'>- WP Admin (Hostinger)</a>";
+                echo "<a href='https://testphp8.manliusracingleague.com/wp-login.php' target='_blank'>- WP Admin (Hostinger)</a>";
                 echo "<br>";
                 echo "<a href='https://hpanel.hostinger.com/websites/manliusracingleague.com/files/backups' target='_blank'>- Backups (Hostinger)</a>";
                 echo "<br>";
@@ -158,27 +228,23 @@ if (isset($dbconnect)) {
             Welcome to your team page.<br>
             <br>
             <a style="color:red;">Update 2025-12-11 23:18:31 - See note below regarding previous years picks</a><br>
-            <!-- <br>
-            Below, you will find links for this year's season, payment status, your current team chart, the latest submission form, or the current segment team chart, and then any previous years played.
-            <br> -->
             <br>
             <br>
             <u style="color:red;">League Info as of 2026-02-03 11:09:24</u><br><br>
-            2026 Fees & Payment info is <a href="https://manliusracingleague.com/2026_Fees.php" target="_blank" rel="noopener noreferrer">here </a><br>
-            2026 Rules are <a href="https://manliusracingleague.com/2026_Rules.php" target="_blank" rel="noopener noreferrer">here </a><br>
-            2026 Race Schedule - PDF (on MRL) is <a href="https://manliusracingleague.com/wp-content/uploads/2026/01/2026_Schedule_MRL.pdf" target="_blank" rel="noopener noreferrer">here </a><br>
-            2026 Race Schedule - Spreadsheet (on MRL) is <a href="https://manliusracingleague.com/wp-content/uploads/2026/01/2026_Schedule_MRL.xlsx" target="_blank" rel="noopener noreferrer">here </a><br>
+            2026 Fees & Payment info is <a href="/2026_Fees.php" target="_blank" rel="noopener noreferrer">here </a><br>
+            2026 Rules are <a href="/2026_Rules.php" target="_blank" rel="noopener noreferrer">here </a><br>
+            2026 Race Schedule - PDF (on MRL) is <a href="/wp-content/uploads/2026/01/2026_Schedule_MRL.pdf" target="_blank" rel="noopener noreferrer">here </a><br>
+            2026 Race Schedule - Spreadsheet (on MRL) is <a href="/wp-content/uploads/2026/01/2026_Schedule_MRL.xlsx" target="_blank" rel="noopener noreferrer">here </a><br>
             2026 Race Schedule (on NASCAR) is <a href="https://www.nascar.com/nascar-cup-series/2026/schedule/" target="_blank" rel="noopener noreferrer">here </a><br>
             <br>
-            
 
             ************************ Team Menu ******************************
             *******************************************************************
             <br>
-            <a href="https://manliusracingleague.com/showDrivers.php" target="_blank" rel="noopener noreferrer">- Driver Chart(s) - view, print for any year. </a><br>
-            <a href="https://manliusracingleague.com/team_chart.php" target="_blank" rel="noopener noreferrer">- Team Chart(s) - view, pdf , spreadsheet for any year/segment. </a><br>
-            <a href="https://manliusracingleague.com/submitted_teams.php" target="_blank" rel="noopener noreferrer">- Submitted Teams for Current Segment </a><br>
-            <a href="https://manliusracingleague.com/profile.php" target="_blank" rel="noopener noreferrer">- Your Profile page (change your email addresses, etc) </a> - Or use dropdown menu - upper left at your name.<br>
+            <a href="/showDrivers.php" target="_blank" rel="noopener noreferrer">- Driver Chart(s) - view, print for any year. </a><br>
+            <a href="/team_chart.php" target="_blank" rel="noopener noreferrer">- Team Chart(s) - view, pdf , spreadsheet for any year/segment. </a><br>
+            <a href="/submitted_teams.php" target="_blank" rel="noopener noreferrer">- Submitted Teams for Current Segment </a><br>
+            <a href="/profile.php" target="_blank" rel="noopener noreferrer">- Your Profile page (change your email addresses, etc) </a> - Or use dropdown menu - upper left at your name.<br>
             <br>
             *******************************************************************
             <br>
@@ -186,7 +252,6 @@ if (isset($dbconnect)) {
     </div>
 
     <a name="current_user_team_chart"></a>
-    <!-- <?php include 'showCurrentDrivers.php'; ?> -->
     <?php include 'current_user_team_chart.php'; ?>
 
     <?php
@@ -240,7 +305,6 @@ if (isset($dbconnect)) {
                     }
 
                 } else {
-                    // echo "$formLockedMessage - past Lock date of $formLockDate for $raceYear $segmentName -";
                     echo "$formLockedMessage - past Lock date of $formLockDate";
                     include 'current_segment_chart.php';
                 }
@@ -264,8 +328,7 @@ if (isset($dbconnect)) {
     $sql = "SELECT * FROM `years` WHERE `year` < '$raceYear' AND `year` > '0' ORDER BY `years`.`year` DESC";
     foreach ($dbo->query($sql) as $row) {
         $prevRaceYear = $row[year];
-        include 'prior_year_user_team_chart.php'; // this is the original line
-        // include 'prior_year_user_team_chart_history.php';  // this is the temporary fix to show the history picks
+        include 'prior_year_user_team_chart.php';
     }
     ?>
 
