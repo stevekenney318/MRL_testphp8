@@ -101,3 +101,16 @@ public_html/*error_log*
 
 # Ignore generated race result data folders only
 public_html/race_results/20*/
+
+# Ignore sk temp / test / junk files
+*_sk*.php
+
+# Ignore Windows-style copy files
+* - Copy.php
+
+# my testing stuff
+public_html/race_results/sk
+
+
+# ChatGPT version downloads
+public_html/race_results/versions

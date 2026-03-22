@@ -44,7 +44,7 @@ declare(strict_types=1);
                        - PRG pattern (POST → redirect → GET) to prevent resubmission
                          and prevent dry-run button "sticking"
 
-    v1.4  (2026-02-21)  changed time zone +00:00 to SYSTEM                  
+    v1.4  (2026-02-21)  changed time zone +00:00 to SYSTEM
     ============================================================
 */
 
@@ -728,11 +728,11 @@ $files = listBackupFiles($backupDir);
         color:#eee !important;
     }
     .topbar{
-        display:flex !important;
-        justify-content:space-between !important;
-        align-items:center !important;
-        padding:10px 14px !important;
-        font-size:14px !important;
+        display:flex !;
+        justify-content:space-between !;
+        align-items:center !;
+        padding:10px 14px !;
+        font-size:14px !;
     }
     .admin-status{ font-weight:bold !important; }
     .admin-yes{ color:#39d353 !important; }

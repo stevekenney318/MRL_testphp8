@@ -4,11 +4,37 @@ declare(strict_types=1);
 /**
  * race_results_monitor.php
  *
- * VERSION: v1.02.00.02
- * LAST MODIFIED: 2026-02-28
- * BUILD TS: 20260228.060413
+ * VERSION: v1.02.00.04
+ * LAST MODIFIED: 2026-03-12
+ * BUILD TS: 20260312_072308
  *
  * CHANGELOG:
+ * v1.02.00.04 (2026-03-12)
+ *   - CHANGE: Tightened FINAL / email trigger logic.
+ *   - NEW: Race is NOT treated as ready unless:
+ *       - scoring table has non-zero PTS
+ *       - AND LED column is present with at least one non-zero value
+ *   - This helps avoid early intermediate ESPN tables that have partial scoring
+ *     but still show all-zero laps-led.
+ *
+ * v1.02.00.03 (2026-03-12)
+ *   - FIX: Monitor now updates /race_results/<year>/_year_index.json when a new race appears.
+ *   - If raceId already exists in year index, existing folder mapping is reused.
+ *   - If raceId is new:
+ *       - points race => assigns next R## (or uses parsed race_number if available)
+ *       - exhibition race => assigns next E##
+ *   - CHANGE: Email recipient changed to manliusracingleague@gmail.com.
+ *   - CHANGE: Email subject is now dynamic, e.g.:
+ *       [MRL] Results Detected: 2026_R04_Phoenix
+ *   - CHANGE: Email body is now HTML with:
+ *       - Race Results hyperlink
+ *       - MRL Snapshot hyperlink
+ *       - clean spacing
+ *       - <hr> separator
+ *   - CHANGE: MRL snapshot link is built from current host when possible, with
+ *       fallback to manliusracingleague.com.
+ *   - NOTE: Existing state/hash-based repeat-email behavior is preserved in this version.
+ *
  * v1.02.00.02 (2026-02-28)
  *   - FIX: Prevent duplicate snapshots/emails when visible scoring-table data did not change:
  *       - Uses stable "data hash" from engine (not raw HTML hash).
@@ -33,7 +59,7 @@ ini_set('log_errors', '1');
 ini_set('error_log', __DIR__ . '/_race_results_monitor_php_errors.log');
 error_reporting(E_ALL);
 
-const RR_MONITOR_SIGNATURE = 'RACE_RESULTS_MONITOR v1.02.00.02';
+const RR_MONITOR_SIGNATURE = 'RACE_RESULTS_MONITOR v1.02.00.04';
 
 require_once __DIR__ . '/race_results_engine.php';
 
@@ -53,17 +79,17 @@ $user_home = new USER();
 
 // ------------------------- SETTINGS -------------------------
 $year = 2026; // default; can be overridden by CLI arg
-$notifyEmail = 'stevekenney318@gmail.com';
+$notifyEmail = 'manliusracingleague@gmail.com';
 
-// Keep subject EXACT for your Gmail filter:
-$subjectFinal = '[MRL] ESPN Results - FINAL Results Detected';
+// Keep stable prefix for Gmail filter:
+$subjectPrefix = '[MRL] Results Detected: ';
 
 // Base files (in this folder)
 $stateFile     = __DIR__ . '/_race_results_monitor_state.json';
 $logFile       = __DIR__ . '/_race_results_monitor.log';
 $heartbeatFile = __DIR__ . '/_race_results_monitor_heartbeat.txt';
 
-// Year index produced by backfill (optional but preferred)
+// Year index produced by backfill / maintained by monitor
 $yearIndexFile = __DIR__ . '/' . (string)$year . '/_year_index.json';
 
 // Fetch behavior
@@ -94,8 +120,19 @@ function rr_load_year_index(string $path): array
 {
     $idx = rr_load_json($path);
     if (!is_array($idx)) return [];
-    // expected: ['races'=>[raceId=>['folder'=>...]]]
-    if (!isset($idx['races']) || !is_array($idx['races'])) return [];
+
+    if (!isset($idx['year'])) {
+        $idx['year'] = null;
+    }
+
+    if (!isset($idx['generated_at'])) {
+        $idx['generated_at'] = '';
+    }
+
+    if (!isset($idx['races']) || !is_array($idx['races'])) {
+        $idx['races'] = [];
+    }
+
     return $idx;
 }
 
@@ -104,6 +141,299 @@ function rr_year_index_folder_for_race(array $idx, string $raceId): ?string
     if (!isset($idx['races'][$raceId]) || !is_array($idx['races'][$raceId])) return null;
     $folder = (string)($idx['races'][$raceId]['folder'] ?? '');
     return $folder !== '' ? $folder : null;
+}
+
+function rr_monitor_save_year_index(int $year, string $yearFolder, array $idx): void
+{
+    rr_ensure_dir($yearFolder);
+    $idx['year'] = $year;
+    $idx['generated_at'] = date('c');
+
+    if (!isset($idx['races']) || !is_array($idx['races'])) {
+        $idx['races'] = [];
+    }
+
+    rr_save_json($yearFolder . '/_year_index.json', $idx);
+}
+
+function rr_monitor_next_kind_number(array $yearIndex, string $kind): int
+{
+    $max = 0;
+
+    if (!isset($yearIndex['races']) || !is_array($yearIndex['races'])) {
+        return 1;
+    }
+
+    foreach ($yearIndex['races'] as $raceId => $row) {
+        if (!is_array($row)) continue;
+
+        $rowKind = (string)($row['kind'] ?? '');
+        if ($rowKind !== $kind) continue;
+
+        $n = (int)($row['number'] ?? 0);
+        if ($n > $max) {
+            $max = $n;
+        }
+    }
+
+    return $max + 1;
+}
+
+function rr_monitor_assign_folder_and_update_index(
+    int $year,
+    string $raceId,
+    string $raceUrl,
+    string $raceName,
+    bool $isExhibition,
+    ?int $raceNum,
+    string $yearFolder,
+    array &$yearIndex
+): string {
+    $existing = rr_year_index_folder_for_race($yearIndex, $raceId);
+    if ($existing !== null) {
+        return $existing;
+    }
+
+    $raceSlug = rr_sanitize_for_folder($raceName);
+    $kind = '';
+    $number = 0;
+
+    if ($isExhibition) {
+        $kind = 'E';
+        $number = rr_monitor_next_kind_number($yearIndex, 'E');
+    } else {
+        $kind = 'R';
+        if ($raceNum !== null && $raceNum > 0) {
+            $number = $raceNum;
+        } else {
+            $number = rr_monitor_next_kind_number($yearIndex, 'R');
+        }
+    }
+
+    $numStr = str_pad((string)$number, 2, '0', STR_PAD_LEFT);
+    $folder = $kind . $numStr . '_' . $raceSlug . '_' . $raceId;
+
+    if (!isset($yearIndex['races']) || !is_array($yearIndex['races'])) {
+        $yearIndex['races'] = [];
+    }
+
+    $yearIndex['races'][$raceId] = [
+        'folder' => $folder,
+        'kind' => $kind,
+        'number' => $number,
+        'race_url' => $raceUrl,
+        'race_name' => $raceName,
+    ];
+
+    rr_monitor_save_year_index($year, $yearFolder, $yearIndex);
+
+    return $folder;
+}
+
+// ------------------------- EMAIL HELPERS -------------------------
+function rr_monitor_public_host(string $docRoot, string $scriptDir): string
+{
+    $candidates = [];
+
+    if (!empty($_SERVER['HTTP_HOST'])) {
+        $candidates[] = (string)$_SERVER['HTTP_HOST'];
+    }
+
+    if (!empty($_SERVER['SERVER_NAME'])) {
+        $candidates[] = (string)$_SERVER['SERVER_NAME'];
+    }
+
+    $candidates[] = $docRoot;
+    $candidates[] = $scriptDir;
+
+    for ($i = 0; $i < count($candidates); $i++) {
+        $cand = (string)$candidates[$i];
+        if ($cand === '') continue;
+
+        if (preg_match('~([A-Za-z0-9.-]*manliusracingleague\.com)~i', $cand, $m)) {
+            return strtolower((string)$m[1]);
+        }
+    }
+
+    return 'manliusracingleague.com';
+}
+
+function rr_monitor_short_race_label(string $raceName): string
+{
+    $slug = rr_sanitize_for_folder($raceName);
+
+    $map = [
+        'Daytona_500' => 'Daytona',
+        'EchoPark_Automotive_Grand_Prix' => 'COTA',
+        'NASCAR_Cup_Series_at_Circuit_of_the_Americas' => 'COTA',
+        'NASCAR_Cup_Series_at_Atlanta' => 'Atlanta',
+        'NASCAR_Cup_Series_at_Phoenix' => 'Phoenix',
+    ];
+
+    if (isset($map[$slug])) {
+        return $map[$slug];
+    }
+
+    $slug = preg_replace('/^NASCAR_Cup_Series_at_/', '', $slug);
+    $slug = preg_replace('/^NASCAR_Cup_Series_/', '', $slug);
+    $slug = preg_replace('/^AT_/', '', $slug);
+    $slug = trim((string)$slug, '_');
+
+    if ($slug === '') {
+        $slug = 'Race';
+    }
+
+    return $slug;
+}
+
+function rr_monitor_subject_token(int $year, string $raceFolderName, string $raceName): string
+{
+    $raceCode = 'R00';
+    if (preg_match('/^(R|E|Z)\d{2}/', $raceFolderName, $m)) {
+        $raceCode = (string)$m[0];
+    }
+
+    $label = rr_monitor_short_race_label($raceName);
+
+    return $year . '_' . $raceCode . '_' . $label;
+}
+
+// ------------------------- LED COMPLETENESS CHECK -------------------------
+function rr_monitor_norm_header(string $s): string
+{
+    $s = trim($s);
+    $s = preg_replace('/\s+/', ' ', $s);
+    return strtoupper($s);
+}
+
+function rr_monitor_parse_int_cell(string $s): ?int
+{
+    $s = trim($s);
+    $s = preg_replace('/\s+/', ' ', $s);
+    $s = preg_replace('/[^0-9\-]/', '', $s);
+
+    if ($s === '' || $s === '-') return null;
+    if (!preg_match('/^-?\d+$/', $s)) return null;
+
+    return (int)$s;
+}
+
+/**
+ * Returns:
+ * [
+ *   'has_led_column' => bool,
+ *   'rows_checked'   => int,
+ *   'led_non_zero'   => int
+ * ]
+ */
+function rr_monitor_led_check(string $html): array
+{
+    $out = [
+        'has_led_column' => false,
+        'rows_checked' => 0,
+        'led_non_zero' => 0,
+    ];
+
+    libxml_use_internal_errors(true);
+    $dom = new DOMDocument();
+    $loaded = $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html, LIBXML_NOWARNING | LIBXML_NOERROR);
+    libxml_clear_errors();
+
+    if (!$loaded) {
+        return $out;
+    }
+
+    $xp = new DOMXPath($dom);
+    $tables = $xp->query('//table');
+
+    if (!$tables || $tables->length === 0) {
+        return $out;
+    }
+
+    $bestTable = null;
+    $bestHeaderRow = null;
+    $idxLed = null;
+
+    for ($t = 0; $t < $tables->length; $t++) {
+        $tbl = $tables->item($t);
+        if (!$tbl instanceof DOMElement) continue;
+
+        $rows = $xp->query('.//tr', $tbl);
+        if (!$rows || $rows->length === 0) continue;
+
+        for ($r = 0; $r < $rows->length; $r++) {
+            $row = $rows->item($r);
+            if (!$row instanceof DOMElement) continue;
+
+            $cells = $xp->query('./th|./td', $row);
+            if (!$cells || $cells->length < 5) continue;
+
+            $headers = [];
+            $hasPts = false;
+            $hasBonus = false;
+            $hasPenalty = false;
+            $foundLed = null;
+
+            for ($i = 0; $i < $cells->length; $i++) {
+                $txt = rr_monitor_norm_header((string)$cells->item($i)->textContent);
+                $headers[] = $txt;
+
+                if (strpos($txt, 'PTS') !== false || strpos($txt, 'POINT') !== false) $hasPts = true;
+                if (strpos($txt, 'BONUS') !== false) $hasBonus = true;
+                if (strpos($txt, 'PENALTY') !== false) $hasPenalty = true;
+                if ($foundLed === null && strpos($txt, 'LED') !== false) $foundLed = $i;
+            }
+
+            if ($hasPts && ($hasBonus || $hasPenalty) && $foundLed !== null) {
+                $bestTable = $tbl;
+                $bestHeaderRow = $row;
+                $idxLed = $foundLed;
+                break 2;
+            }
+        }
+    }
+
+    if (!$bestTable instanceof DOMElement || !$bestHeaderRow instanceof DOMElement || $idxLed === null) {
+        return $out;
+    }
+
+    $out['has_led_column'] = true;
+
+    $rows = $xp->query('.//tr[td]', $bestTable);
+    if (!$rows || $rows->length === 0) {
+        return $out;
+    }
+
+    $headerSeen = false;
+
+    for ($r = 0; $r < $rows->length; $r++) {
+        $row = $rows->item($r);
+        if (!$row instanceof DOMElement) continue;
+
+        if ($row->isSameNode($bestHeaderRow)) {
+            $headerSeen = true;
+            continue;
+        }
+        if (!$headerSeen) continue;
+
+        $tds = $xp->query('./td', $row);
+        if (!$tds || $tds->length === 0) continue;
+
+        $firstCell = trim((string)$tds->item(0)->textContent);
+        $posDigits = preg_replace('/\D+/', '', $firstCell);
+        if ($posDigits === '' || !preg_match('/^\d+$/', $posDigits)) continue;
+
+        $out['rows_checked']++;
+
+        if ($idxLed >= 0 && $idxLed < $tds->length) {
+            $v = rr_monitor_parse_int_cell((string)$tds->item($idxLed)->textContent);
+            if ($v !== null && $v !== 0) {
+                $out['led_non_zero']++;
+            }
+        }
+    }
+
+    return $out;
 }
 
 // ------------------------- MAIN -------------------------
@@ -148,6 +478,9 @@ $yearIndex = [];
 if (is_file($yearIndexFile)) {
     $yearIndex = rr_load_year_index($yearIndexFile);
 }
+if (!isset($yearIndex['races']) || !is_array($yearIndex['races'])) {
+    $yearIndex['races'] = [];
+}
 
 // 1) Find latest URL
 [$ok, $latestUrl, $err, $debug] = rr_find_latest_race_results_url($year, $timeoutSeconds);
@@ -182,22 +515,21 @@ $raceName = $latestRaceMeta ? (string)$latestRaceMeta['race_name'] : 'Race';
 $isExh = $latestRaceMeta ? (bool)$latestRaceMeta['is_exhibition'] : false;
 $raceNum = $latestRaceMeta ? $latestRaceMeta['race_number'] : null;
 
-// Folder naming: prefer year index if it has a known folder for this raceId
+// Folder naming: prefer year index if it has a known folder for this raceId;
+// if not, assign/update year index now.
 $yearFolder = __DIR__ . '/' . $yKey;
 rr_ensure_dir($yearFolder);
 
-$raceFolderName = rr_year_index_folder_for_race($yearIndex, $raceId);
-
-if ($raceFolderName === null) {
-    // Fallback (should be rare once backfill created year index)
-    $raceSlug = rr_sanitize_for_folder($raceName);
-    if ($isExh) {
-        $raceFolderName = 'E00_' . $raceSlug . '_' . $raceId;
-    } else {
-        $n = ($raceNum === null) ? '00' : str_pad((string)$raceNum, 2, '0', STR_PAD_LEFT);
-        $raceFolderName = 'R' . $n . '_' . $raceSlug . '_' . $raceId;
-    }
-}
+$raceFolderName = rr_monitor_assign_folder_and_update_index(
+    $year,
+    $raceId,
+    $latestUrl,
+    $raceName,
+    $isExh,
+    $raceNum,
+    $yearFolder,
+    $yearIndex
+);
 
 $raceFolder = $yearFolder . '/' . $raceFolderName;
 
@@ -243,6 +575,15 @@ if (!$ok2) {
 // 4) Detect FINAL
 [$isFinal, $reason, $details] = rr_detect_final_scoring_nonzero($html2);
 
+// Additional completeness gate: LED must not be all zero
+$ledCheck = rr_monitor_led_check($html2);
+$ledReady = ($ledCheck['has_led_column'] && (int)$ledCheck['led_non_zero'] > 0);
+
+if ($isFinal && !$ledReady) {
+    $isFinal = false;
+    $reason = 'Scoring table has non-zero PTS, but LED column is still all zero.';
+}
+
 $yearState['final_check'] = [
     'is_final' => $isFinal,
     'reason' => $reason,
@@ -254,6 +595,9 @@ $yearState['final_check'] = [
     'col_index' => $details['colIndex'] ?? [],
     'tables_found' => (int)($details['tablesFound'] ?? 0),
     'header_row_found' => (bool)($details['headerRowFound'] ?? false),
+    'led_has_column' => (bool)$ledCheck['has_led_column'],
+    'led_rows_checked' => (int)$ledCheck['rows_checked'],
+    'led_non_zero' => (int)$ledCheck['led_non_zero'],
 ];
 
 $state['byYear'][$yKey] = $yearState;
@@ -307,30 +651,49 @@ if (!$shouldEmail) {
 }
 
 // Save snapshot
+$snapshotPath = '';
 if ($snapshotsEnabled) {
     $tsFile = rr_preferred_timestamp(true);
-    rr_save_snapshot_html($raceFolder, $tsFile, $html2, $snapshotMaxBytes);
+    $snapshotPath = rr_save_snapshot_html($raceFolder, $tsFile, $html2, $snapshotMaxBytes);
     rr_save_snapshot_summary($raceFolder, $tsFile, $html2);
     rr_atomic_write($hashFilePath, $finalHashNow . "\n");
     rr_log_line($logFile, "SNAPSHOT SAVED in " . basename($raceFolder));
 }
 
-// Update state
+// Update state BEFORE email
 $yearState['final_sent_for_url'] = $latestUrl;
 $yearState['final_table_hash'] = $finalHashNow;
 
 $state['byYear'][$yKey] = $yearState;
 rr_save_json($stateFile, $state);
 
-// Send email
-$subject = $subjectFinal;
+// Build subject + HTML email
+$publicHost = rr_monitor_public_host($docRoot, __DIR__);
+$subjectToken = rr_monitor_subject_token($year, $raceFolderName, $raceName);
+$subject = $subjectPrefix . $subjectToken;
+
+$raceResultsLink = $latestUrl;
+$mrlSnapshotLink = '';
+
+if ($snapshotPath !== '') {
+    $snapshotBase = basename($snapshotPath);
+    $mrlSnapshotLink = 'https://' . $publicHost
+        . '/race_results/' . rawurlencode($yKey)
+        . '/' . rawurlencode($raceFolderName)
+        . '/' . rawurlencode($snapshotBase);
+}
 
 $message =
-    "FINAL scoring appears to be posted on ESPN (non-zero scoring detected).\n\n" .
-    "Year: {$year}\n" .
-    "URL : {$latestUrl}\n\n" .
-    "Reason: {$reason}\n" .
-    "Note: This email will only repeat if ESPN changes the results again.\n";
+    'Results Detected for ' . htmlspecialchars($subjectToken, ENT_QUOTES, 'UTF-8') . '<br>' .
+    '<a href="' . htmlspecialchars($raceResultsLink, ENT_QUOTES, 'UTF-8') . '">Race Results</a><br>' .
+    (
+        $mrlSnapshotLink !== ''
+            ? '<a href="' . htmlspecialchars($mrlSnapshotLink, ENT_QUOTES, 'UTF-8') . '">MRL Snapshot</a>'
+            : ''
+    ) .
+    '<hr>' .
+    'Reason: ' . htmlspecialchars($reason, ENT_QUOTES, 'UTF-8') . '<br>' .
+    'Note: This email will only repeat if changes to the results have been detected.';
 
 $sentOk = false;
 

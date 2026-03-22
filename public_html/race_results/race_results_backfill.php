@@ -4,35 +4,21 @@ declare(strict_types=1);
 /**
  * race_results_backfill.php
  *
- * VERSION: v1.02.00.02
- * LAST MODIFIED: 2026-02-28
- * BUILD TS: 20260228.060413
+ * VERSION: v003
+ * LAST MODIFIED: 3/14/2026 5:50:22 AM
  *
  * CHANGELOG:
- * v1.02.00.02 (2026-02-28)
- *   - FIX: Prevent duplicate snapshots when rerunning backfill after state reset:
- *       - If race folder already has final_table_hash.txt matching current stable data hash,
- *         treat as already captured and do not create a new snapshot.
- *   - Uses stable data hash from engine (not raw HTML hash) for change detection.
+ * v003 (3/14/2026)
+ *   - FIX: Skip empty placeholder race pages during backfill.
+ *   - Backfill now ignores race pages that:
+ *       - contain "No data available"
+ *       - or contain zero real data rows in the results table
+ *   - Prevents phantom races (such as the extra 2021 Daytona page)
+ *     from being assigned race numbers, folders, snapshots, and year index entries.
+ *   - Added explicit log/output message when a race is skipped for empty results.
  *
- * v1.02.00.01 (2026-02-27)
- *   - NEW: Folder naming scheme:
- *       * Points races: R01..R36
- *       * Exhibition races: E01..E##
- *       * Anomaly races (duplicate points-name + zero scoring): Z01..Z##
- *   - NEW: Backfill writes /race_results/<year>/_year_index.json
- *       - raceId -> folder name, kind (R/E/Z), number, url, name
- *       - monitor can use this to avoid mis-numbering and avoid heavy cron fetches
- *   - FIX: Duplicate points-name handling:
- *       - Two-race weekends remain R races (because they are FINAL)
- *       - Only the zero-scoring duplicate becomes Z (like 2021 Daytona placeholder)
- *
- * v1.01 (2026-02-25)
- *   - Removed accidental second "<?php" / duplicate declare that could cause HTTP 500.
- *   - Added shutdown handler to log fatal errors cleanly and show a simple browser message.
- *
- * v1.0 (2026-02-25)
- *   - Manual/backfill tool for a full year page
+ * v002
+ *   - Prior working version before empty-race placeholder filter.
  *
  * Email:
  *   - OFF by default.
@@ -49,7 +35,7 @@ ini_set('log_errors', '1');
 ini_set('error_log', __DIR__ . '/_race_results_backfill_php_errors.log');
 error_reporting(E_ALL);
 
-const RR_BACKFILL_SIGNATURE = 'RACE_RESULTS_BACKFILL v1.02.00.02';
+const RR_BACKFILL_SIGNATURE = 'RACE_RESULTS_BACKFILL v003';
 
 require_once __DIR__ . '/race_results_engine.php';
 
@@ -146,6 +132,84 @@ function rr_backfill_save_year_index(int $year, string $yearFolder, array $index
     rr_save_json($path, $index);
 }
 
+/**
+ * Detect obvious empty / placeholder ESPN results pages.
+ *
+ * Returns:
+ * [
+ *   'is_empty' => bool,
+ *   'reason' => string,
+ *   'data_rows' => int,
+ * ]
+ */
+function rr_backfill_empty_results_info(string $html): array
+{
+    $info = [
+        'is_empty' => false,
+        'reason' => '',
+        'data_rows' => 0,
+    ];
+
+    if ($html === '') {
+        $info['is_empty'] = true;
+        $info['reason'] = 'Empty HTML response.';
+        return $info;
+    }
+
+    if (stripos($html, 'No data available') !== false) {
+        $info['is_empty'] = true;
+        $info['reason'] = 'Page contains "No data available".';
+        return $info;
+    }
+
+    libxml_use_internal_errors(true);
+
+    $dom = new DOMDocument();
+    $loaded = @$dom->loadHTML($html);
+
+    if (!$loaded) {
+        // If DOM parse fails, do not skip the page on this check alone.
+        return $info;
+    }
+
+    $xpath = new DOMXPath($dom);
+
+    // Count rows that appear to be actual table data rows.
+    // We only count rows with at least 2 TDs and without "No data available".
+    $rows = $xpath->query('//table//tr');
+    $dataRows = 0;
+
+    if ($rows !== false) {
+        foreach ($rows as $tr) {
+            /** @var DOMElement $tr */
+            $tds = $xpath->query('./td', $tr);
+            if ($tds === false || $tds->length < 2) {
+                continue;
+            }
+
+            $rowText = trim(preg_replace('/\s+/', ' ', (string)$tr->textContent));
+            if ($rowText === '') {
+                continue;
+            }
+
+            if (stripos($rowText, 'No data available') !== false) {
+                continue;
+            }
+
+            $dataRows++;
+        }
+    }
+
+    $info['data_rows'] = $dataRows;
+
+    if ($dataRows === 0) {
+        $info['is_empty'] = true;
+        $info['reason'] = 'No real data rows found in results table.';
+    }
+
+    return $info;
+}
+
 // ------------------------- MAIN -------------------------
 rr_log_line($logFile, RR_BACKFILL_SIGNATURE . " START year={$year} sapi=" . PHP_SAPI);
 rr_backfill_out("Backfill year {$year} started...");
@@ -207,6 +271,48 @@ for ($i = 0; $i < count($races); $i++) {
     $raceName = (string)$race['race_name'];
     $raceSlug = rr_sanitize_for_folder($raceName);
 
+    // Fetch race page early so we can reject empty placeholder pages
+    [$okR, $statusR, $htmlR, $errR] = rr_fetch_url($raceUrl, $timeoutSeconds);
+
+    if (!$okR) {
+        // Ensure state exists before writing fetch error info
+        if (!isset($yearState['races'][$raceId]) || !is_array($yearState['races'][$raceId])) {
+            $yearState['races'][$raceId] = [
+                'race_url' => $raceUrl,
+                'race_name' => $raceName,
+                'race_number' => null,
+                'exhibition_number' => null,
+                'anomaly_number' => null,
+                'is_exhibition' => false,
+                'final_seen' => false,
+                'final_table_hash' => '',
+                'last_checked_at' => '',
+                'last_reason' => '',
+            ];
+        }
+
+        $yearState['races'][$raceId]['race_url'] = $raceUrl;
+        $yearState['races'][$raceId]['race_name'] = $raceName;
+        $yearState['races'][$raceId]['last_checked_at'] = date('c');
+        $yearState['races'][$raceId]['last_reason'] = "HTTP {$statusR}: {$errR}";
+
+        rr_log_line($logFile, "Race {$raceId} fetch ERROR (HTTP {$statusR})");
+        continue;
+    }
+
+    // Skip empty placeholder pages before assigning numbering/folders/index entries
+    $emptyInfo = rr_backfill_empty_results_info($htmlR);
+    if ($emptyInfo['is_empty']) {
+        rr_log_line(
+            $logFile,
+            "Race {$raceId} SKIPPED empty results page: {$emptyInfo['reason']} url={$raceUrl}"
+        );
+        rr_backfill_out(
+            "SKIPPED race {$raceId}: {$raceName} — {$emptyInfo['reason']}"
+        );
+        continue;
+    }
+
     $isPoints = rr_is_points_by_include($raceName);
 
     // Determine kind + numbering
@@ -249,15 +355,7 @@ for ($i = 0; $i < count($races); $i++) {
         $yearState['races'][$raceId]['race_name'] = $raceName;
     }
 
-    // Fetch race page
-    [$okR, $statusR, $htmlR, $errR] = rr_fetch_url($raceUrl, $timeoutSeconds);
     $yearState['races'][$raceId]['last_checked_at'] = date('c');
-
-    if (!$okR) {
-        $yearState['races'][$raceId]['last_reason'] = "HTTP {$statusR}: {$errR}";
-        rr_log_line($logFile, "Race {$raceId} fetch ERROR (HTTP {$statusR})");
-        continue;
-    }
 
     // Detect final scoring (stable data hash now comes from engine)
     [$isFinal, $reason, $details] = rr_detect_final_scoring_nonzero($htmlR);
