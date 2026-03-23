@@ -14,11 +14,16 @@ require_once $_SERVER['DOCUMENT_ROOT'] . '/sandbox.html';
 /**
  * weekly_standings.php
  *
- * VERSION: v040
- * LAST MODIFIED: 3/22/2026 1:16:25 am
+ * VERSION: v041
+ * LAST MODIFIED: 3/23/2026 12:21:45 am
  *
  *
  * CHANGELOG:
+ *
+ * v041 (3/23/2026)
+ *   - CHANGE: Added under_review.flag support to indicate a race is Pending Review when the flag file exists in the race folder.
+ *   - CHANGE: Added "⚠ Pending Review" button next to the Validation button with expandable detail panel.
+ *   - CHANGE: Pending Review indicator is controlled by presence of under_review.flag and can apply to any race.
  *
  * v040 (3/18/2026)
  *   - CHANGE: Added a Live button before the dropdowns that jumps to the latest year + latest race and dims when already on the live view.
@@ -868,6 +873,11 @@ if ((int)$selectedYear < 2026 && $selectedRace !== null) {
         . ' may contain minor historical scoring differences due to late picks, replacement drivers, and other league adjustments.';
 }
 
+$underReview = false;
+if ($selectedRace !== null) {
+    $underReview = is_file((string)$selectedRace['raceFolder'] . '/under_review.flag');
+}
+
 $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
 
 ?>
@@ -1033,6 +1043,32 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
 
         .validation-btn[disabled]:hover {
             filter: none;
+        }
+
+        .pending-review-btn {
+            font-weight: bold;
+            min-width: 145px;
+            border-radius: 25px;
+            background: #f1c232;
+            color: #000;
+            border: 3px solid #b8961c;
+        }
+
+        .pending-review-btn:hover {
+            filter: brightness(0.95);
+        }
+
+        .pending-review-panel {
+            display: none;
+            margin: 6px 0 8px 0;
+            padding: 8px 10px;
+            font-size: 13px;
+            line-height: 1.35;
+            background: #fff7d6;
+            border: 2px solid #e2c14c;
+            color: #444;
+            border-radius: 8px;
+            max-width: 560px;
         }
 
         .race-placeholder {
@@ -1261,6 +1297,16 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
                 min-width: 58px;
             }
 
+            .pending-review-btn {
+                min-width: 132px;
+            }
+
+            .pending-review-panel {
+                font-size: 12px;
+                padding: 8px 9px;
+                max-width: 100%;
+            }
+
             .historical-note-slot {
                 width: 100%;
                 white-space: normal;
@@ -1346,9 +1392,24 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
                 Show Validation
             </button>
 
+            <?php if ($underReview): ?>
+                <button type="button"
+                        class="details-toggle pending-review-btn"
+                        id="reviewToggle"
+                        onclick="toggleReviewPanel()">
+                    ⚠ Pending Review
+                </button>
+            <?php endif; ?>
+
             <span class="historical-note-slot" id="historicalNoteSlot"><?php echo ($historicalNote !== '' ? rrsg_h($historicalNote) : '&nbsp;'); ?></span>
         </div>
     </div>
+
+    <?php if ($underReview): ?>
+        <div class="pending-review-panel" id="reviewPanel">
+            Results generated automatically. Pending league review.
+        </div>
+    <?php endif; ?>
 
     <div class="race-placeholder" id="racePlaceholder" <?php echo ($selectedRace !== null ? 'style="display:none;"' : ''); ?>>
         Select a race to view results
@@ -1884,6 +1945,20 @@ function navigateRace(direction) {
     formEl.submit();
 }
 
+function toggleReviewPanel() {
+    var panel = document.getElementById('reviewPanel');
+
+    if (!panel) {
+        return;
+    }
+
+    if (panel.style.display === 'none' || panel.style.display === '') {
+        panel.style.display = 'block';
+    } else {
+        panel.style.display = 'none';
+    }
+}
+
 function toggleDetails() {
     var details = document.getElementById('detailsContent');
     var button = document.getElementById('detailsToggle');
@@ -1927,6 +2002,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var raceEl = document.getElementById('race');
     var detailsEl = document.getElementById('detailsContent');
     var detailsBtn = document.getElementById('detailsToggle');
+    var reviewPanel = document.getElementById('reviewPanel');
 
     if (yearEl) {
         yearEl.addEventListener('change', function () {
@@ -1966,6 +2042,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (detailsBtn) {
         detailsBtn.textContent = 'Show Validation';
+    }
+
+    if (reviewPanel) {
+        reviewPanel.style.display = 'none';
     }
 
     updateNavButtons();

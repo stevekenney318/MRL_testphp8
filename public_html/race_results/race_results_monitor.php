@@ -4,9 +4,16 @@ declare(strict_types=1);
 /**
  * race_results_monitor.php
  *
- * VERSION: v1.02.00.04
- * LAST MODIFIED: 2026-03-12
- * BUILD TS: 20260312_072308
+ * VERSION: v125
+ * LAST MODIFIED: 3/23/2026 1:10:14 am
+ *
+ *
+ * CHANGELOG:
+ *
+ * v125 (3/23/2026)
+ *   - CHANGE: Added automatic under_review.flag creation when a new or revised snapshot is written.
+ *   - CHANGE: Pending review state now reappears automatically when result changes trigger a new snapshot.
+ *   - CHANGE: Updated header versioning to v125 format while preserving existing monitor behavior.
  *
  * CHANGELOG:
  * v1.02.00.04 (2026-03-12)
@@ -59,7 +66,7 @@ ini_set('log_errors', '1');
 ini_set('error_log', __DIR__ . '/_race_results_monitor_php_errors.log');
 error_reporting(E_ALL);
 
-const RR_MONITOR_SIGNATURE = 'RACE_RESULTS_MONITOR v1.02.00.04';
+const RR_MONITOR_SIGNATURE = 'RACE_RESULTS_MONITOR v125';
 
 require_once __DIR__ . '/race_results_engine.php';
 
@@ -657,6 +664,7 @@ if ($snapshotsEnabled) {
     $snapshotPath = rr_save_snapshot_html($raceFolder, $tsFile, $html2, $snapshotMaxBytes);
     rr_save_snapshot_summary($raceFolder, $tsFile, $html2);
     rr_atomic_write($hashFilePath, $finalHashNow . "\n");
+    touch($raceFolder . '/under_review.flag');
     rr_log_line($logFile, "SNAPSHOT SAVED in " . basename($raceFolder));
 }
 
