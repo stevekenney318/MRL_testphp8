@@ -14,11 +14,20 @@ require_once $_SERVER['DOCUMENT_ROOT'] . '/sandbox.html';
 /**
  * weekly_standings.php
  *
- * VERSION: v041
- * LAST MODIFIED: 3/23/2026 12:21:45 am
- *
+ * VERSION: v042
+ * LAST MODIFIED: 3/23/2026 5:29:45 am
  *
  * CHANGELOG:
+ *
+ * v042 (3/23/2026)
+ *   - CHANGE: Unified row striping across all four tables.
+ *   - CHANGE: Three CSS variables now control all row colors from one place:
+ *       --row-odd    (default white, odd rows all tables)
+ *       --row-even   (stripe color, even rows all tables)
+ *       --row-detail (expanded detail section background)
+ *   - CHANGE: Added labeled comment block for easy discovery of color variables.
+ *   - CHANGE: stripe-a/stripe-b retained for tables with expandable detail rows.
+ *   - CHANGE: Default td background set to var(--row-odd) to prevent page bleed-through.
  *
  * v041 (3/23/2026)
  *   - CHANGE: Added under_review.flag support to indicate a race is Pending Review when the flag file exists in the race folder.
@@ -1159,6 +1168,7 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
             text-align: center;
             vertical-align: top;
             white-space: nowrap;
+            background: var(--row-odd);
         }
 
         th {
@@ -1171,8 +1181,32 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
             white-space: nowrap;
         }
 
-        tr:nth-child(even) td {
-            background: #dce6f1;
+        /* ── Table Row Colors - Striping — edit here to change all tables ──────── */
+        /* ── original colors ──
+        /* :root {
+            --row-odd:    #ffffff;
+            --row-even:   #dce6f1;
+            --row-detail: #f4f4f4;
+        } */
+
+        :root {
+            --row-odd:    #ffffff;
+            --row-even:   #d2e5f7;
+            --row-detail: #f4f4f4;
+        }
+
+        tbody tr:nth-child(even):not(.stripe-a):not(.stripe-b):not(.team-detail-row) td {
+            background: var(--row-even);
+        }
+
+        /* Manual stripe classes for tables with expandable detail rows
+           (nth-child counts hidden rows and breaks the pattern) */
+        .stripe-a td {
+            background: var(--row-odd);
+        }
+
+        .stripe-b td {
+            background: var(--row-even);
         }
 
         th.team-col,
@@ -1183,14 +1217,6 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
         th.debug-text-col,
         td.debug-text-col {
             text-align: left;
-        }
-
-        .stripe-a td {
-            background: #ffffff;
-        }
-
-        .stripe-b td {
-            background: #dce6f1;
         }
 
         .col-rank {
@@ -1214,7 +1240,7 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
            ========================================================== */
 
         .team-detail-row > td {
-            background: #f4f4f4 !important;
+            background: var(--row-detail) !important;
             padding: 4px 8px 4px 8px;
         }
 
@@ -1251,7 +1277,7 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
         .team-detail-points {
             text-align: center;
             white-space: nowrap;
-            background: #e9edf2;
+            background: var(--row-detail);
         }
 
         .team-detail-total .team-detail-driver,
@@ -1600,9 +1626,12 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
                             <?php else: ?>
                                 <?php $rank = 1; ?>
                                 <?php foreach ($segmentStandings as $row): ?>
-                                    <?php $detailId = 'segment-detail-' . $rank; ?>
+                                    <?php
+                                    $detailId = 'segment-detail-' . $rank;
+                                    $stripeClass = ($rank % 2 === 1) ? 'stripe-a' : 'stripe-b';
+                                    ?>
                                     <tr
-                                        class="team-row weekly-click-row"
+                                        class="team-row weekly-click-row <?php echo $stripeClass; ?>"
                                         onclick="toggleWeeklyDetail('<?php echo rrsg_h($detailId); ?>', this)"
                                     >
                                         <td class="num"><?php echo $rank; ?></td>
@@ -1665,9 +1694,12 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
                             <?php else: ?>
                                 <?php $rank = 1; ?>
                                 <?php foreach ($seasonStandings as $row): ?>
-                                    <?php $detailId = 'year-detail-' . $rank; ?>
+                                    <?php
+                                    $detailId = 'year-detail-' . $rank;
+                                    $stripeClass = ($rank % 2 === 1) ? 'stripe-a' : 'stripe-b';
+                                    ?>
                                     <tr
-                                        class="team-row weekly-click-row"
+                                        class="team-row weekly-click-row <?php echo $stripeClass; ?>"
                                         onclick="toggleWeeklyDetail('<?php echo rrsg_h($detailId); ?>', this)"
                                     >
                                         <td class="num"><?php echo $rank; ?></td>
