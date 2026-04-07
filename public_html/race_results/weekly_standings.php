@@ -14,10 +14,31 @@ require_once $_SERVER['DOCUMENT_ROOT'] . '/sandbox.html';
 /**
  * weekly_standings.php
  *
- * VERSION: v042
- * LAST MODIFIED: 3/23/2026 5:29:45 am
+ * VERSION: v048
+ * LAST MODIFIED: 4/7/2026 7:22:30 am
  *
  * CHANGELOG:
+ *
+ * v048 (4/7/2026)
+ *   - FIX: Live scoring special-pick overlay now uses only user_picks for LP / RD rows.
+ *   - FIX: Removed user_picks_history from weekly scoring resolution so audit history no longer affects live results.
+ *   - CHANGE: Preserved existing SEG base-row scoring before RD effective_race and existing LP pre-effective blanking behavior.
+ *
+ * v046 (4/3/2026)
+ *   - FIX: Preserved original SEG row scoring before an RD row's effective_race.
+ *   - FIX: Prevented future RD rows from incorrectly blanking pre-effective races as 'No Picks'.
+ *   - CHANGE: LP pre-effective blanking still works, but RD now correctly overlays only from its effective_race forward.
+ *
+ * v045 (4/1/2026)
+ *   - CHANGE: Added cumulative validation warnings for missed races with no active picks through the selected race.
+ *   - CHANGE: Weekly detail rows now show 'No Picks' instead of four zero-value driver rows when no active picks exist.
+ *   - CHANGE: Weekly detail rows now show 'No Picks (LP effective R##)' when an LP row exists but has not taken effect yet.
+ *
+ * v044 (3/31/2026)
+ *   - CHANGE: Weekly scoring now starts from normal segment picks and overlays LP / RD rows race-by-race.
+ *   - CHANGE: LP rows now correctly score 0 before effective_race while other teams keep normal scores.
+ *   - CHANGE: Special-pick overlay logic now affects only teams with LP / RD rows instead of replacing the full segment team set.
+ *   - CHANGE: Validation warns when LP or RD rows affect the selected race.
  *
  * v042 (3/23/2026)
  *   - CHANGE: Unified row striping across all four tables.
@@ -481,7 +502,9 @@ function rrsg_segment_breakdown_rows(
             continue;
         }
 
-        $raceTeamRows = rr_get_segment_team_picks($dbo ?? null, $dbconnect ?? null, $selectedYear, $scoreSegment);
+        $raceTeamRowsBase = rr_get_segment_team_picks($dbo ?? null, $dbconnect ?? null, $selectedYear, $scoreSegment);
+        $raceTeamRowsSpecial = rrsg_special_pick_rows($selectedYear, $scoreSegment, $dbo ?? null);
+        $raceTeamRows = rrsg_overlay_special_rows_for_race($raceTeamRowsBase, $raceTeamRowsSpecial, $raceNumber, $scoreSegment);
         $snapshotFile = rrsg_find_snapshot_file((string)$race['raceFolder']);
         if ($snapshotFile === '') {
             continue;
@@ -514,6 +537,248 @@ function rrsg_visible_segments(string $scoreSegment): array
 
     return $result;
 }
+
+
+function rrsg_special_pick_rows(string $raceYear, string $segment, $dbo): array
+{
+    if (!($dbo instanceof PDO)) {
+        return [];
+    }
+
+    $sql = "
+        SELECT
+            'current' AS src,
+            up.userID,
+            up.teamName,
+            COALESCE(u.userName, '') AS userName,
+            up.raceYear,
+            up.segment,
+            up.driverA,
+            up.driverB,
+            up.driverC,
+            up.driverD,
+            up.entryDate,
+            up.submission_id,
+            up.formID,
+            up.pick_type,
+            up.effective_race,
+            up.supersedes_pickID
+        FROM user_picks up
+        LEFT JOIN users u ON u.userID = up.userID
+        WHERE up.raceYear = :raceYear
+          AND up.segment = :segment
+          AND up.pick_type IN ('LP', 'RD')
+        ORDER BY up.teamName ASC, up.effective_race ASC, up.entryDate ASC, up.pickID ASC
+    ";
+
+    $stmt = $dbo->prepare($sql);
+    $stmt->execute([
+        ':raceYear' => $raceYear,
+        ':segment' => $segment,
+    ]);
+
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    return is_array($rows) ? $rows : [];
+}
+
+function rrsg_overlay_special_rows_for_race(array $baseTeamRows, array $specialRows, int $raceNumber, string $segment): array
+{
+    $rowsByTeam = [];
+
+    foreach ($baseTeamRows as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+
+        $teamName = (string)($row['teamName'] ?? '');
+        if ($teamName === '') {
+            continue;
+        }
+
+        $row['pick_type'] = (string)($row['pick_type'] ?? 'SEG');
+        $row['effective_race'] = (int)($row['effective_race'] ?? rrsg_segment_bounds($segment)['start']);
+        $rowsByTeam[$teamName] = $row;
+    }
+
+    $specialByTeam = [];
+    foreach ($specialRows as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+
+        $teamName = (string)($row['teamName'] ?? '');
+        if ($teamName === '') {
+            continue;
+        }
+
+        if (!isset($specialByTeam[$teamName])) {
+            $specialByTeam[$teamName] = [];
+        }
+        $specialByTeam[$teamName][] = $row;
+    }
+
+    foreach ($specialByTeam as $teamName => $teamRows) {
+        usort($teamRows, function ($a, $b) {
+            $aRace = (int)($a['effective_race'] ?? 0);
+            $bRace = (int)($b['effective_race'] ?? 0);
+
+            if ($aRace !== $bRace) {
+                return ($aRace <=> $bRace);
+            }
+
+            $aDate = strtotime((string)($a['entryDate'] ?? ''));
+            $bDate = strtotime((string)($b['entryDate'] ?? ''));
+
+            if ($aDate !== $bDate) {
+                return ($aDate <=> $bDate);
+            }
+
+            return strcmp((string)($a['src'] ?? ''), (string)($b['src'] ?? ''));
+        });
+
+        $applicable = null;
+        $firstSpecial = $teamRows[0];
+
+        foreach ($teamRows as $row) {
+            $effectiveRace = (int)($row['effective_race'] ?? 0);
+            if ($effectiveRace <= $raceNumber) {
+                $applicable = $row;
+            }
+        }
+
+        if ($applicable !== null) {
+            $rowsByTeam[$teamName] = [
+                'teamName' => $teamName,
+                'userName' => (string)($applicable['userName'] ?? ($rowsByTeam[$teamName]['userName'] ?? '')),
+                'driverA' => (string)($applicable['driverA'] ?? ''),
+                'driverB' => (string)($applicable['driverB'] ?? ''),
+                'driverC' => (string)($applicable['driverC'] ?? ''),
+                'driverD' => (string)($applicable['driverD'] ?? ''),
+                'pick_type' => (string)($applicable['pick_type'] ?? ''),
+                'effective_race' => (int)($applicable['effective_race'] ?? 0),
+            ];
+            continue;
+        }
+
+        $firstEffectiveRace = (int)($firstSpecial['effective_race'] ?? 0);
+
+        if ($firstEffectiveRace > $raceNumber) {
+            $existingBaseRow = isset($rowsByTeam[$teamName]) && is_array($rowsByTeam[$teamName])
+                ? $rowsByTeam[$teamName]
+                : null;
+
+            $existingBasePickType = strtoupper((string)($existingBaseRow['pick_type'] ?? ''));
+
+            /*
+             * LP before effective race should show as no picks.
+             * RD before effective race should preserve the underlying SEG/base row.
+             */
+            if ($existingBaseRow === null || $existingBasePickType === 'LP') {
+                $rowsByTeam[$teamName] = [
+                    'teamName' => $teamName,
+                    'userName' => (string)($firstSpecial['userName'] ?? ($rowsByTeam[$teamName]['userName'] ?? '')),
+                    'driverA' => '',
+                    'driverB' => '',
+                    'driverC' => '',
+                    'driverD' => '',
+                    'pick_type' => (string)($firstSpecial['pick_type'] ?? ''),
+                    'effective_race' => $firstEffectiveRace,
+                ];
+            }
+        }
+    }
+
+    $rows = array_values($rowsByTeam);
+    usort($rows, function ($a, $b) {
+        return strcasecmp((string)($a['teamName'] ?? ''), (string)($b['teamName'] ?? ''));
+    });
+
+    return $rows;
+}
+
+function rrsg_collect_special_pick_warnings(array $weeklyRows, string $selectedRaceCode): array
+{
+    $warnings = [];
+
+    foreach ($weeklyRows as $row) {
+        $pickType = strtoupper((string)($row['pick_type'] ?? ''));
+        if ($pickType !== 'LP' && $pickType !== 'RD') {
+            continue;
+        }
+
+        $teamName = (string)($row['teamName'] ?? '');
+        $effectiveRace = (int)($row['effective_race'] ?? 0);
+
+        $warnings[] = $pickType . ' active for ' . $teamName . ' starting race ' . $effectiveRace . ' (selected race ' . $selectedRaceCode . ').';
+    }
+
+    return $warnings;
+}
+
+
+function rrsg_no_picks_message(array $row): string
+{
+    $pickType = strtoupper((string)($row['pick_type'] ?? ''));
+    $effectiveRace = (int)($row['effective_race'] ?? 0);
+
+    if ($pickType === 'LP' && $effectiveRace > 0) {
+        return 'No Picks (LP effective R' . str_pad((string)$effectiveRace, 2, '0', STR_PAD_LEFT) . ')';
+    }
+
+    return 'No Picks';
+}
+
+function rrsg_collect_missing_pick_warnings(
+    int $selectedRaceNumber,
+    array $pointRaces,
+    array $selectedRaceWeeklyRows
+): array {
+    $warnings = [];
+    $labelByNumber = [];
+
+    foreach ($pointRaces as $race) {
+        $raceNumber = (int)($race['number'] ?? 0);
+        if ($raceNumber <= 0 || $raceNumber > $selectedRaceNumber) {
+            continue;
+        }
+
+        $labelByNumber[$raceNumber] = (string)($race['raceCode'] ?? '') . ' ' . rrsg_short_race_label((string)($race['raceName'] ?? ''));
+    }
+
+    foreach ($selectedRaceWeeklyRows as $row) {
+        $driverA = trim((string)($row['driverA'] ?? ''));
+        $driverB = trim((string)($row['driverB'] ?? ''));
+        $driverC = trim((string)($row['driverC'] ?? ''));
+        $driverD = trim((string)($row['driverD'] ?? ''));
+        $teamName = (string)($row['teamName'] ?? '');
+        $effectiveRace = (int)($row['effective_race'] ?? 0);
+
+        if ($teamName === '') {
+            continue;
+        }
+
+        if ($driverA !== '' || $driverB !== '' || $driverC !== '' || $driverD !== '') {
+            continue;
+        }
+
+        if ($effectiveRace <= 1) {
+            $effectiveRace = $selectedRaceNumber + 1;
+        }
+
+        for ($rn = 1; $rn <= $selectedRaceNumber; $rn++) {
+            if (!isset($labelByNumber[$rn])) {
+                continue;
+            }
+
+            if ($rn < $effectiveRace) {
+                $warnings[] = 'No picks for ' . $teamName . ' in ' . $labelByNumber[$rn];
+            }
+        }
+    }
+
+    return $warnings;
+}
+
 
 /* ------------------------------------------------------------------
    INPUTS
@@ -584,7 +849,9 @@ if ($selectedRace !== null) {
     $selectedRaceDisplay = (string)$selectedRace['raceCode'] . ' ' . rrsg_short_race_label((string)$selectedRace['raceName']);
 }
 
-$teamRows = rr_get_segment_team_picks($dbo ?? null, $dbconnect ?? null, $scoreYear, $scoreSegment);
+$teamRowsBase = rr_get_segment_team_picks($dbo ?? null, $dbconnect ?? null, $scoreYear, $scoreSegment);
+$teamRowsSpecial = rrsg_special_pick_rows($scoreYear, $scoreSegment, $dbo ?? null);
+$teamRows = rrsg_overlay_special_rows_for_race($teamRowsBase, $teamRowsSpecial, $selectedRaceNumber, $scoreSegment);
 
 $segmentTotals = [];
 $seasonTotals = [];
@@ -633,7 +900,9 @@ if ($selectedRace !== null) {
         }
 
         $raceSegment = rrsg_segment_from_race_number($raceNumber);
-        $raceTeamRows = rr_get_segment_team_picks($dbo ?? null, $dbconnect ?? null, $selectedYear, $raceSegment);
+        $raceTeamRowsBase = rr_get_segment_team_picks($dbo ?? null, $dbconnect ?? null, $selectedYear, $raceSegment);
+        $raceTeamRowsSpecial = rrsg_special_pick_rows($selectedYear, $raceSegment, $dbo ?? null);
+        $raceTeamRows = rrsg_overlay_special_rows_for_race($raceTeamRowsBase, $raceTeamRowsSpecial, $raceNumber, $raceSegment);
 
         $snapshotFile = rrsg_find_snapshot_file($raceFolder);
         $driverPoints = [];
@@ -806,6 +1075,24 @@ if ($selectedRace === null) {
         }
     } else {
         rrsg_add_validation($validation, 'pass', 'No unexpected zero scores detected.');
+    }
+
+    $specialPickWarnings = rrsg_collect_special_pick_warnings($selectedRaceWeeklyRows, $selectedRaceCode);
+    if (!empty($specialPickWarnings)) {
+        foreach ($specialPickWarnings as $warningMsg) {
+            rrsg_add_validation($validation, 'warn', $warningMsg);
+        }
+    }
+
+    $missingPickWarnings = rrsg_collect_missing_pick_warnings(
+        $selectedRaceNumber,
+        $pointRaces,
+        $selectedRaceWeeklyRows
+    );
+    if (!empty($missingPickWarnings)) {
+        foreach ($missingPickWarnings as $warningMsg) {
+            rrsg_add_validation($validation, 'warn', $warningMsg);
+        }
     }
 
     if (rrsg_is_sorted_weekly_desc($selectedRaceWeeklyRows)) {
@@ -996,7 +1283,7 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
             margin-left: 6px;
             font-size: 11px;
             font-style: italic;
-            color: #666;
+            color: #0f0d0d;
             white-space: normal;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -1289,7 +1576,7 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
             margin-top: 4px;
             margin-left: 10px;
             font-size: 14px;
-            color: #666;
+            color: #a12424;
             font-style: italic;
         }
 
@@ -1564,31 +1851,46 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
                                         <td></td>
                                         <td colspan="2">
                                             <div class="team-detail-wrap">
-                                                <?php if ($row['driverA'] !== ''): ?>
-                                                    <div class="team-detail-line">
-                                                        <div class="team-detail-driver"><?php echo rrsg_h($row['driverA']); ?></div>
-                                                        <div class="team-detail-points"><?php echo rrsg_h($row['netA']); ?></div>
-                                                    </div>
-                                                <?php endif; ?>
+                                                <?php
+                                                $hasAnyDrivers =
+                                                    ((string)$row['driverA'] !== '') ||
+                                                    ((string)$row['driverB'] !== '') ||
+                                                    ((string)$row['driverC'] !== '') ||
+                                                    ((string)$row['driverD'] !== '');
+                                                ?>
 
-                                                <?php if ($row['driverB'] !== ''): ?>
-                                                    <div class="team-detail-line">
-                                                        <div class="team-detail-driver"><?php echo rrsg_h($row['driverB']); ?></div>
-                                                        <div class="team-detail-points"><?php echo rrsg_h($row['netB']); ?></div>
-                                                    </div>
-                                                <?php endif; ?>
+                                                <?php if ($hasAnyDrivers): ?>
+                                                    <?php if ($row['driverA'] !== ''): ?>
+                                                        <div class="team-detail-line">
+                                                            <div class="team-detail-driver"><?php echo rrsg_h($row['driverA']); ?></div>
+                                                            <div class="team-detail-points"><?php echo rrsg_h($row['netA']); ?></div>
+                                                        </div>
+                                                    <?php endif; ?>
 
-                                                <?php if ($row['driverC'] !== ''): ?>
-                                                    <div class="team-detail-line">
-                                                        <div class="team-detail-driver"><?php echo rrsg_h($row['driverC']); ?></div>
-                                                        <div class="team-detail-points"><?php echo rrsg_h($row['netC']); ?></div>
-                                                    </div>
-                                                <?php endif; ?>
+                                                    <?php if ($row['driverB'] !== ''): ?>
+                                                        <div class="team-detail-line">
+                                                            <div class="team-detail-driver"><?php echo rrsg_h($row['driverB']); ?></div>
+                                                            <div class="team-detail-points"><?php echo rrsg_h($row['netB']); ?></div>
+                                                        </div>
+                                                    <?php endif; ?>
 
-                                                <?php if ($row['driverD'] !== ''): ?>
+                                                    <?php if ($row['driverC'] !== ''): ?>
+                                                        <div class="team-detail-line">
+                                                            <div class="team-detail-driver"><?php echo rrsg_h($row['driverC']); ?></div>
+                                                            <div class="team-detail-points"><?php echo rrsg_h($row['netC']); ?></div>
+                                                        </div>
+                                                    <?php endif; ?>
+
+                                                    <?php if ($row['driverD'] !== ''): ?>
+                                                        <div class="team-detail-line">
+                                                            <div class="team-detail-driver"><?php echo rrsg_h($row['driverD']); ?></div>
+                                                            <div class="team-detail-points"><?php echo rrsg_h($row['netD']); ?></div>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                <?php else: ?>
                                                     <div class="team-detail-line">
-                                                        <div class="team-detail-driver"><?php echo rrsg_h($row['driverD']); ?></div>
-                                                        <div class="team-detail-points"><?php echo rrsg_h($row['netD']); ?></div>
+                                                        <div class="team-detail-driver"><?php echo rrsg_h(rrsg_no_picks_message($row)); ?></div>
+                                                        <div class="team-detail-points">0</div>
                                                     </div>
                                                 <?php endif; ?>
 

@@ -1,42 +1,75 @@
 <?php
-// include 'header.php';
-session_start(); // ready to go!
+declare(strict_types=1);
 
-// find unique userID
-// very important for making picks, DO NOT DELETE
-foreach ($_SESSION as $key=>$DBuserID);
+/**
+ * team-late-pick.php
+ *
+ * VERSION: v004
+ * LAST MODIFIED: 3/30/2026 7:21:19 pm
+ *
+ * DESCRIPTION:
+ * Special wrapper for LP / special-auth team form display.
+ * team.php decides when this wrapper is used. This file now restores the
+ * red late-pick note/banner while keeping alignment with team.php layout.
+ *
+ * CHANGELOG:
+ *
+ * v004 (3/30/2026)
+ * - Restored the red late-pick / special note banner above the active form.
+ * - Kept active config/admin values for race year, segment, and lock date/time.
+ * - Preserved width alignment by avoiding an extra container wrapper.
+ *
+ * v003 (3/30/2026)
+ * - Fixed segment/lock message to use the active config/admin values already in scope.
+ * - Removed extra width wrapper so the included form aligns with team.php layout.
+ * - Kept active-form include behavior and version trace.
+ */
 
-require_once 'class.user.php';
-$user_home = new USER();
-
-if(!$user_home->is_logged_in())
-{
-    $user_home->redirect('login.php');
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
 }
 
-date_default_timezone_set("America/New_York");
-require "config.php"; // setup variables for database connection 
-require "config_mrl.php"; // setup variables for current MRL season & segment
-$currentTimeIs = date("n/j/Y g:i a"); //get date in format '8/25/2020 12:20 am'
+date_default_timezone_set('America/New_York');
 
-$stmt = $user_home->runQuery("SELECT * FROM users WHERE userID=:uid");
-$stmt->execute(array(":uid"=>$_SESSION['userSession']));
-$row = $stmt->fetch(PDO::FETCH_ASSOC);
+$specialWrapperVersion = 'v004';
 
-// Submission form for late pick - User must have Y in changeAuth
-$stmt = $user_home->runQuery("SELECT * FROM users WHERE userID=:uid AND changeAuth=:changeAuth");
-$stmt->execute(array(":uid"=>$_SESSION['userSession'], ":changeAuth" => "Y"));
-$count = $stmt->rowCount();
-if($count == 1){
-    echo '<body style="background-color: #222222;">'; // added background color to body
-    // include 'current_user_team_chart.php';
-    echo '<div style="width: 80%; margin: 0 auto;">';
-    echo "<br>";
-    echo "<div style='color: red; font-size: 20px; background-color: #fabf8f; text-align: center; font-weight: bold;'>You are currently making picks past the original deadline of $formLockDate for $raceYear $segmentName</div>";
-    include $currentForm;
-    echo '</div>';
-    echo '</body>'; // close body
-} else {
-    echo '<body style="background-color: #222222;">'; // added background color to body
+if (!isset($currentForm) || trim((string)$currentForm) === '') {
+    echo "<div style='color:red; background:#fabf8f; text-align:center; font-weight:bold; padding:10px;'>Active form is not set.</div>";
+    return;
 }
-?>
+
+$currentFormFile = trim((string)$currentForm);
+$currentFormPath = __DIR__ . '/' . ltrim($currentFormFile, '/');
+
+if (!is_file($currentFormPath)) {
+    echo "<div style='color:red; background:#fabf8f; text-align:center; font-weight:bold; padding:10px;'>Active form file not found: "
+       . htmlspecialchars($currentFormFile, ENT_QUOTES, 'UTF-8')
+       . "</div>";
+    return;
+}
+
+$specialSegmentLabel = isset($segmentName) && trim((string)$segmentName) !== ''
+    ? trim((string)$segmentName)
+    : trim((string)($segment ?? ''));
+
+$specialLockDate = isset($formLockDate) ? (string)$formLockDate : '';
+$specialLockTime = isset($formLockTime) ? (string)$formLockTime : '';
+$specialRaceYear = isset($raceYear) ? (string)$raceYear : '';
+
+echo "<br>";
+echo "<div style='color: red; font-size: 20px; background-color: #fabf8f; text-align: center; font-weight: bold; padding: 8px 10px;'>"
+   . "You are currently making picks past the original deadline of "
+   . htmlspecialchars($specialLockDate, ENT_QUOTES, 'UTF-8')
+   . " "
+   . htmlspecialchars($specialLockTime, ENT_QUOTES, 'UTF-8')
+   . " for "
+   . htmlspecialchars($specialRaceYear, ENT_QUOTES, 'UTF-8')
+   . " "
+   . htmlspecialchars($specialSegmentLabel, ENT_QUOTES, 'UTF-8')
+   . "</div>";
+
+include $currentFormPath;
+
+echo "<div style='font:11px/1.2 monospace; color:#999; text-align:right; margin:0; padding:8px 0 0 0;'>"
+   . "FILE: " . basename(__FILE__) . " | VERSION: " . $specialWrapperVersion
+   . "</div>";

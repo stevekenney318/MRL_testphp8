@@ -4,11 +4,22 @@ declare(strict_types=1);
 /**
  * race_results_team_helper.php
  *
- * VERSION: v1.00.00
- * LAST MODIFIED: 2026-03-11
- * BUILD TS: 20260311_234442887
+ * VERSION: v002
+ * LAST MODIFIED: 4/3/2026 1:38:00 am
  *
  * CHANGELOG:
+ *
+ * v002 (4/3/2026)
+ *   - Updated header to current MRL format.
+ *   - Fixed base segment pick loader to use user_picks instead of the old non-existent picks table.
+ *   - Restricted base segment rows to baseline pick types only so LP / RD overlays are not treated as starting rows.
+ *   - Added pick_type and effective_race to normalized output for downstream race-results pages.
+ *
+ * v001 (4/3/2026)
+ *   - Converted header to standard MRL format.
+ *   - Removed BUILD TS.
+ *   - No functional changes.
+ *
  * v1.00.00 (2026-03-11)
  *   - Initial shared helper for loading MRL team picks by year + segment.
  *   - Extracted from team_chart.php logic.
@@ -52,14 +63,16 @@ if (!function_exists('rr_normalize_team_pick_row')) {
     function rr_normalize_team_pick_row(array $row): array
     {
         return [
-            'userID'    => (int)($row['userID'] ?? 0),
-            'teamName'  => trim((string)($row['teamName'] ?? '')),
-            'userName'  => trim((string)($row['userName'] ?? '')),
-            'driverA'   => trim((string)($row['driverA'] ?? '')),
-            'driverB'   => trim((string)($row['driverB'] ?? '')),
-            'driverC'   => trim((string)($row['driverC'] ?? '')),
-            'driverD'   => trim((string)($row['driverD'] ?? '')),
-            'entryDate' => trim((string)($row['entryDate'] ?? '')),
+            'userID'         => (int)($row['userID'] ?? 0),
+            'teamName'       => trim((string)($row['teamName'] ?? '')),
+            'userName'       => trim((string)($row['userName'] ?? '')),
+            'driverA'        => trim((string)($row['driverA'] ?? '')),
+            'driverB'        => trim((string)($row['driverB'] ?? '')),
+            'driverC'        => trim((string)($row['driverC'] ?? '')),
+            'driverD'        => trim((string)($row['driverD'] ?? '')),
+            'entryDate'      => trim((string)($row['entryDate'] ?? '')),
+            'pick_type'      => trim((string)($row['pick_type'] ?? 'SEG')),
+            'effective_race' => isset($row['effective_race']) ? (int)$row['effective_race'] : 0,
         ];
     }
 }
@@ -67,11 +80,15 @@ if (!function_exists('rr_normalize_team_pick_row')) {
 if (!function_exists('rr_get_segment_team_picks')) {
 
     /**
-     * Load all team picks for a given year + segment.
+     * Load baseline team picks for a given year + segment.
      *
      * Supports:
      * - PDO ($dbo)
      * - mysqli ($dbconnect)
+     *
+     * IMPORTANT:
+     * - Reads from user_picks (not the old/non-existent picks table).
+     * - Returns only baseline rows (SEG / ADJ) so LP / RD rows can be applied later as overlays.
      *
      * @param mixed $dbo
      * @param mixed $dbconnect
@@ -91,24 +108,28 @@ if (!function_exists('rr_get_segment_team_picks')) {
 
         $sql = "
             SELECT
-                userID,
-                teamName,
-                userName,
-                driverA,
-                driverB,
-                driverC,
-                driverD,
-                entryDate
-            FROM picks
-            WHERE raceYear = :year
-              AND segment  = :segment
+                up.userID,
+                up.teamName,
+                COALESCE(u.userName, '') AS userName,
+                up.driverA,
+                up.driverB,
+                up.driverC,
+                up.driverD,
+                up.entryDate,
+                up.pick_type,
+                up.effective_race
+            FROM user_picks up
+            LEFT JOIN users u ON u.userID = up.userID
+            WHERE up.raceYear = :year
+              AND up.segment  = :segment
+              AND up.pick_type IN ('SEG', 'ADJ')
         ";
 
         if ($excludeMrlUser) {
-            $sql .= " AND userName != :excludeName ";
+            $sql .= " AND COALESCE(u.userName, '') != :excludeName ";
         }
 
-        $sql .= " ORDER BY userID ASC ";
+        $sql .= " ORDER BY up.userID ASC, up.entryDate ASC, up.pickID ASC ";
 
         try {
 
@@ -132,8 +153,18 @@ if (!function_exists('rr_get_segment_team_picks')) {
                 $fetched = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
                 if (is_array($fetched)) {
+                    $seenTeams = [];
+
                     foreach ($fetched as $row) {
-                        $rows[] = rr_normalize_team_pick_row($row);
+                        $normalized = rr_normalize_team_pick_row($row);
+                        $teamName = (string)($normalized['teamName'] ?? '');
+
+                        if ($teamName === '' || isset($seenTeams[$teamName])) {
+                            continue;
+                        }
+
+                        $seenTeams[$teamName] = true;
+                        $rows[] = $normalized;
                     }
                 }
 
@@ -146,24 +177,28 @@ if (!function_exists('rr_get_segment_team_picks')) {
 
                 $sql2 = "
                     SELECT
-                        userID,
-                        teamName,
-                        userName,
-                        driverA,
-                        driverB,
-                        driverC,
-                        driverD,
-                        entryDate
-                    FROM picks
-                    WHERE raceYear = ?
-                      AND segment  = ?
+                        up.userID,
+                        up.teamName,
+                        COALESCE(u.userName, '') AS userName,
+                        up.driverA,
+                        up.driverB,
+                        up.driverC,
+                        up.driverD,
+                        up.entryDate,
+                        up.pick_type,
+                        up.effective_race
+                    FROM user_picks up
+                    LEFT JOIN users u ON u.userID = up.userID
+                    WHERE up.raceYear = ?
+                      AND up.segment  = ?
+                      AND up.pick_type IN ('SEG', 'ADJ')
                 ";
 
                 if ($excludeMrlUser) {
-                    $sql2 .= " AND userName != ? ";
+                    $sql2 .= " AND COALESCE(u.userName, '') != ? ";
                 }
 
-                $sql2 .= " ORDER BY userID ASC ";
+                $sql2 .= " ORDER BY up.userID ASC, up.entryDate ASC, up.pickID ASC ";
 
                 $stmt = mysqli_prepare($dbconnect, $sql2);
 
@@ -178,9 +213,18 @@ if (!function_exists('rr_get_segment_team_picks')) {
                 mysqli_stmt_execute($stmt);
 
                 $res = mysqli_stmt_get_result($stmt);
+                $seenTeams = [];
 
                 while ($res && ($row = mysqli_fetch_assoc($res))) {
-                    $rows[] = rr_normalize_team_pick_row($row);
+                    $normalized = rr_normalize_team_pick_row($row);
+                    $teamName = (string)($normalized['teamName'] ?? '');
+
+                    if ($teamName === '' || isset($seenTeams[$teamName])) {
+                        continue;
+                    }
+
+                    $seenTeams[$teamName] = true;
+                    $rows[] = $normalized;
                 }
 
                 mysqli_stmt_close($stmt);

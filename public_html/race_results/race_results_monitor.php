@@ -4,61 +4,34 @@ declare(strict_types=1);
 /**
  * race_results_monitor.php
  *
- * VERSION: v125
- * LAST MODIFIED: 3/23/2026 1:10:14 am
- *
+ * VERSION: v128
+ * LAST MODIFIED: 4/5/2026 9:32:22 pm
  *
  * CHANGELOG:
+ *
+ * v128 (4/5/2026)
+ *   - CHANGE: RD pending JSON is now written in each race folder where eligibility still exists.
+ *   - CHANGE: MRL reminder email is now sent for each race folder where RD eligibility still exists.
+ *   - CHANGE: Per-race-folder RD JSON/email no longer depend on whether an earlier race folder already had the same pending state.
+ *
+ * v127 (4/5/2026)
+ *   - FIX: RD detection now still runs when FINAL results were already captured or already notified.
+ *   - CHANGE: Existing duplicate protection for FINAL snapshots and FINAL emails remains unchanged.
+ *   - CHANGE: RD detection can now backfill pending JSON/email on manual reruns without requiring a new snapshot.
+ *
+ * v126 (4/5/2026)
+ *   - NEW: Added RD eligibility detection after FINAL snapshot capture.
+ *   - NEW: Writes one JSON confirmation file per newly detected RD-eligible team in the current race folder.
+ *   - NEW: Sends MRL-only RD eligibility email when a new RD pending JSON file is created or changed.
+ *   - CHANGE: RD detection uses existing snapshot files + segment_race_ranges + current team pick helpers.
+ *   - CHANGE: Existing FINAL results detection, snapshot, and under_review.flag behavior preserved.
  *
  * v125 (3/23/2026)
  *   - CHANGE: Added automatic under_review.flag creation when a new or revised snapshot is written.
  *   - CHANGE: Pending review state now reappears automatically when result changes trigger a new snapshot.
  *   - CHANGE: Updated header versioning to v125 format while preserving existing monitor behavior.
  *
- * CHANGELOG:
- * v1.02.00.04 (2026-03-12)
- *   - CHANGE: Tightened FINAL / email trigger logic.
- *   - NEW: Race is NOT treated as ready unless:
- *       - scoring table has non-zero PTS
- *       - AND LED column is present with at least one non-zero value
- *   - This helps avoid early intermediate ESPN tables that have partial scoring
- *     but still show all-zero laps-led.
- *
- * v1.02.00.03 (2026-03-12)
- *   - FIX: Monitor now updates /race_results/<year>/_year_index.json when a new race appears.
- *   - If raceId already exists in year index, existing folder mapping is reused.
- *   - If raceId is new:
- *       - points race => assigns next R## (or uses parsed race_number if available)
- *       - exhibition race => assigns next E##
- *   - CHANGE: Email recipient changed to manliusracingleague@gmail.com.
- *   - CHANGE: Email subject is now dynamic, e.g.:
- *       [MRL] Results Detected: 2026_R04_Phoenix
- *   - CHANGE: Email body is now HTML with:
- *       - Race Results hyperlink
- *       - MRL Snapshot hyperlink
- *       - clean spacing
- *       - <hr> separator
- *   - CHANGE: MRL snapshot link is built from current host when possible, with
- *       fallback to manliusracingleague.com.
- *   - NOTE: Existing state/hash-based repeat-email behavior is preserved in this version.
- *
- * v1.02.00.02 (2026-02-28)
- *   - FIX: Prevent duplicate snapshots/emails when visible scoring-table data did not change:
- *       - Uses stable "data hash" from engine (not raw HTML hash).
- *       - If race folder has final_table_hash.txt matching current hash, treat as already captured.
- *         (Works even if monitor state JSON was reset.)
- *
- * v1.02.00.01 (2026-02-27)
- *   - NEW: Uses /race_results/<year>/_year_index.json if present
- *       to pick the correct folder name and preserve R/E/Z numbering.
- *   - Naming scheme aligned with backfill:
- *       * Rxx_... points
- *       * Exx_... exhibition
- *       * Zxx_... anomaly (rare)
- *
- * v1.01 (2026-02-25)
- *   - Cron-friendly monitor for the LATEST race on ESPN year page
- *   - Emails ONLY when scoring is REAL (non-zero)
+ * PHP: 7.3 compatible.
  */
 
 ini_set('display_errors', '0');
@@ -66,14 +39,16 @@ ini_set('log_errors', '1');
 ini_set('error_log', __DIR__ . '/_race_results_monitor_php_errors.log');
 error_reporting(E_ALL);
 
-const RR_MONITOR_SIGNATURE = 'RACE_RESULTS_MONITOR v125';
+const RR_MONITOR_SIGNATURE = 'RACE_RESULTS_MONITOR v128';
 
 require_once __DIR__ . '/race_results_engine.php';
+require_once __DIR__ . '/race_results_snapshot_helper.php';
+require_once __DIR__ . '/race_results_team_helper.php';
+require_once __DIR__ . '/race_results_rd_helper.php';
 
 // ------------------------- DOCUMENT ROOT + INCLUDES -------------------------
 $docRoot = rr_docroot_from_script_dir(__DIR__);
 
-// CLI/cron safety (some configs expect HTTP_HOST)
 if (empty($_SERVER['HTTP_HOST'])) {
     $_SERVER['HTTP_HOST'] = 'localhost';
 }
@@ -85,28 +60,21 @@ require_once $docRoot . '/class.user.php';
 $user_home = new USER();
 
 // ------------------------- SETTINGS -------------------------
-$year = 2026; // default; can be overridden by CLI arg
+$year = 2026;
 $notifyEmail = 'manliusracingleague@gmail.com';
-
-// Keep stable prefix for Gmail filter:
 $subjectPrefix = '[MRL] Results Detected: ';
+$rdSubjectPrefix = '[MRL] RD Eligible: ';
 
-// Base files (in this folder)
 $stateFile     = __DIR__ . '/_race_results_monitor_state.json';
 $logFile       = __DIR__ . '/_race_results_monitor.log';
 $heartbeatFile = __DIR__ . '/_race_results_monitor_heartbeat.txt';
 
-// Year index produced by backfill / maintained by monitor
 $yearIndexFile = __DIR__ . '/' . (string)$year . '/_year_index.json';
 
-// Fetch behavior
 $timeoutSeconds = 25;
-
-// Snapshot behavior (per your preference)
 $snapshotsEnabled = true;
-$snapshotMaxBytes = 3000000; // PHP 7.3 safe
+$snapshotMaxBytes = 3000000;
 
-// Optional CLI override: php race_results_monitor.php 2026
 if (PHP_SAPI === 'cli' && isset($argv) && is_array($argv) && count($argv) >= 2) {
     $cliYear = (int)$argv[1];
     if ($cliYear >= 2000 && $cliYear <= 2100) {
@@ -115,14 +83,12 @@ if (PHP_SAPI === 'cli' && isset($argv) && is_array($argv) && count($argv) >= 2) 
     $yearIndexFile = __DIR__ . '/' . (string)$year . '/_year_index.json';
 }
 
-// ------------------------- OUTPUT HELPER -------------------------
 function rr_monitor_out(string $line): void
 {
     if (PHP_SAPI === 'cli') return;
     echo htmlspecialchars($line, ENT_QUOTES, 'UTF-8') . "<br>\n";
 }
 
-// ------------------------- YEAR INDEX HELPERS -------------------------
 function rr_load_year_index(string $path): array
 {
     $idx = rr_load_json($path);
@@ -237,7 +203,6 @@ function rr_monitor_assign_folder_and_update_index(
     return $folder;
 }
 
-// ------------------------- EMAIL HELPERS -------------------------
 function rr_monitor_public_host(string $docRoot, string $scriptDir): string
 {
     $candidates = [];
@@ -305,8 +270,316 @@ function rr_monitor_subject_token(int $year, string $raceFolderName, string $rac
     return $year . '_' . $raceCode . '_' . $label;
 }
 
-// ------------------------- LED COMPLETENESS CHECK -------------------------
-function rr_monitor_norm_header(string $s): string
+function rr_monitor_segment_from_race_number(int $raceNumber): string
+{
+    if ($raceNumber >= 1 && $raceNumber <= 8) return 'S1';
+    if ($raceNumber >= 9 && $raceNumber <= 17) return 'S2';
+    if ($raceNumber >= 18 && $raceNumber <= 26) return 'S3';
+    if ($raceNumber >= 27 && $raceNumber <= 36) return 'S4';
+    return 'S1';
+}
+
+function rr_monitor_find_snapshot_file(string $raceFolder): string
+{
+    if (!is_dir($raceFolder)) {
+        return '';
+    }
+
+    $files = glob($raceFolder . '/snapshot_*.html');
+    if (!is_array($files) || empty($files)) {
+        return '';
+    }
+
+    sort($files, SORT_STRING);
+    return (string)end($files);
+}
+
+function rr_monitor_point_races_by_number(array $yearIndex, string $yearFolder): array
+{
+    $rows = [];
+
+    if (!isset($yearIndex['races']) || !is_array($yearIndex['races'])) {
+        return $rows;
+    }
+
+    foreach ($yearIndex['races'] as $raceId => $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+
+        $kind = (string)($row['kind'] ?? '');
+        if ($kind !== 'R') {
+            continue;
+        }
+
+        $number = (int)($row['number'] ?? 0);
+        $folder = (string)($row['folder'] ?? '');
+        $raceName = (string)($row['race_name'] ?? '');
+
+        if ($number <= 0 || $folder === '') {
+            continue;
+        }
+
+        $rows[$number] = [
+            'raceId' => (string)$raceId,
+            'number' => $number,
+            'folder' => $folder,
+            'raceName' => $raceName,
+            'raceCode' => 'R' . str_pad((string)$number, 2, '0', STR_PAD_LEFT),
+            'raceFolder' => $yearFolder . '/' . $folder,
+        ];
+    }
+
+    ksort($rows, SORT_NUMERIC);
+    return $rows;
+}
+
+function rr_monitor_build_segment_driver_points(
+    int $year,
+    string $segment,
+    int $throughRaceNumber,
+    array $yearIndex,
+    string $yearFolder
+): array {
+    global $dbo;
+
+    $raceDriverPoints = [];
+    $pointRaces = rr_monitor_point_races_by_number($yearIndex, $yearFolder);
+    $bounds = mrl_rd_try_get_segment_bounds($dbo, $year, $segment);
+
+    if (!is_array($bounds)) {
+        return [];
+    }
+
+    for ($n = (int)$bounds['start']; $n <= (int)$bounds['end']; $n++) {
+        if ($n > $throughRaceNumber) {
+            continue;
+        }
+
+        $raceDriverPoints[$n] = [];
+
+        if (!isset($pointRaces[$n])) {
+            continue;
+        }
+
+        $snapshotFile = rr_monitor_find_snapshot_file((string)$pointRaces[$n]['raceFolder']);
+        if ($snapshotFile === '') {
+            continue;
+        }
+
+        $driverRows = rrs_load_snapshot_driver_points($snapshotFile);
+        if (!is_array($driverRows)) {
+            continue;
+        }
+
+        foreach ($driverRows as $driverName => $driverData) {
+            if (!is_array($driverData)) {
+                continue;
+            }
+
+            $raceDriverPoints[$n][(string)$driverName] = (int)($driverData['net'] ?? 0);
+        }
+    }
+
+    return $raceDriverPoints;
+}
+
+function rr_monitor_rd_pending_path(string $raceFolder, string $teamName): string
+{
+    $slug = rr_sanitize_for_folder($teamName);
+    return $raceFolder . '/_rd_pending_' . $slug . '.json';
+}
+
+function rr_monitor_rd_payload(array $eligibility): array
+{
+    $base = isset($eligibility['base_pick_row']) && is_array($eligibility['base_pick_row'])
+        ? $eligibility['base_pick_row']
+        : [];
+
+    $qualifier = [];
+    if (isset($eligibility['qualifiers']) && is_array($eligibility['qualifiers']) && !empty($eligibility['qualifiers'])) {
+        $qualifier = $eligibility['qualifiers'][0];
+    }
+
+    $triggerCodes = [];
+    if (isset($qualifier['zero_races']) && is_array($qualifier['zero_races'])) {
+        foreach ($qualifier['zero_races'] as $zeroRace) {
+            $triggerCodes[] = 'R' . str_pad((string)((int)$zeroRace), 2, '0', STR_PAD_LEFT);
+        }
+    }
+
+    $effectiveRaceCode = '';
+    $effectiveRace = (int)($qualifier['effective_race'] ?? 0);
+    if ($effectiveRace > 0) {
+        $effectiveRaceCode = 'R' . str_pad((string)$effectiveRace, 2, '0', STR_PAD_LEFT);
+    }
+
+    return [
+        'userID' => (int)($base['userID'] ?? 0),
+        'teamName' => (string)($eligibility['teamName'] ?? ''),
+        'segment' => (string)($eligibility['segment'] ?? ''),
+        'slot' => (string)($qualifier['slot'] ?? ''),
+        'driver' => (string)($qualifier['driver'] ?? ''),
+        'trigger_races' => $triggerCodes,
+        'effective_race' => $effectiveRaceCode,
+        'detected_at' => date('Y-m-d\TH:i:s'),
+    ];
+}
+
+function rr_monitor_write_rd_pending_json(string $path, array $payload): bool
+{
+    $existing = [];
+    if (is_file($path)) {
+        $existing = rr_load_json($path);
+    }
+
+    $existingCompare = $existing;
+    $payloadCompare = $payload;
+    unset($existingCompare['detected_at'], $payloadCompare['detected_at']);
+
+    if ($existingCompare === $payloadCompare) {
+        return false;
+    }
+
+    rr_save_json($path, $payload);
+    return true;
+}
+
+function rr_monitor_send_rd_email($user_home, string $notifyEmail, string $subjectPrefix, array $payload, string $jsonPath, string $publicHost, string $raceFolderName, int $year): bool
+{
+    $teamName = (string)($payload['teamName'] ?? '');
+    $segment = (string)($payload['segment'] ?? '');
+    $slot = (string)($payload['slot'] ?? '');
+    $driver = (string)($payload['driver'] ?? '');
+    $effectiveRace = (string)($payload['effective_race'] ?? '');
+    $triggerRaces = isset($payload['trigger_races']) && is_array($payload['trigger_races'])
+        ? implode(', ', $payload['trigger_races'])
+        : '';
+
+    $jsonBase = basename($jsonPath);
+    $jsonLink = 'https://' . $publicHost
+        . '/race_results/' . rawurlencode((string)$year)
+        . '/' . rawurlencode($raceFolderName)
+        . '/' . rawurlencode($jsonBase);
+
+    $currentRaceCode = '';
+    if (preg_match('/^(R\d{2})_/', $raceFolderName, $m)) {
+        $currentRaceCode = (string)$m[1];
+    }
+
+    $isReminder = ($currentRaceCode !== '' && $effectiveRace !== '' && strcmp($currentRaceCode, $effectiveRace) > 0);
+
+    $subject = $subjectPrefix
+        . ($isReminder ? 'Reminder: ' : '')
+        . $year . '_' . $segment . '_' . rr_sanitize_for_folder($teamName);
+
+    $message =
+        'Replacement Driver eligible.<br>' .
+        'Team: ' . htmlspecialchars($teamName, ENT_QUOTES, 'UTF-8') . '<br>' .
+        'Segment: ' . htmlspecialchars($segment, ENT_QUOTES, 'UTF-8') . '<br>' .
+        'Slot: ' . htmlspecialchars($slot, ENT_QUOTES, 'UTF-8') . '<br>' .
+        'Driver: ' . htmlspecialchars($driver, ENT_QUOTES, 'UTF-8') . '<br>' .
+        'Trigger races: ' . htmlspecialchars($triggerRaces, ENT_QUOTES, 'UTF-8') . '<br>' .
+        'Effective race: ' . htmlspecialchars($effectiveRace, ENT_QUOTES, 'UTF-8') . '<br>' .
+        '<a href="' . htmlspecialchars($jsonLink, ENT_QUOTES, 'UTF-8') . '">RD Pending JSON</a>';
+
+    try {
+        return (bool)$user_home->send_mail($notifyEmail, $message, $subject);
+    } catch (Throwable $e) {
+        return false;
+    }
+}
+
+function rr_monitor_run_rd_detection(
+    int $year,
+    int $latestRaceNumber,
+    string $raceFolder,
+    string $raceFolderName,
+    array $yearIndex,
+    string $yearFolder,
+    $dbo,
+    $dbconnect,
+    string $notifyEmail,
+    $user_home,
+    string $rdSubjectPrefix,
+    string $logFile,
+    string $publicHost
+): void {
+    if (!($dbo instanceof PDO)) {
+        rr_log_line($logFile, 'RD DETECTION SKIPPED: PDO not available.');
+        return;
+    }
+
+    if ($latestRaceNumber <= 0) {
+        rr_log_line($logFile, 'RD DETECTION SKIPPED: latest race number unavailable.');
+        return;
+    }
+
+    $segment = rr_monitor_segment_from_race_number($latestRaceNumber);
+    $raceDriverPoints = rr_monitor_build_segment_driver_points($year, $segment, $latestRaceNumber, $yearIndex, $yearFolder);
+
+    if (empty($raceDriverPoints)) {
+        rr_log_line($logFile, 'RD DETECTION SKIPPED: no race driver points built for ' . $year . ' ' . $segment . '.');
+        return;
+    }
+
+    $teamRows = rr_get_segment_team_picks($dbo, $dbconnect, (string)$year, $segment);
+    if (empty($teamRows)) {
+        rr_log_line($logFile, 'RD DETECTION SKIPPED: no baseline team rows found for ' . $year . ' ' . $segment . '.');
+        return;
+    }
+
+    foreach ($teamRows as $teamRow) {
+        $teamName = (string)($teamRow['teamName'] ?? '');
+        if ($teamName === '') {
+            continue;
+        }
+
+        $eligibility = mrl_rd_detect_team_segment_eligibility(
+            $dbo,
+            (string)$year,
+            $segment,
+            $teamName,
+            $raceDriverPoints
+        );
+
+        $status = (string)($eligibility['status'] ?? '');
+        if ($status !== 'RD_AVAILABLE') {
+            if ($status === 'MANUAL_SELECTION_REQUIRED') {
+                rr_log_line($logFile, 'RD MANUAL SELECTION REQUIRED team=' . $teamName . ' segment=' . $segment);
+            }
+            continue;
+        }
+
+        $payload = rr_monitor_rd_payload($eligibility);
+        $jsonPath = rr_monitor_rd_pending_path($raceFolder, $teamName);
+        $createdOrChanged = rr_monitor_write_rd_pending_json($jsonPath, $payload);
+
+        if ($createdOrChanged) {
+            rr_log_line($logFile, 'RD JSON WRITTEN team=' . $teamName . ' file=' . basename($jsonPath));
+
+            $sentOk = rr_monitor_send_rd_email(
+                $user_home,
+                $notifyEmail,
+                $rdSubjectPrefix,
+                $payload,
+                $jsonPath,
+                $publicHost,
+                $raceFolderName,
+                $year
+            );
+
+            rr_log_line(
+                $logFile,
+                $sentOk
+                    ? 'RD EMAIL SENT team=' . $teamName . ' file=' . basename($jsonPath)
+                    : 'RD EMAIL FAILED team=' . $teamName . ' file=' . basename($jsonPath)
+            );
+        }
+    }
+}
+
+function rr_monitor_norm_header(string $s): ?string
 {
     $s = trim($s);
     $s = preg_replace('/\s+/', ' ', $s);
@@ -325,14 +598,6 @@ function rr_monitor_parse_int_cell(string $s): ?int
     return (int)$s;
 }
 
-/**
- * Returns:
- * [
- *   'has_led_column' => bool,
- *   'rows_checked'   => int,
- *   'led_non_zero'   => int
- * ]
- */
 function rr_monitor_led_check(string $html): array
 {
     $out = [
@@ -461,7 +726,6 @@ rr_log_line($logFile, RR_MONITOR_SIGNATURE . " RUN year={$year} sapi=" . PHP_SAP
 rr_monitor_out("Year {$year} — checking latest ESPN race results for update...");
 rr_monitor_out("Signature: " . RR_MONITOR_SIGNATURE);
 
-// Load state
 $state = rr_load_json($stateFile);
 if (!isset($state['byYear']) || !is_array($state['byYear'])) {
     $state['byYear'] = [];
@@ -480,7 +744,6 @@ if (!isset($state['byYear'][$yKey]) || !is_array($state['byYear'][$yKey])) {
 }
 $yearState = $state['byYear'][$yKey];
 
-// Load optional year index
 $yearIndex = [];
 if (is_file($yearIndexFile)) {
     $yearIndex = rr_load_year_index($yearIndexFile);
@@ -489,8 +752,7 @@ if (!isset($yearIndex['races']) || !is_array($yearIndex['races'])) {
     $yearIndex['races'] = [];
 }
 
-// 1) Find latest URL
-[$ok, $latestUrl, $err, $debug] = rr_find_latest_race_results_url($year, $timeoutSeconds);
+list($ok, $latestUrl, $err, $debug) = rr_find_latest_race_results_url($year, $timeoutSeconds);
 
 $yearState['last_checked_at'] = date('c');
 $yearState['latest_debug'] = $debug;
@@ -503,9 +765,8 @@ if (!$ok) {
     exit(0);
 }
 
-// 2) Fetch year page again (to get readable name, etc.)
 $yearPageUrl = "https://www.espn.com/racing/results/_/year/" . $year;
-[$okY, $statusY, $yearHtml, $errY] = rr_fetch_url($yearPageUrl, $timeoutSeconds);
+list($okY, $statusY, $yearHtml, $errY) = rr_fetch_url($yearPageUrl, $timeoutSeconds);
 
 $races = $okY ? rr_parse_year_page_races($yearHtml) : [];
 $latestRaceMeta = null;
@@ -522,8 +783,6 @@ $raceName = $latestRaceMeta ? (string)$latestRaceMeta['race_name'] : 'Race';
 $isExh = $latestRaceMeta ? (bool)$latestRaceMeta['is_exhibition'] : false;
 $raceNum = $latestRaceMeta ? $latestRaceMeta['race_number'] : null;
 
-// Folder naming: prefer year index if it has a known folder for this raceId;
-// if not, assign/update year index now.
 $yearFolder = __DIR__ . '/' . $yKey;
 rr_ensure_dir($yearFolder);
 
@@ -540,7 +799,6 @@ $raceFolderName = rr_monitor_assign_folder_and_update_index(
 
 $raceFolder = $yearFolder . '/' . $raceFolderName;
 
-// Write meta
 rr_write_meta($raceFolder, [
     'year' => $year,
     'race_id' => $raceId,
@@ -568,8 +826,7 @@ if ($prevLatestUrl === '' || $prevLatestUrl !== $latestUrl) {
     }
 }
 
-// 3) Fetch race page
-[$ok2, $status2, $html2, $err2] = rr_fetch_url($latestUrl, $timeoutSeconds);
+list($ok2, $status2, $html2, $err2) = rr_fetch_url($latestUrl, $timeoutSeconds);
 
 if (!$ok2) {
     $state['byYear'][$yKey] = $yearState;
@@ -579,10 +836,8 @@ if (!$ok2) {
     exit(0);
 }
 
-// 4) Detect FINAL
-[$isFinal, $reason, $details] = rr_detect_final_scoring_nonzero($html2);
+list($isFinal, $reason, $details) = rr_detect_final_scoring_nonzero($html2);
 
-// Additional completeness gate: LED must not be all zero
 $ledCheck = rr_monitor_led_check($html2);
 $ledReady = ($ledCheck['has_led_column'] && (int)$ledCheck['led_non_zero'] > 0);
 
@@ -596,7 +851,7 @@ $yearState['final_check'] = [
     'reason' => $reason,
     'checked_at' => date('c'),
     'mode' => (string)($details['mode'] ?? ''),
-    'hash' => (string)($details['tableHash'] ?? ''), // stable data hash
+    'hash' => (string)($details['tableHash'] ?? ''),
     'rows_checked' => (int)($details['rowsChecked'] ?? 0),
     'non_zero_counts' => $details['nonZeroCounts'] ?? [],
     'col_index' => $details['colIndex'] ?? [],
@@ -617,14 +872,12 @@ if (!$isFinal) {
     exit(0);
 }
 
-// 5) Duplicate protection using folder hash file (authoritative)
 $finalHashNow = (string)($yearState['final_check']['hash'] ?? '');
 $hashFilePath = $raceFolder . '/final_table_hash.txt';
 
 if ($finalHashNow !== '' && is_file($hashFilePath)) {
     $existing = trim((string)@file_get_contents($hashFilePath));
     if ($existing !== '' && hash_equals($existing, $finalHashNow)) {
-        // Already captured (even if monitor state got reset)
         $yearState['final_sent_for_url'] = $latestUrl;
         $yearState['final_table_hash'] = $finalHashNow;
         $state['byYear'][$yKey] = $yearState;
@@ -632,11 +885,30 @@ if ($finalHashNow !== '' && is_file($hashFilePath)) {
 
         rr_log_line($logFile, "FINAL detected but already captured by folder hash (no snapshot/email) url={$latestUrl}");
         rr_monitor_out("FINAL detected, already captured (no snapshot/email).");
+
+        if ($raceNum !== null && $raceNum > 0 && !$isExh) {
+            $publicHost = rr_monitor_public_host($docRoot, __DIR__);
+            rr_monitor_run_rd_detection(
+                $year,
+                (int)$raceNum,
+                $raceFolder,
+                $raceFolderName,
+                $yearIndex,
+                $yearFolder,
+                $dbo ?? null,
+                $dbconnect ?? null,
+                $notifyEmail,
+                $user_home,
+                $rdSubjectPrefix,
+                $logFile,
+                $publicHost
+            );
+        }
+
         exit(0);
     }
 }
 
-// 6) Email gating (state-based)
 $finalSentForUrl = (string)($yearState['final_sent_for_url'] ?? '');
 $finalHashPrev   = (string)($yearState['final_table_hash'] ?? '');
 
@@ -654,10 +926,29 @@ if ($finalSentForUrl !== $latestUrl) {
 if (!$shouldEmail) {
     rr_log_line($logFile, "FINAL detected but no email needed (already notified) url={$latestUrl}");
     rr_monitor_out("FINAL detected, already notified (no email).");
+
+    if ($raceNum !== null && $raceNum > 0 && !$isExh) {
+        $publicHost = rr_monitor_public_host($docRoot, __DIR__);
+        rr_monitor_run_rd_detection(
+            $year,
+            (int)$raceNum,
+            $raceFolder,
+            $raceFolderName,
+            $yearIndex,
+            $yearFolder,
+            $dbo ?? null,
+            $dbconnect ?? null,
+            $notifyEmail,
+            $user_home,
+            $rdSubjectPrefix,
+            $logFile,
+            $publicHost
+        );
+    }
+
     exit(0);
 }
 
-// Save snapshot
 $snapshotPath = '';
 if ($snapshotsEnabled) {
     $tsFile = rr_preferred_timestamp(true);
@@ -668,14 +959,12 @@ if ($snapshotsEnabled) {
     rr_log_line($logFile, "SNAPSHOT SAVED in " . basename($raceFolder));
 }
 
-// Update state BEFORE email
 $yearState['final_sent_for_url'] = $latestUrl;
 $yearState['final_table_hash'] = $finalHashNow;
 
 $state['byYear'][$yKey] = $yearState;
 rr_save_json($stateFile, $state);
 
-// Build subject + HTML email
 $publicHost = rr_monitor_public_host($docRoot, __DIR__);
 $subjectToken = rr_monitor_subject_token($year, $raceFolderName, $raceName);
 $subject = $subjectPrefix . $subjectToken;
@@ -720,4 +1009,23 @@ rr_log_line(
 );
 
 rr_monitor_out($sentOk ? "EMAIL SENT (FINAL)." : "EMAIL FAILED (FINAL).");
+
+if ($raceNum !== null && $raceNum > 0 && !$isExh) {
+    rr_monitor_run_rd_detection(
+        $year,
+        (int)$raceNum,
+        $raceFolder,
+        $raceFolderName,
+        $yearIndex,
+        $yearFolder,
+        $dbo ?? null,
+        $dbconnect ?? null,
+        $notifyEmail,
+        $user_home,
+        $rdSubjectPrefix,
+        $logFile,
+        $publicHost
+    );
+}
+
 exit(0);
