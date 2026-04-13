@@ -1,17 +1,59 @@
 <?php
-// ini_set('display_errors', '1');
-// ini_set('display_startup_errors', '1');
-// error_reporting(E_ALL);
-// echo "<div style='font:11px/1.2 monospace; color:#999; text-align:center; margin:0; padding:0;'>"
-//    . "FILE: " . basename(__FILE__) . " | " . date('Y-m-d H:i:s')
-//    . "</div>";
+declare(strict_types=1);
+
+/**
+ * team_chart.php
+ *
+ * VERSION: v015
+ * LAST MODIFIED: 4/12/2026 12:59:28 am
+ *
+ * DESCRIPTION:
+ * Public Team Chart page with PRG flow, print, spreadsheet export,
+ * and render-time LP / RD chart annotations.
+ *
+ * CHANGELOG:
+ *
+ * v015 (4/12/2026)
+ * - FIX: Suppressed standalone base SEG/ADJ rows when a team also has an RD row so only the merged two-row RD block is shown.
+ * - FIX: Added a space before team-name marker symbols in the chart display.
+ * - CHANGE: Preserved existing footnote wording, effective-race notes, and spreadsheet export behavior.
+ *
+ * v014 (4/8/2026)
+ * - CHANGE: Reduced note font size slightly for better proportion with the chart.
+ * - FIX: Applied note-row background color inline so the footer cell stays visible even when external CSS overrides table styles.
+ * - CHANGE: Moved file header block back to the top of the file, directly below declare(strict_types=1).
+ *
+ * v013 (4/8/2026)
+ * - CHANGE: Moved chart notes into a final full-width table row so styling is no longer affected by page-level CSS.
+ * - CHANGE: Notes now stack vertically, one per line, inside a single footer cell.
+ * - CHANGE: Uses header-row color treatment for the notes cell.
+ *
+ * v012 (4/8/2026)
+ * - CHANGE: Updated chart footnotes to use black text on a light gray background (#000000 on #eeeeee).
+ * - CHANGE: Preserved the current LP/RD marker logic, notes, and RD merged-row layout.
+ *
+ * v011 (4/8/2026)
+ * - CHANGE: Updated chart footnotes to use a higher-contrast button-style color treatment for readability.
+ * - CHANGE: Increased footnote padding / line height slightly for easier scanning.
+ * - CHANGE: No logic changes to LP/RD markers, unique note assignment, or RD merged-row rendering.
+ *
+ * v010 (4/8/2026)
+ * - CHANGE: Added current-standard file header with version, modified timestamp, and changelog.
+ * - CHANGE: Team Chart HTML now uses unique per-team special markers with specific notes including effective race.
+ * - CHANGE: LP rows mark all four drivers with the same team-specific marker.
+ * - CHANGE: RD rows now render as two-row Excel-style display with shared cells vertically merged and only the changed driver column repeated.
+ * - CHANGE: Spreadsheet export remains supported and uses inline markers, but not the merged RD HTML layout.
+ *
+ * v009 (4/7/2026)
+ * - Rebuilt from user_picks + users with render-time (LP) / (RD) markers plus legend for chart and spreadsheet output.
+ */
 
 ob_start();
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-$_SESSION['return_to'] = $_SERVER['REQUEST_URI'];
+$_SESSION['return_to'] = $_SERVER['REQUEST_URI'] ?? '/team_chart.php';
 
 require_once $_SERVER['DOCUMENT_ROOT'] . '/config.php';
 require_once $_SERVER['DOCUMENT_ROOT'] . '/config_mrl.php';
@@ -24,28 +66,15 @@ if (!$user_home->is_logged_in()) {
     exit;
 }
 
-// team_chart.php usually is NOT admin-only; keep adminStatusLine safe if missing
 if (!isset($adminStatusLine)) {
     $adminStatusLine = '';
 }
 
-// Match team.php timing behavior
 date_default_timezone_set('America/New_York');
 $currentTimeIs = date("n/j/Y g:i a");
 
-/**
- * Team Chart (PRG)
- * - "Show" uses POST -> session -> redirect (clean URL, no resubmission warning)
- * - "Spreadsheet" uses POST in a NEW TAB (clean URL, no resubmission warning)
- * - Year/segment dropdowns sourced from DB
- * - Defaults come from admin_setup via config_mrl.php ($raceYear, $segment, $formLockDate, $formLockTime, $formLocked)
- * - Gate current segment chart until deadline (show submitted_teams.php instead)
- * - Print: prints currently displayed chart (client-side window.print)
- * - Spreadsheet: downloads TRUE .xlsx (no Excel warning) formatted like the chart
- * - No schema changes
- */
 
-// ---------- helpers ----------
+
 function h($val): string {
     return htmlspecialchars((string)$val, ENT_QUOTES, 'UTF-8');
 }
@@ -56,6 +85,159 @@ function valid_year($y): bool {
 
 function valid_segment($s): bool {
     return preg_match('/^S[1-9]\d*$/', (string)$s) === 1;
+}
+
+function tc_marker_symbol(int $index): string
+{
+    return str_repeat('*', max(1, $index));
+}
+
+function tc_effective_race_label($value): string
+{
+    $num = (int)$value;
+    if ($num <= 0) {
+        return '';
+    }
+    return 'R' . str_pad((string)$num, 2, '0', STR_PAD_LEFT);
+}
+
+function tc_get_reference_pick_row(array $row, array $rowsByPickId, ?array $baseRow): ?array
+{
+    $supersedesPickID = (int)($row['supersedes_pickID'] ?? 0);
+    if ($supersedesPickID > 0 && isset($rowsByPickId[$supersedesPickID])) {
+        return $rowsByPickId[$supersedesPickID];
+    }
+    return $baseRow;
+}
+
+function tc_get_changed_field_for_rd(array $row, ?array $referenceRow): ?string
+{
+    if (strtoupper(trim((string)($row['pick_type'] ?? ''))) !== 'RD') {
+        return null;
+    }
+
+    foreach (['driverA', 'driverB', 'driverC', 'driverD'] as $field) {
+        $current = trim((string)($row[$field] ?? ''));
+        $original = trim((string)($referenceRow[$field] ?? ''));
+        if ($current !== '' && strcasecmp($current, $original) !== 0) {
+            return $field;
+        }
+    }
+
+    return null;
+}
+
+function tc_build_chart_context(array $rows): array
+{
+    $rowsByPickId = [];
+    $baseRowsByTeam = [];
+    $teamsWithRd = [];
+    $notes = [];
+    $htmlRows = [];
+    $excelRows = [];
+    $markerIndex = 0;
+
+    foreach ($rows as $row) {
+        $pickId = (int)($row['pickID'] ?? 0);
+        if ($pickId > 0) {
+            $rowsByPickId[$pickId] = $row;
+        }
+
+        $teamName = trim((string)($row['teamName'] ?? ''));
+        $pickType = strtoupper(trim((string)($row['pick_type'] ?? 'SEG')));
+
+        if ($teamName !== '' && !isset($baseRowsByTeam[$teamName]) && ($pickType === 'SEG' || $pickType === 'ADJ' || $pickType === '')) {
+            $baseRowsByTeam[$teamName] = $row;
+        }
+
+        if ($teamName !== '' && !isset($baseRowsByTeam[$teamName])) {
+            $baseRowsByTeam[$teamName] = $row;
+        }
+
+        if ($teamName !== '' && $pickType === 'RD') {
+            $teamsWithRd[$teamName] = true;
+        }
+    }
+
+    foreach ($rows as $row) {
+        $teamName = trim((string)($row['teamName'] ?? ''));
+        $pickType = strtoupper(trim((string)($row['pick_type'] ?? 'SEG')));
+        $referenceRow = tc_get_reference_pick_row($row, $rowsByPickId, $baseRowsByTeam[$teamName] ?? null);
+        $marker = '';
+
+        if (($pickType === 'SEG' || $pickType === 'ADJ') && isset($teamsWithRd[$teamName])) {
+            continue;
+        }
+
+        if ($pickType === 'LP') {
+            $markerIndex++;
+            $marker = tc_marker_symbol($markerIndex);
+            $noteText = $teamName . ' — Late Pick';
+            $effectiveRaceLabel = tc_effective_race_label($row['effective_race'] ?? 0);
+            if ($effectiveRaceLabel !== '') {
+                $noteText .= ' — Effective ' . $effectiveRaceLabel;
+            }
+            $notes[] = ['marker' => $marker, 'text' => $noteText];
+        } elseif ($pickType === 'RD') {
+            $changedField = tc_get_changed_field_for_rd($row, $referenceRow);
+            if ($changedField !== null) {
+                $markerIndex++;
+                $marker = tc_marker_symbol($markerIndex);
+                $noteText = $teamName . ' — Replacement Driver';
+                $effectiveRaceLabel = tc_effective_race_label($row['effective_race'] ?? 0);
+                if ($effectiveRaceLabel !== '') {
+                    $noteText .= ' — Effective ' . $effectiveRaceLabel;
+                }
+                $notes[] = ['marker' => $marker, 'text' => $noteText];
+            }
+        }
+
+        $excelRow = $row;
+        foreach (['driverA', 'driverB', 'driverC', 'driverD'] as $field) {
+            $driver = trim((string)($row[$field] ?? ''));
+            if ($driver === '') {
+                $excelRow[$field] = '';
+                continue;
+            }
+
+            if ($pickType === 'LP' && $marker !== '') {
+                $excelRow[$field] = $driver . ' ' . $marker;
+            } elseif ($pickType === 'RD' && $marker !== '') {
+                $changedField = tc_get_changed_field_for_rd($row, $referenceRow);
+                $excelRow[$field] = ($field === $changedField) ? ($driver . ' ' . $marker) : $driver;
+            } else {
+                $excelRow[$field] = $driver;
+            }
+        }
+        $excelRows[] = $excelRow;
+
+        if ($pickType === 'RD' && $marker !== '') {
+            $changedField = tc_get_changed_field_for_rd($row, $referenceRow);
+            if ($changedField !== null) {
+                $htmlRows[] = [
+                    'render_type' => 'rd_pair',
+                    'current' => $row,
+                    'reference' => $referenceRow,
+                    'marker' => $marker,
+                    'changed_field' => $changedField,
+                ];
+                continue;
+            }
+        }
+
+        $htmlRows[] = [
+            'render_type' => 'single',
+            'current' => $row,
+            'marker' => $marker,
+            'pick_type' => $pickType,
+        ];
+    }
+
+    return [
+        'htmlRows' => $htmlRows,
+        'excelRows' => $excelRows,
+        'notes' => $notes,
+    ];
 }
 
 /**
@@ -95,7 +277,6 @@ function send_excel_xlsx(string $filenameBase, array $rows, string $title): void
 
         $sheet->setCellValue('A1', $title);
         $sheet->mergeCells('A1:G1');
-
         $sheet->fromArray($headers, null, 'A2');
 
         $r = 3;
@@ -106,13 +287,11 @@ function send_excel_xlsx(string $filenameBase, array $rows, string $title): void
             $sheet->setCellValue("D{$r}", (string)($row['driverB'] ?? ''));
             $sheet->setCellValue("E{$r}", (string)($row['driverC'] ?? ''));
             $sheet->setCellValue("F{$r}", (string)($row['driverD'] ?? ''));
-
             $sheet->setCellValueExplicit(
                 "G{$r}",
                 (string)($row['entryDate'] ?? ''),
                 \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING
             );
-
             $r++;
         }
 
@@ -233,13 +412,13 @@ function send_excel_xlsx(string $filenameBase, array $rows, string $title): void
         exit;
     }
 }
+
 // ---------- load years + segments from DB ----------
 $years    = [];
 $segments = [];
 
 try {
     if (isset($dbo) && $dbo instanceof PDO) {
-
         $stmt  = $dbo->query("SELECT year FROM years WHERE year > 0 ORDER BY year ASC");
         $years = $stmt ? $stmt->fetchAll(PDO::FETCH_COLUMN, 0) : [];
 
@@ -247,7 +426,6 @@ try {
         $segments = $stmt ? $stmt->fetchAll(PDO::FETCH_COLUMN, 0) : [];
 
     } elseif (isset($dbconnect)) {
-
         $res = mysqli_query($dbconnect, "SELECT year FROM years WHERE year > 0 ORDER BY year ASC");
         while ($res && ($r = mysqli_fetch_assoc($res))) {
             $years[] = $r['year'];
@@ -292,9 +470,7 @@ $postSegment = $hasPost ? (string)($_POST['segment'] ?? '') : '';
 
 $self = basename($_SERVER['PHP_SELF']);
 
-// SHOW: store -> redirect (clean URL)
 if ($hasPost && $postAction === 'show') {
-
     $useYear = (valid_year($postYear) && in_array($postYear, $yearsStr, true))
         ? $postYear
         : $defaultYear;
@@ -306,20 +482,14 @@ if ($hasPost && $postAction === 'show') {
     $_SESSION['teamchart_year']    = $useYear;
     $_SESSION['teamchart_segment'] = $useSeg;
     $_SESSION['teamchart_has']     = true;
-
-    // mark this as the PRG landing
     $_SESSION['teamchart_from_prg'] = true;
 
-    // PRG redirect (303 is best practice after POST)
     header("Location: {$self}", true, 303);
     exit;
 }
 
-// Do we currently have a selection?
 $hasSelection = (isset($_SESSION['teamchart_has']) && $_SESSION['teamchart_has'] === true);
 
-// NORMAL PAGE ENTRY (not right after PRG):
-// always reset to admin_setup defaults
 if (!$hasPost && empty($_SESSION['teamchart_from_prg'])) {
     $_SESSION['teamchart_year']    = $defaultYear;
     $_SESSION['teamchart_segment'] = $defaultSegment;
@@ -327,10 +497,8 @@ if (!$hasPost && empty($_SESSION['teamchart_from_prg'])) {
     $hasSelection = true;
 }
 
-// PRG flag is one-time use
 unset($_SESSION['teamchart_from_prg']);
 
-// Final selected values
 $selectedYear    = $defaultYear;
 $selectedSegment = $defaultSegment;
 
@@ -346,8 +514,6 @@ if ($hasSelection) {
     }
 }
 
-
-// Spreadsheet: allow override + keep session in sync
 $isExcelPost = ($hasPost && $postAction === 'excel');
 if ($isExcelPost) {
     $excelYear = (valid_year($postYear) && in_array($postYear, $yearsStr, true)) ? $postYear : $selectedYear;
@@ -427,14 +593,26 @@ $dbError = '';
 if ($needsChartData) {
     try {
         if (isset($dbo) && $dbo instanceof PDO) {
-
             $sql = "
-                SELECT teamName, userName, driverA, driverB, driverC, driverD, entryDate
-                FROM picks
-                WHERE raceYear = :year
-                  AND segment  = :segment
-                  AND userName != 'MRL'
-                ORDER BY userID ASC
+                SELECT
+                    up.pickID,
+                    up.pick_type,
+                    up.supersedes_pickID,
+                    up.effective_race,
+                    up.userID,
+                    up.teamName,
+                    COALESCE(u.userName, '') AS userName,
+                    up.driverA,
+                    up.driverB,
+                    up.driverC,
+                    up.driverD,
+                    up.entryDate
+                FROM user_picks up
+                LEFT JOIN users u ON u.userID = up.userID
+                WHERE up.raceYear = :year
+                  AND up.segment = :segment
+                  AND COALESCE(u.userName, '') != 'MRL'
+                ORDER BY up.userID ASC, up.entryDate ASC, up.pickID ASC
             ";
 
             $stmt = $dbo->prepare($sql);
@@ -446,14 +624,26 @@ if ($needsChartData) {
             $picks = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         } elseif (isset($dbconnect)) {
-
             $sql = "
-                SELECT teamName, userName, driverA, driverB, driverC, driverD, entryDate
-                FROM picks
-                WHERE raceYear = ?
-                  AND segment  = ?
-                  AND userName != 'MRL'
-                ORDER BY userID ASC
+                SELECT
+                    up.pickID,
+                    up.pick_type,
+                    up.supersedes_pickID,
+                    up.effective_race,
+                    up.userID,
+                    up.teamName,
+                    COALESCE(u.userName, '') AS userName,
+                    up.driverA,
+                    up.driverB,
+                    up.driverC,
+                    up.driverD,
+                    up.entryDate
+                FROM user_picks up
+                LEFT JOIN users u ON u.userID = up.userID
+                WHERE up.raceYear = ?
+                  AND up.segment = ?
+                  AND COALESCE(u.userName, '') != 'MRL'
+                ORDER BY up.userID ASC, up.entryDate ASC, up.pickID ASC
             ";
 
             $stmt = mysqli_prepare($dbconnect, $sql);
@@ -476,6 +666,11 @@ if ($needsChartData) {
     }
 }
 
+$chartContext = ['htmlRows' => [], 'excelRows' => [], 'notes' => []];
+if (!empty($picks)) {
+    $chartContext = tc_build_chart_context($picks);
+}
+
 // ---------- EXCEL EXPORT ----------
 if ($isExcelPost) {
     if ($showSubmittedInsteadOfChart) {
@@ -491,7 +686,7 @@ if ($isExcelPost) {
     }
 
     $title = $selectedYear . ' ' . $segmentLabel . ' Team Chart';
-    send_excel_xlsx("Team_Chart_{$selectedYear}_{$selectedSegment}", $picks, $title);
+    send_excel_xlsx("Team_Chart_{$selectedYear}_{$selectedSegment}", $chartContext['excelRows'], $title);
 }
 
 ?>
@@ -527,6 +722,23 @@ if ($isExcelPost) {
             display: inline-flex;
             gap: 10px;
             align-items: center;
+        }
+
+        .teamchart-rd-merged {
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .teamchart-notes {
+            margin-top: 8px;
+            color: #666;
+            font-size: 13px;
+            font-family: Arial, sans-serif;
+            text-align: left;
+        }
+
+        .teamchart-notes div + div {
+            margin-top: 2px;
         }
     </style>
 </head>
@@ -614,24 +826,104 @@ $chartDisplayed = ($hasSelection && !$showSubmittedInsteadOfChart && $dbError ==
                     </thead>
 
                     <tbody>
-                        <?php if (empty($picks)): ?>
+                        <?php if (empty($chartContext['htmlRows'])): ?>
                             <tr>
                                 <td colspan="7" class="teamchart-empty">No picks found for this year / segment.</td>
                             </tr>
                         <?php else: ?>
-                            <?php foreach ($picks as $row): ?>
-                                <tr>
-                                    <td class="teamchart-cell-team"><?php echo h($row['teamName'] ?? ''); ?></td>
-                                    <td class="teamchart-cell-owner"><?php echo h($row['userName'] ?? ''); ?></td>
-                                    <td class="teamchart-cell-a"><?php echo h($row['driverA'] ?? ''); ?></td>
-                                    <td class="teamchart-cell-b"><?php echo h($row['driverB'] ?? ''); ?></td>
-                                    <td class="teamchart-cell-c"><?php echo h($row['driverC'] ?? ''); ?></td>
-                                    <td class="teamchart-cell-d"><?php echo h($row['driverD'] ?? ''); ?></td>
-                                    <td class="teamchart-cell-time"><?php echo h($row['entryDate'] ?? ''); ?></td>
-                                </tr>
+                            <?php foreach ($chartContext['htmlRows'] as $entry): ?>
+                                <?php if ($entry['render_type'] === 'single'): ?>
+                                    <?php
+                                        $row = $entry['current'];
+                                        $pickType = strtoupper(trim((string)($entry['pick_type'] ?? 'SEG')));
+                                        $marker = (string)($entry['marker'] ?? '');
+                                        $driverA = trim((string)($row['driverA'] ?? ''));
+                                        $driverB = trim((string)($row['driverB'] ?? ''));
+                                        $driverC = trim((string)($row['driverC'] ?? ''));
+                                        $driverD = trim((string)($row['driverD'] ?? ''));
+
+                                        if ($pickType === 'LP' && $marker !== '') {
+                                            $driverA .= ' ' . $marker;
+                                            $driverB .= ' ' . $marker;
+                                            $driverC .= ' ' . $marker;
+                                            $driverD .= ' ' . $marker;
+                                        }
+
+                                        $teamDisplay = trim((string)($row['teamName'] ?? ''));
+                                        if ($marker !== '') {
+                                            $teamDisplay .= ' ' . $marker;
+                                        }
+                                    ?>
+                                    <tr>
+                                        <td class="teamchart-cell-team"><?php echo h($teamDisplay); ?></td>
+                                        <td class="teamchart-cell-owner"><?php echo h($row['userName'] ?? ''); ?></td>
+                                        <td class="teamchart-cell-a"><?php echo h($driverA); ?></td>
+                                        <td class="teamchart-cell-b"><?php echo h($driverB); ?></td>
+                                        <td class="teamchart-cell-c"><?php echo h($driverC); ?></td>
+                                        <td class="teamchart-cell-d"><?php echo h($driverD); ?></td>
+                                        <td class="teamchart-cell-time"><?php echo h($row['entryDate'] ?? ''); ?></td>
+                                    </tr>
+                                <?php else: ?>
+                                    <?php
+                                        $row = $entry['current'];
+                                        $reference = is_array($entry['reference'] ?? null) ? $entry['reference'] : [];
+                                        $marker = (string)($entry['marker'] ?? '');
+                                        $changedField = (string)($entry['changed_field'] ?? '');
+                                        $fieldOrder = ['driverA', 'driverB', 'driverC', 'driverD'];
+                                        $changedCellClass = $changedField === 'driverA'
+                                            ? 'teamchart-cell-a'
+                                            : ($changedField === 'driverB'
+                                                ? 'teamchart-cell-b'
+                                                : ($changedField === 'driverC'
+                                                    ? 'teamchart-cell-c'
+                                                    : 'teamchart-cell-d'));
+                                        $teamDisplay = trim((string)($row['teamName'] ?? ''));
+                                        if ($marker !== '') {
+                                            $teamDisplay .= ' ' . $marker;
+                                        }
+                                    ?>
+                                    <tr>
+                                        <td class="teamchart-cell-team" rowspan="2"><?php echo h($teamDisplay); ?></td>
+                                        <td class="teamchart-cell-owner" rowspan="2"><?php echo h($row['userName'] ?? ''); ?></td>
+
+                                        <?php foreach ($fieldOrder as $field): ?>
+                                            <?php if ($field === $changedField): ?>
+                                                <td class="<?php echo h($changedCellClass); ?>"><?php echo h($reference[$field] ?? ''); ?></td>
+                                            <?php else: ?>
+                                                <?php
+                                                    $unchangedClass = $field === 'driverA'
+                                                        ? 'teamchart-cell-a'
+                                                        : ($field === 'driverB'
+                                                            ? 'teamchart-cell-b'
+                                                            : ($field === 'driverC'
+                                                                ? 'teamchart-cell-c'
+                                                                : 'teamchart-cell-d'));
+                                                ?>
+                                                <td class="<?php echo h($unchangedClass); ?> teamchart-rd-merged" rowspan="2"><?php echo h($row[$field] ?? ''); ?></td>
+                                            <?php endif; ?>
+                                        <?php endforeach; ?>
+
+                                        <td class="teamchart-cell-time"><?php echo h($reference['entryDate'] ?? $row['entryDate'] ?? ''); ?></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="<?php echo h($changedCellClass); ?>"><?php echo h(trim(((string)($row[$changedField] ?? '')) . ' ' . $marker)); ?></td>
+                                        <td class="teamchart-cell-time"><?php echo h($row['entryDate'] ?? ''); ?></td>
+                                    </tr>
+                                <?php endif; ?>
                             <?php endforeach; ?>
                         <?php endif; ?>
                     </tbody>
+                    <?php if (!empty($chartContext['notes'])): ?>
+                        <tfoot>
+                            <tr>
+                                <td colspan="7" class="teamchart-notes-row" style="background:#fabf8f !important; color:#000000 !important;">
+                                    <?php foreach ($chartContext['notes'] as $note): ?>
+                                        <div class="teamchart-note-line"><?php echo h($note['marker'] . ' ' . $note['text']); ?></div>
+                                    <?php endforeach; ?>
+                                </td>
+                            </tr>
+                        </tfoot>
+                    <?php endif; ?>
                 </table>
             </div>
 
