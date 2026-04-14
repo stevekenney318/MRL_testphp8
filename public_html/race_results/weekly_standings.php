@@ -14,10 +14,43 @@ require_once $_SERVER['DOCUMENT_ROOT'] . '/sandbox.html';
 /**
  * weekly_standings.php
  *
- * VERSION: v048
- * LAST MODIFIED: 4/7/2026 7:22:30 am
+ * VERSION: v054
+ * LAST MODIFIED: 4/14/2026 4:13:18 pm
  *
  * CHANGELOG:
+ *
+ * v054 (4/14/2026)
+ *   - CHANGE: Tied rows in weekly, segment, and year tables now share the same lowest numeric position and render those tied positions in bold.
+ *   - CHANGE: Weekly winners keeps the first column as week number order and bolds duplicated week numbers only when that week has tied winners.
+ *   - CHANGE: Weekly LP / RD markers now use a single shared marker per active condition type on the page.
+ *   - CHANGE: If only one special-pick type exists on the page, it uses a single asterisk; if both LP and RD exist, LP uses * and RD uses **.
+ *   - CHANGE: Weekly detail and grouped footnotes now use 'As of R##' wording and grouped headings like 'Late Pick:' / 'Replacement Driver:'.
+ *   - FIX: Corrected year-table rank bolding so only true tied season positions render in bold.
+ *
+ * v053 (4/14/2026)
+ *   - FIX: Restored the four-panel grid layout after the prior weekly footnote change disrupted panel structure.
+ *   - FIX: Restored the weekly scoring table so the week panel renders normally again.
+ *   - CHANGE: Weekly LP / RD notes now render below the weekly table as true footnotes with grouped headings.
+ *   - CHANGE: Weekly, segment, year, and weekly-winner tie notes now share the same quieter italic footnote style.
+ *
+ * v051 (4/14/2026)
+ *   - CHANGE: Weekly footnotes now use the same background treatment as the expanded team detail section.
+ *   - CHANGE: Tie and LP / RD notes are now grouped into one compact footnote block with indented entries.
+ *   - CHANGE: Dropped the word Effective from grouped LP / RD footnotes for cleaner scanning.
+ *   - CHANGE: LP / RD conditions no longer generate WARN validation entries; only true warning conditions remain.
+ *
+ * v050 (4/14/2026)
+ *   - CHANGE: Set all four report panels to equal width and aligned tables 1–3 more closely to Weekly Winners column proportions.
+ *   - CHANGE: Weekly detail special-pick note now uses full wording without repeating the team name.
+ *   - CHANGE: Bottom weekly special-pick notes now use compact LP / RD abbreviations for easier scanning.
+ *   - CHANGE: Tie footnotes now use a quieter black / gray style instead of red.
+ *   - CHANGE: If any tie exists anywhere on the page, single-asterisk is reserved for Tie and LP / RD markers begin at double-asterisk.
+ *
+ * v049 (4/14/2026)
+ *   - CHANGE: Added LP / RD markers to weekly team rows and expanded driver detail rows.
+ *   - CHANGE: Expanded weekly detail rows now show the full LP / RD note above the driver list when applicable.
+ *   - CHANGE: Added stacked weekly LP / RD notes at the bottom of the weekly standings table.
+ *   - CHANGE: Added tie markers to weekly, segment, and year standings rows, matching the existing Weekly Winners tie pattern.
  *
  * v048 (4/7/2026)
  *   - FIX: Live scoring special-pick overlay now uses only user_picks for LP / RD rows.
@@ -202,6 +235,12 @@ function rrsg_build_weekly_rows(array $teamRows, array $driverPoints): array
             'netC' => $netC,
             'netD' => $netD,
             'weeklyTotal' => $weeklyTotal,
+            'pick_type' => (string)($team['pick_type'] ?? ''),
+            'effective_race' => (int)($team['effective_race'] ?? 0),
+            'original_driverA' => (string)($team['original_driverA'] ?? ''),
+            'original_driverB' => (string)($team['original_driverB'] ?? ''),
+            'original_driverC' => (string)($team['original_driverC'] ?? ''),
+            'original_driverD' => (string)($team['original_driverD'] ?? ''),
         ];
     }
 
@@ -562,9 +601,14 @@ function rrsg_special_pick_rows(string $raceYear, string $segment, $dbo): array
             up.formID,
             up.pick_type,
             up.effective_race,
-            up.supersedes_pickID
+            up.supersedes_pickID,
+            base.driverA AS original_driverA,
+            base.driverB AS original_driverB,
+            base.driverC AS original_driverC,
+            base.driverD AS original_driverD
         FROM user_picks up
         LEFT JOIN users u ON u.userID = up.userID
+        LEFT JOIN user_picks base ON base.pickID = up.supersedes_pickID
         WHERE up.raceYear = :raceYear
           AND up.segment = :segment
           AND up.pick_type IN ('LP', 'RD')
@@ -597,6 +641,10 @@ function rrsg_overlay_special_rows_for_race(array $baseTeamRows, array $specialR
 
         $row['pick_type'] = (string)($row['pick_type'] ?? 'SEG');
         $row['effective_race'] = (int)($row['effective_race'] ?? rrsg_segment_bounds($segment)['start']);
+        $row['original_driverA'] = (string)($row['original_driverA'] ?? '');
+        $row['original_driverB'] = (string)($row['original_driverB'] ?? '');
+        $row['original_driverC'] = (string)($row['original_driverC'] ?? '');
+        $row['original_driverD'] = (string)($row['original_driverD'] ?? '');
         $rowsByTeam[$teamName] = $row;
     }
 
@@ -656,6 +704,10 @@ function rrsg_overlay_special_rows_for_race(array $baseTeamRows, array $specialR
                 'driverD' => (string)($applicable['driverD'] ?? ''),
                 'pick_type' => (string)($applicable['pick_type'] ?? ''),
                 'effective_race' => (int)($applicable['effective_race'] ?? 0),
+                'original_driverA' => (string)($applicable['original_driverA'] ?? ''),
+                'original_driverB' => (string)($applicable['original_driverB'] ?? ''),
+                'original_driverC' => (string)($applicable['original_driverC'] ?? ''),
+                'original_driverD' => (string)($applicable['original_driverD'] ?? ''),
             ];
             continue;
         }
@@ -683,6 +735,10 @@ function rrsg_overlay_special_rows_for_race(array $baseTeamRows, array $specialR
                     'driverD' => '',
                     'pick_type' => (string)($firstSpecial['pick_type'] ?? ''),
                     'effective_race' => $firstEffectiveRace,
+                    'original_driverA' => (string)($firstSpecial['original_driverA'] ?? ''),
+                    'original_driverB' => (string)($firstSpecial['original_driverB'] ?? ''),
+                    'original_driverC' => (string)($firstSpecial['original_driverC'] ?? ''),
+                    'original_driverD' => (string)($firstSpecial['original_driverD'] ?? ''),
                 ];
             }
         }
@@ -695,26 +751,6 @@ function rrsg_overlay_special_rows_for_race(array $baseTeamRows, array $specialR
 
     return $rows;
 }
-
-function rrsg_collect_special_pick_warnings(array $weeklyRows, string $selectedRaceCode): array
-{
-    $warnings = [];
-
-    foreach ($weeklyRows as $row) {
-        $pickType = strtoupper((string)($row['pick_type'] ?? ''));
-        if ($pickType !== 'LP' && $pickType !== 'RD') {
-            continue;
-        }
-
-        $teamName = (string)($row['teamName'] ?? '');
-        $effectiveRace = (int)($row['effective_race'] ?? 0);
-
-        $warnings[] = $pickType . ' active for ' . $teamName . ' starting race ' . $effectiveRace . ' (selected race ' . $selectedRaceCode . ').';
-    }
-
-    return $warnings;
-}
-
 
 function rrsg_no_picks_message(array $row): string
 {
@@ -778,6 +814,141 @@ function rrsg_collect_missing_pick_warnings(
 
     return $warnings;
 }
+
+function rrsg_tie_team_map(array $rows, string $scoreKey): array
+{
+    $counts = [];
+    $map = [];
+
+    foreach ($rows as $row) {
+        $score = (int)($row[$scoreKey] ?? 0);
+        if (!isset($counts[$score])) {
+            $counts[$score] = 0;
+        }
+        $counts[$score]++;
+    }
+
+    foreach ($rows as $row) {
+        $teamName = (string)($row['teamName'] ?? '');
+        $score = (int)($row[$scoreKey] ?? 0);
+
+        if ($teamName !== '' && ($counts[$score] ?? 0) > 1) {
+            $map[$teamName] = true;
+        }
+    }
+
+    return $map;
+}
+
+function rrsg_weekly_special_changed_field(array $row): ?string
+{
+    $pickType = strtoupper((string)($row['pick_type'] ?? ''));
+    if ($pickType !== 'RD') {
+        return null;
+    }
+
+    foreach (['driverA', 'driverB', 'driverC', 'driverD'] as $field) {
+        $current = trim((string)($row[$field] ?? ''));
+        $original = trim((string)($row['original_' . $field] ?? ''));
+        if ($current !== '' && $original !== '' && strcasecmp($current, $original) !== 0) {
+            return $field;
+        }
+    }
+
+    return null;
+}
+
+function rrsg_special_marker_symbol(int $index, bool $tieExistsAnywhere): string
+{
+    $starCount = $index + ($tieExistsAnywhere ? 1 : 0);
+    return str_repeat('*', max(1, $starCount));
+}
+
+function rrsg_weekly_special_display_context(array $weeklyRows): array
+{
+    $hasLp = false;
+    $hasRd = false;
+
+    foreach ($weeklyRows as $row) {
+        $pickType = strtoupper((string)($row['pick_type'] ?? ''));
+        if ($pickType === 'LP') {
+            $hasLp = true;
+        } elseif ($pickType === 'RD' && rrsg_weekly_special_changed_field($row) !== null) {
+            $hasRd = true;
+        }
+    }
+
+    $lpMarker = '';
+    $rdMarker = '';
+
+    if ($hasLp && $hasRd) {
+        $lpMarker = '*';
+        $rdMarker = '**';
+    } elseif ($hasLp) {
+        $lpMarker = '*';
+    } elseif ($hasRd) {
+        $rdMarker = '*';
+    }
+
+    $markersByTeam = [];
+    $detailNoteByTeam = [];
+    $changedFieldByTeam = [];
+    $latePickEntries = [];
+    $replacementDriverEntries = [];
+
+    foreach ($weeklyRows as $row) {
+        $teamName = (string)($row['teamName'] ?? '');
+        $pickType = strtoupper((string)($row['pick_type'] ?? ''));
+
+        if ($teamName === '') {
+            continue;
+        }
+
+        if ($pickType === 'LP' && $lpMarker !== '') {
+            $effectiveRace = (int)($row['effective_race'] ?? 0);
+            $detailText = 'Late Pick';
+            $entryText = $teamName;
+            if ($effectiveRace > 0) {
+                $detailText .= ' — As of R' . str_pad((string)$effectiveRace, 2, '0', STR_PAD_LEFT);
+                $entryText .= ' — As of R' . str_pad((string)$effectiveRace, 2, '0', STR_PAD_LEFT);
+            }
+
+            $markersByTeam[$teamName] = $lpMarker;
+            $detailNoteByTeam[$teamName] = $detailText;
+            $latePickEntries[] = $entryText;
+            continue;
+        }
+
+        if ($pickType === 'RD' && $rdMarker !== '') {
+            $changedField = rrsg_weekly_special_changed_field($row);
+            if ($changedField !== null) {
+                $effectiveRace = (int)($row['effective_race'] ?? 0);
+                $detailText = 'Replacement Driver';
+                $entryText = $teamName;
+                if ($effectiveRace > 0) {
+                    $detailText .= ' — As of R' . str_pad((string)$effectiveRace, 2, '0', STR_PAD_LEFT);
+                    $entryText .= ' — As of R' . str_pad((string)$effectiveRace, 2, '0', STR_PAD_LEFT);
+                }
+
+                $markersByTeam[$teamName] = $rdMarker;
+                $detailNoteByTeam[$teamName] = $detailText;
+                $changedFieldByTeam[$teamName] = $changedField;
+                $replacementDriverEntries[] = $entryText;
+            }
+        }
+    }
+
+    return [
+        'markersByTeam' => $markersByTeam,
+        'detailNoteByTeam' => $detailNoteByTeam,
+        'changedFieldByTeam' => $changedFieldByTeam,
+        'latePickEntries' => $latePickEntries,
+        'replacementDriverEntries' => $replacementDriverEntries,
+        'lpMarker' => $lpMarker,
+        'rdMarker' => $rdMarker,
+    ];
+}
+
 
 
 /* ------------------------------------------------------------------
@@ -1077,13 +1248,6 @@ if ($selectedRace === null) {
         rrsg_add_validation($validation, 'pass', 'No unexpected zero scores detected.');
     }
 
-    $specialPickWarnings = rrsg_collect_special_pick_warnings($selectedRaceWeeklyRows, $selectedRaceCode);
-    if (!empty($specialPickWarnings)) {
-        foreach ($specialPickWarnings as $warningMsg) {
-            rrsg_add_validation($validation, 'warn', $warningMsg);
-        }
-    }
-
     $missingPickWarnings = rrsg_collect_missing_pick_warnings(
         $selectedRaceNumber,
         $pointRaces,
@@ -1153,6 +1317,17 @@ foreach ($weeklyWinners as $winnerData) {
         break;
     }
 }
+
+$weeklyTieMap = rrsg_tie_team_map($selectedRaceWeeklyRows, 'weeklyTotal');
+$segmentTieMap = rrsg_tie_team_map($segmentStandings, 'total');
+$seasonTieMap = rrsg_tie_team_map($seasonStandings, 'total');
+
+$weeklyHasTie = !empty($weeklyTieMap);
+$segmentHasTie = !empty($segmentTieMap);
+$seasonHasTie = !empty($seasonTieMap);
+
+$tieExistsAnywhere = ($weeklyHasTie || $segmentHasTie || $seasonHasTie || $weeklyWinnersHasTie);
+$weeklySpecialContext = rrsg_weekly_special_display_context($selectedRaceWeeklyRows);
 
 $statusClass = 'status-pass';
 if ($validationStatus === 'WARN') {
@@ -1423,7 +1598,7 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
 
         .report-grid {
             display: grid;
-            grid-template-columns: minmax(200px, 0.75fr) minmax(200px, 0.75fr) minmax(200px, 0.75fr) minmax(250px, 1.25fr);
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 10px;
             align-items: start;
         }
@@ -1447,6 +1622,11 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
             width: 100%;
             table-layout: auto;
             font-size: 14px;
+        }
+
+        .report-grid table {
+            width: 100%;
+            table-layout: fixed;
         }
 
         th, td {
@@ -1506,16 +1686,13 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
             text-align: left;
         }
 
-        .col-rank {
-            width: 16px;
+        .col-rank,
+        .col-week {
+            width: 42px;
         }
 
         .col-score {
-            width: 20px;
-        }
-
-        .col-week {
-            width: 46px;
+            width: 56px;
         }
 
         .weekly-click-row td {
@@ -1553,6 +1730,8 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
             padding-left: 18px;
             white-space: nowrap;
             min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .team-detail-label-wrap {
@@ -1572,11 +1751,58 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
             font-weight: bold;
         }
 
+        .team-detail-note {
+            text-align: left;
+            padding-left: 18px;
+            padding-bottom: 4px;
+            font-size: 13px;
+            color: #333;
+            font-style: italic;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .table-footnote {
+            margin-top: 4px;
+            margin-left: 10px;
+            font-size: 14px;
+            color: #444;
+            font-style: italic;
+        }
+
+        .footnote-block {
+            margin-top: 4px;
+            margin-left: 10px;
+            font-size: 13px;
+            line-height: 1.35;
+            color: #444;
+            font-style: italic;
+            font-weight: 500;
+            text-align: left;
+        }
+
+        .footnote-line + .footnote-line {
+            margin-top: 2px;
+        }
+
+        .footnote-entry {
+            padding-left: 18px;
+        }
+
+        .tie-rank {
+            font-weight: bold;
+        }
+
+        .pick-marker {
+            font-weight: bold;
+        }
+
         .winner-footnote {
             margin-top: 4px;
             margin-left: 10px;
             font-size: 14px;
-            color: #a12424;
+            color: #444;
             font-style: italic;
         }
 
@@ -1652,7 +1878,8 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
                 padding: 4px 6px;
             }
 
-            .team-detail-driver {
+            .team-detail-driver,
+            .team-detail-note {
                 padding-left: 10px;
             }
         }
@@ -1833,18 +2060,45 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
                                     <td colspan="3">No weekly rows generated.</td>
                                 </tr>
                             <?php else: ?>
-                                <?php $rank = 1; ?>
+                                <?php $rank = 1; $displayRank = 0; $prevRankScore = null; ?>
                                 <?php foreach ($selectedRaceWeeklyRows as $row): ?>
+                                    <?php
+                                    $currentRankScore = (int)($row['weeklyTotal'] ?? 0);
+                                    if ($prevRankScore === null || $currentRankScore !== $prevRankScore) {
+                                        $displayRank = $rank;
+                                        $prevRankScore = $currentRankScore;
+                                    }
+                                    ?>
                                     <?php
                                     $detailId = 'weekly-detail-' . $rank;
                                     $stripeClass = ($rank % 2 === 1) ? 'stripe-a' : 'stripe-b';
+                                    $teamName = (string)($row['teamName'] ?? '');
+                                    $teamMarker = (string)($weeklySpecialContext['markersByTeam'][$teamName] ?? '');
+                                    $teamDisplay = $teamName;
+                                    if ($teamMarker !== '') {
+                                        $teamDisplay .= ' ' . $teamMarker;
+                                    }
+                                    $rankDisplay = (string)$displayRank;
                                     ?>
                                     <tr
                                         class="team-row weekly-click-row <?php echo $stripeClass; ?>"
                                         onclick="toggleWeeklyDetail('<?php echo rrsg_h($detailId); ?>', this)"
                                     >
-                                        <td class="num"><?php echo $rank; ?></td>
-                                        <td class="team-col"><?php echo rrsg_h($row['teamName']); ?></td>
+                                        <td class="num"><?php
+                                            $isTieRank = isset($weeklyTieMap[$teamName]);
+                                            if ($isTieRank) {
+                                                echo '<span class="tie-rank">' . rrsg_h($rankDisplay) . '</span>';
+                                            } else {
+                                                echo rrsg_h($rankDisplay);
+                                            }
+                                            ?></td>
+                                        <td class="team-col"><?php
+                                            if ($teamMarker !== '') {
+                                                echo rrsg_h($teamName) . ' <span class="pick-marker">' . rrsg_h($teamMarker) . '</span>';
+                                            } else {
+                                                echo rrsg_h($teamDisplay);
+                                            }
+                                            ?></td>
                                         <td class="num"><?php echo rrsg_h($row['weeklyTotal']); ?></td>
                                     </tr>
                                     <tr class="team-detail-row" id="<?php echo rrsg_h($detailId); ?>" style="display:none;">
@@ -1857,36 +2111,53 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
                                                     ((string)$row['driverB'] !== '') ||
                                                     ((string)$row['driverC'] !== '') ||
                                                     ((string)$row['driverD'] !== '');
+                                                $detailNoteText = (string)($weeklySpecialContext['detailNoteByTeam'][$teamName] ?? '');
+                                                $detailChangedField = (string)($weeklySpecialContext['changedFieldByTeam'][$teamName] ?? '');
                                                 ?>
+                                                <?php if ($detailNoteText !== ''): ?>
+                                                    <div class="team-detail-note"><span class="pick-marker"><?php echo rrsg_h($teamMarker); ?></span> <?php echo rrsg_h($detailNoteText); ?></div>
+                                                <?php endif; ?>
 
                                                 <?php if ($hasAnyDrivers): ?>
-                                                    <?php if ($row['driverA'] !== ''): ?>
-                                                        <div class="team-detail-line">
-                                                            <div class="team-detail-driver"><?php echo rrsg_h($row['driverA']); ?></div>
-                                                            <div class="team-detail-points"><?php echo rrsg_h($row['netA']); ?></div>
-                                                        </div>
-                                                    <?php endif; ?>
+                                                    <?php
+                                                    $driverFields = [
+                                                        ['field' => 'driverA', 'net' => 'netA'],
+                                                        ['field' => 'driverB', 'net' => 'netB'],
+                                                        ['field' => 'driverC', 'net' => 'netC'],
+                                                        ['field' => 'driverD', 'net' => 'netD'],
+                                                    ];
+                                                    ?>
+                                                    <?php foreach ($driverFields as $driverMeta): ?>
+                                                        <?php
+                                                        $field = $driverMeta['field'];
+                                                        $netKey = $driverMeta['net'];
+                                                        $driverName = (string)($row[$field] ?? '');
+                                                        if ($driverName === '') {
+                                                            continue;
+                                                        }
 
-                                                    <?php if ($row['driverB'] !== ''): ?>
+                                                        $driverDisplay = $driverName;
+                                                        if ($teamMarker !== '') {
+                                                            $pickType = strtoupper((string)($row['pick_type'] ?? ''));
+                                                            if ($pickType === 'LP') {
+                                                                $driverDisplay .= ' ' . $teamMarker;
+                                                            } elseif ($pickType === 'RD' && $detailChangedField === $field) {
+                                                                $driverDisplay .= ' ' . $teamMarker;
+                                                            }
+                                                        }
+                                                        ?>
                                                         <div class="team-detail-line">
-                                                            <div class="team-detail-driver"><?php echo rrsg_h($row['driverB']); ?></div>
-                                                            <div class="team-detail-points"><?php echo rrsg_h($row['netB']); ?></div>
+                                                            <div class="team-detail-driver"><?php
+                                                                if ($teamMarker !== '' && substr($driverDisplay, -strlen($teamMarker)) === $teamMarker) {
+                                                                    $driverBaseDisplay = substr($driverDisplay, 0, -strlen($teamMarker));
+                                                                    echo rrsg_h(rtrim($driverBaseDisplay)) . ' <span class="pick-marker">' . rrsg_h($teamMarker) . '</span>';
+                                                                } else {
+                                                                    echo rrsg_h($driverDisplay);
+                                                                }
+                                                                ?></div>
+                                                            <div class="team-detail-points"><?php echo rrsg_h($row[$netKey]); ?></div>
                                                         </div>
-                                                    <?php endif; ?>
-
-                                                    <?php if ($row['driverC'] !== ''): ?>
-                                                        <div class="team-detail-line">
-                                                            <div class="team-detail-driver"><?php echo rrsg_h($row['driverC']); ?></div>
-                                                            <div class="team-detail-points"><?php echo rrsg_h($row['netC']); ?></div>
-                                                        </div>
-                                                    <?php endif; ?>
-
-                                                    <?php if ($row['driverD'] !== ''): ?>
-                                                        <div class="team-detail-line">
-                                                            <div class="team-detail-driver"><?php echo rrsg_h($row['driverD']); ?></div>
-                                                            <div class="team-detail-points"><?php echo rrsg_h($row['netD']); ?></div>
-                                                        </div>
-                                                    <?php endif; ?>
+                                                    <?php endforeach; ?>
                                                 <?php else: ?>
                                                     <div class="team-detail-line">
                                                         <div class="team-detail-driver"><?php echo rrsg_h(rrsg_no_picks_message($row)); ?></div>
@@ -1907,6 +2178,22 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
                         </tbody>
                     </table>
                 </div>
+                <?php if ($selectedRace !== null && (!empty($weeklySpecialContext['latePickEntries']) || !empty($weeklySpecialContext['replacementDriverEntries']))): ?>
+                    <div class="footnote-block">
+                        <?php if (!empty($weeklySpecialContext['latePickEntries'])): ?>
+                            <div class="footnote-line"><span class="pick-marker"><?php echo rrsg_h($weeklySpecialContext['lpMarker']); ?></span> <?php echo rrsg_h('Late Pick:'); ?></div>
+                            <?php foreach ($weeklySpecialContext['latePickEntries'] as $entryText): ?>
+                                <div class="footnote-line footnote-entry"><?php echo rrsg_h($entryText); ?></div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                        <?php if (!empty($weeklySpecialContext['replacementDriverEntries'])): ?>
+                            <div class="footnote-line"><span class="pick-marker"><?php echo rrsg_h($weeklySpecialContext['rdMarker']); ?></span> <?php echo rrsg_h('Replacement Driver:'); ?></div>
+                            <?php foreach ($weeklySpecialContext['replacementDriverEntries'] as $entryText): ?>
+                                <div class="footnote-line footnote-entry"><?php echo rrsg_h($entryText); ?></div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
             </div>
 
             <div class="report-panel">
@@ -1926,17 +2213,33 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
                                     <td colspan="3">No segment standings generated.</td>
                                 </tr>
                             <?php else: ?>
-                                <?php $rank = 1; ?>
+                                <?php $rank = 1; $displayRank = 0; $prevRankScore = null; ?>
                                 <?php foreach ($segmentStandings as $row): ?>
+                                    <?php
+                                    $currentRankScore = (int)($row['total'] ?? 0);
+                                    if ($prevRankScore === null || $currentRankScore !== $prevRankScore) {
+                                        $displayRank = $rank;
+                                        $prevRankScore = $currentRankScore;
+                                    }
+                                    ?>
                                     <?php
                                     $detailId = 'segment-detail-' . $rank;
                                     $stripeClass = ($rank % 2 === 1) ? 'stripe-a' : 'stripe-b';
+                                    $rankDisplay = (string)$displayRank;
                                     ?>
                                     <tr
                                         class="team-row weekly-click-row <?php echo $stripeClass; ?>"
                                         onclick="toggleWeeklyDetail('<?php echo rrsg_h($detailId); ?>', this)"
                                     >
-                                        <td class="num"><?php echo $rank; ?></td>
+                                        <td class="num"><?php
+                                            $segmentTeamName = (string)$row['teamName'];
+                                            $isTieRank = isset($segmentTieMap[$segmentTeamName]);
+                                            if ($isTieRank) {
+                                                echo '<span class="tie-rank">' . rrsg_h($rankDisplay) . '</span>';
+                                            } else {
+                                                echo rrsg_h($rankDisplay);
+                                            }
+                                            ?></td>
                                         <td class="team-col"><?php echo rrsg_h($row['teamName']); ?></td>
                                         <td class="num"><?php echo rrsg_h($row['total']); ?></td>
                                     </tr>
@@ -1975,6 +2278,7 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
                         </tbody>
                     </table>
                 </div>
+
             </div>
 
             <div class="report-panel">
@@ -1994,17 +2298,32 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
                                     <td colspan="3">No season standings generated.</td>
                                 </tr>
                             <?php else: ?>
-                                <?php $rank = 1; ?>
+                                <?php $rank = 1; $displayRank = 0; $prevRankScore = null; ?>
                                 <?php foreach ($seasonStandings as $row): ?>
+                                    <?php
+                                    $currentRankScore = (int)($row['total'] ?? 0);
+                                    if ($prevRankScore === null || $currentRankScore !== $prevRankScore) {
+                                        $displayRank = $rank;
+                                        $prevRankScore = $currentRankScore;
+                                    }
+                                    ?>
                                     <?php
                                     $detailId = 'year-detail-' . $rank;
                                     $stripeClass = ($rank % 2 === 1) ? 'stripe-a' : 'stripe-b';
+                                    $rankDisplay = (string)$displayRank;
                                     ?>
                                     <tr
                                         class="team-row weekly-click-row <?php echo $stripeClass; ?>"
                                         onclick="toggleWeeklyDetail('<?php echo rrsg_h($detailId); ?>', this)"
                                     >
-                                        <td class="num"><?php echo $rank; ?></td>
+                                        <td class="num"><?php
+                                            $seasonTeamName = (string)$row['teamName'];
+                                            if (isset($seasonTieMap[$seasonTeamName])) {
+                                                echo '<span class="tie-rank">' . rrsg_h($rankDisplay) . '</span>';
+                                            } else {
+                                                echo rrsg_h($rankDisplay);
+                                            }
+                                            ?></td>
                                         <td class="team-col"><?php echo rrsg_h($row['teamName']); ?></td>
                                         <td class="num"><?php echo rrsg_h($row['total']); ?></td>
                                     </tr>
@@ -2038,6 +2357,7 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
                         </tbody>
                     </table>
                 </div>
+
             </div>
 
             <div class="report-panel">
@@ -2062,6 +2382,7 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
                                 usort($winnerRows, function ($a, $b) {
                                     return ((int)$a['number']) <=> ((int)$b['number']);
                                 });
+
                                 ?>
                                 <?php foreach ($winnerRows as $race): ?>
                                     <?php if ((int)$race['number'] > $selectedRaceNumber) continue; ?>
@@ -2071,10 +2392,6 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
                                     $winnerPoints = (int)($weeklyWinners[$raceCode]['points'] ?? 0);
                                     $winnerWeekDisplay = (string)$race['number'];
 
-                                    if (count($winnerNames) > 1) {
-                                        $winnerWeekDisplay .= '*';
-                                    }
-
                                     if (empty($winnerNames)) {
                                         $winnerNames = [];
                                         $fallbackWinner = (string)($weeklyWinners[$raceCode]['teamName'] ?? '');
@@ -2082,6 +2399,8 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
                                             $winnerNames[] = $fallbackWinner;
                                         }
                                     }
+
+                                    $winnerIsTieWeek = (count($winnerNames) > 1);
                                     ?>
 
                                     <?php if (empty($winnerNames)): ?>
@@ -2093,7 +2412,13 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
                                     <?php else: ?>
                                         <?php foreach ($winnerNames as $winnerName): ?>
                                             <tr>
-                                                <td class="num"><?php echo rrsg_h($winnerWeekDisplay); ?></td>
+                                                <td class="num"><?php
+                                                    if ($winnerIsTieWeek) {
+                                                        echo '<span class="tie-rank">' . rrsg_h($winnerWeekDisplay) . '</span>';
+                                                    } else {
+                                                        echo rrsg_h($winnerWeekDisplay);
+                                                    }
+                                                ?></td>
                                                 <td class="team-col"><?php echo rrsg_h($winnerName); ?></td>
                                                 <td class="num"><?php echo rrsg_h($winnerPoints); ?></td>
                                             </tr>
@@ -2104,9 +2429,7 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
                         </tbody>
                     </table>
                 </div>
-                <?php if ($selectedRace !== null && $weeklyWinnersHasTie): ?>
-                    <div class="winner-footnote">* Tie</div>
-                <?php endif; ?>
+
             </div>
         </div>
     </div>

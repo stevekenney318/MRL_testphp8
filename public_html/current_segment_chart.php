@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * current_segment_chart.php
  *
- * VERSION: v006
- * LAST MODIFIED: 4/12/2026 1:25:34 am
+ * VERSION: v007
+ * LAST MODIFIED: 4/13/2026 3:33:00 pm
  *
  * DESCRIPTION:
  * Current segment team chart shown on team.php after the normal deadline.
@@ -13,6 +13,9 @@ declare(strict_types=1);
  * two-row RD blocks, team-name markers, and stacked footnotes.
  *
  * CHANGELOG:
+ *
+ * v007 (4/13/2026)
+ * - FIX: Restored table width to 100% so layout works correctly when included inside team.php.
  *
  * v006 (4/12/2026)
  * - CHANGE: Set page background to #222222 to match surrounding MRL pages.
@@ -220,7 +223,7 @@ echo "<style type='text/css'>
       }
    </style>";
 
-echo "<table align=center style='width:80%; margin-left:auto; margin-right:auto;'>";
+echo "<table align=center style='width:100%;'>";
 echo "<tr style=background-color:#fabf8f>";
 echo "<th colspan=7> " . csc_h((string)$raceYear) . " " . csc_h((string)$segmentName) . " Team Chart</th>";
 echo "<tr style=background-color:#fabf8f>";
@@ -241,14 +244,18 @@ if (empty($chartContext['htmlRows'])) {
     echo "<tr><td colspan='7' style='text-align:center;'>No picks found for this year / segment.</td></tr>";
 } else {
     foreach ($chartContext['htmlRows'] as $entry) {
+
         if ($entry['render_type'] === 'single') {
+
             $row = $entry['current'];
             $pickType = strtoupper(trim((string)($entry['pick_type'] ?? 'SEG')));
             $marker = (string)($entry['marker'] ?? '');
+
             $driverA = trim((string)($row['driverA'] ?? ''));
             $driverB = trim((string)($row['driverB'] ?? ''));
             $driverC = trim((string)($row['driverC'] ?? ''));
             $driverD = trim((string)($row['driverD'] ?? ''));
+
             $teamDisplay = trim((string)($row['teamName'] ?? ''));
 
             if ($marker !== '') {
@@ -271,62 +278,90 @@ if (empty($chartContext['htmlRows'])) {
             echo "<td style=background-color:#d8e4bc>" . csc_h($driverD) . "</td>";
             echo "<td style=background-color:#b7dee8>" . csc_h($row['entryDate'] ?? '') . "</td>";
             echo "</tr>";
+
         } else {
+
             $row = $entry['current'];
             $reference = is_array($entry['reference'] ?? null) ? $entry['reference'] : [];
             $marker = (string)($entry['marker'] ?? '');
             $changedField = (string)($entry['changed_field'] ?? '');
+
             $fieldOrder = ['driverA', 'driverB', 'driverC', 'driverD'];
-            $changedCellBg = $changedField === 'driverA'
-                ? '#d9d9d9'
-                : ($changedField === 'driverB'
-                    ? '#c4bd97'
-                    : ($changedField === 'driverC'
-                        ? '#b8cce4'
-                        : '#d8e4bc'));
+
+            $changedCellBg =
+                $changedField === 'driverA' ? '#d9d9d9' :
+                ($changedField === 'driverB' ? '#c4bd97' :
+                ($changedField === 'driverC' ? '#b8cce4' : '#d8e4bc'));
+
             $teamDisplay = trim((string)($row['teamName'] ?? ''));
+
             if ($marker !== '') {
                 $teamDisplay .= ' ' . $marker;
             }
 
             echo "<tr>";
+
             echo "<td style=background-color:#b7dee8 rowspan=2>" . csc_h($teamDisplay) . "</td>";
+
             echo "<td style=background-color:#b7dee8 rowspan=2>" . csc_h($row['userName'] ?? '') . "</td>";
 
             foreach ($fieldOrder as $field) {
-                $fieldBg = $field === 'driverA'
-                    ? '#d9d9d9'
-                    : ($field === 'driverB'
-                        ? '#c4bd97'
-                        : ($field === 'driverC'
-                            ? '#b8cce4'
-                            : '#d8e4bc'));
+
+                $fieldBg =
+                    $field === 'driverA' ? '#d9d9d9' :
+                    ($field === 'driverB' ? '#c4bd97' :
+                    ($field === 'driverC' ? '#b8cce4' : '#d8e4bc'));
 
                 if ($field === $changedField) {
+
                     echo "<td style='background-color:" . $fieldBg . "'>" . csc_h($reference[$field] ?? '') . "</td>";
+
                 } else {
+
                     echo "<td class='csc-rd-merged' style='background-color:" . $fieldBg . "' rowspan='2'>" . csc_h($row[$field] ?? '') . "</td>";
+
                 }
             }
 
             echo "<td style=background-color:#b7dee8>" . csc_h($reference['entryDate'] ?? $row['entryDate'] ?? '') . "</td>";
+
             echo "</tr>";
 
             echo "<tr>";
+
             echo "<td style='background-color:" . $changedCellBg . "'>" . csc_h(trim(((string)($row[$changedField] ?? '')) . ' ' . $marker)) . "</td>";
+
             echo "<td style=background-color:#b7dee8>" . csc_h($row['entryDate'] ?? '') . "</td>";
+
             echo "</tr>";
+
         }
+
     }
 }
 
 if (!empty($chartContext['notes'])) {
-    echo "<tfoot><tr><td colspan='7' class='csc-notes-row' style='background:#fabf8f !important; color:#000000 !important;'>";
+
+    echo "<tfoot>";
+
+    echo "<tr>";
+
+    echo "<td colspan='7' class='csc-notes-row'>";
+
     foreach ($chartContext['notes'] as $note) {
+
         echo "<div class='csc-note-line'>" . csc_h($note['marker'] . ' ' . $note['text']) . "</div>";
+
     }
-    echo "</td></tr></tfoot>";
+
+    echo "</td>";
+
+    echo "</tr>";
+
+    echo "</tfoot>";
+
 }
 
 echo "</table>";
+
 ?>
