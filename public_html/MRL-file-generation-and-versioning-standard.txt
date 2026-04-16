@@ -1,0 +1,179 @@
+MRL PROJECT SOURCE NOTE FILE
+TITLE: File Generation and Versioning Standard
+VERSION: v002
+LAST MODIFIED: 4/15/2026 1:03:00 am
+
+Purpose
+
+This document defines the standard process for generating PHP files for the Manlius Racing League (MRL) project when working in iterative chat-based development.
+
+The goal is to ensure that all generated files:
+- remain consistent across chats
+- are immediately usable as drop-in replacements
+- preserve version history clarity
+- follow predictable naming conventions
+- support controlled iteration before GitHub commits
+- avoid partial snippets requiring manual merging
+
+This standard applies to all PHP files produced for the MRL project.
+
+Related project source notes
+- MRL-Roadmap.txt
+- MRL-race_results_revision_monitor.txt
+
+Core principle
+
+MRL development uses an iterative refinement workflow.
+
+Files often evolve through multiple small adjustments before a final GitHub commit is made.
+
+During iteration:
+- timestamps may update multiple times
+- version numbers may or may not change yet
+- changelog entries may be refined
+- formatting may be adjusted
+- behavior may be tuned incrementally
+
+A GitHub commit represents a stable checkpoint, not necessarily the end of experimentation.
+
+Required output format
+
+When generating or modifying an MRL PHP file:
+
+Always provide:
+- a complete file
+- no placeholders
+- no partial snippets
+- no "insert existing code here"
+- immediately usable drop-in replacement
+
+The user should never need to merge fragments manually.
+
+Filename convention
+
+Generated files should follow this naming structure:
+
+filename_vXXX_YYYYMMDD_HHMMSSam.php
+
+Time must be formatted using:
+America/New_York
+
+Rules:
+- include version number in filename
+- use lowercase am/pm
+- no spaces
+- preserve original filename
+- timestamp reflects generation time
+- timestamp does not need to match LAST MODIFIED exactly to the second, but should be close
+
+Example filename
+
+weekly_standings_v054_20260414_041318pm.php
+
+Header standard
+
+Generated files should include a header block near the top of the file, following the current MRL style.
+
+Typical required elements:
+- VERSION: v###
+- LAST MODIFIED: M/D/YYYY h:mm:ss am/pm
+
+Important notes:
+- use VERSION format: v###
+- LAST MODIFIED must be human-readable
+- use NY time
+- do NOT include BUILD TS unless explicitly requested
+- changelog entries should remain intact
+- header formatting should remain consistent across versions
+
+Canonical example
+
+The current reference implementation of header format is:
+
+weekly_standings.php v054
+
+GitHub source:
+https://raw.githubusercontent.com/stevekenney318/MRL_testphp8/refs/heads/main/public_html/race_results/weekly_standings.php
+
+This file represents the current formatting baseline for:
+- header layout
+- changelog formatting
+- timestamp style
+- version numbering structure
+
+Future files should follow this model unless intentionally changed.
+
+Iteration mode vs finalization mode
+
+Iteration mode
+
+During active development cycles:
+- timestamps may update multiple times
+- small adjustments may occur between versions
+- version number may remain unchanged temporarily
+- changelog text may be refined
+- formatting tweaks may occur
+- multiple downloadable files may be generated
+
+Iteration mode allows rapid refinement without prematurely locking version numbers.
+
+Finalization mode
+
+Before committing a file to GitHub:
+- confirm whether version should increment
+- confirm changelog reflects final changes
+- confirm LAST MODIFIED timestamp
+- confirm file is complete
+- confirm file is stable enough to serve as baseline
+
+After commit, that version becomes the new stable checkpoint.
+
+Future work may again go through iteration mode.
+
+Version bump guidance
+
+Version bumps typically occur when:
+- behavior changes
+- output logic changes
+- display structure changes
+- data interpretation changes
+- new features added
+- bug fixes affecting results
+
+Version bumps are not required for:
+- minor spacing tweaks
+- comment edits
+- formatting adjustments
+- intermediate experimental tweaks
+- temporary debugging output
+
+Final decision to bump version is directed by the user.
+
+Downloadable file expectation
+
+When a PHP file is produced, a downloadable file should be provided whenever practical.
+
+Downloadable files ensure:
+- exact copy of generated code
+- no formatting loss
+- no truncation risk
+- reliable transfer into project workspace
+
+Relationship to project roadmap
+
+This document complements the roadmap.
+
+The roadmap defines what is being built.
+This document defines how PHP files are delivered during development.
+
+Roadmap items should assume this file-generation standard is followed.
+
+Summary
+
+MRL PHP files should always be delivered as:
+complete, versioned, timestamped, drop-in ready files
+
+that can move cleanly between:
+chat → local test → GitHub → production
+
+without ambiguity or manual reconstruction.

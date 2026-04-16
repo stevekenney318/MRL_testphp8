@@ -1,0 +1,134 @@
+MRL PROJECT SOURCE NOTE FILE
+TITLE: MRL Roadmap
+VERSION: v002
+LAST MODIFIED: 4/15/2026 1:03:00 am
+
+Purpose
+
+This document describes the current master roadmap for the Manlius Racing League (MRL) project.
+
+It answers:
+- what major work is effectively complete
+- what the next high-priority items are
+- how those items relate to each other
+- what phase the project is currently in
+
+Related project source notes
+- MRL-file-generation-and-versioning-standard.txt
+- MRL-race_results_revision_monitor.txt
+
+What is effectively done
+
+Weekly/chart presentation layer
+
+- team_chart.php
+- current_segment_chart.php
+- current_segment_chart_by_entry_time.php
+- prior_year_user_team_chart.php
+- current_user_team_chart.php
+- weekly_standings.php through v054, now committed
+
+That whole LP / RD visual language is now established:
+
+- team markers
+- driver markers
+- stacked notes
+- tie handling by shared rank number
+- no false warning styling for expected conditions
+
+So that big UX/presentation block is largely behind the project.
+
+Where the project is now
+
+The roadmap has shifted from presentation foundation to logic, integrity, and monitoring.
+
+The pages are now stable enough that backend integrity work should not keep forcing display redesigns.
+
+Master roadmap in practical order
+
+1. race_results_revision_monitor.php
+High priority: revision protection
+
+Purpose:
+- recheck prior completed current-season races
+- catch ESPN revisions, penalties, and score changes
+- save new snapshot when changed
+- notify immediately
+
+See:
+- MRL-race_results_revision_monitor.txt
+
+2. MRL-impact revision classification
+High priority
+
+Goal:
+- compare not just full table / HTML
+- compare MRL-relevant driver scoring only
+- determine whether a revision actually affects MRL results
+
+Likely scope:
+- drivers appearing in the segment picks
+- include RD drivers too
+- store hash / extracted dataset / optional diff summary
+
+This fits directly alongside the revision monitor work.
+
+3. RD eligibility boundary / reset logic
+High priority
+
+Needed behavior:
+- suppress RD notification / pending JSON if effective race falls outside the current segment
+- reset / expire RD eligibility once the original driver scores again within the segment
+
+This is an important correctness / trust item, especially at segment boundaries.
+
+4. Shared helper cleanup
+Next tier
+
+Move repeated helper logic into functions_mrl.php, such as:
+- mrl_segment_label()
+- mrl_race_code()
+- optional mrl_effective_race_label()
+
+This is now more of a cleanup / refactor task, not urgent.
+
+5. Revision model / UI labeling
+Next tier
+
+The broader revision system is still on the roadmap:
+- Level 1 revision = direct race revision
+- downstream weeks marked adjusted
+- possible Rev A, Adjusted, superseded snapshot visibility
+- avoid mixed totals in downstream standings
+
+This becomes more practical after the revision monitor exists.
+
+6. Driver scoring extraction / chart-table reuse
+Nice-to-have / future benefit
+
+The MRL-only driver dataset could also feed:
+- driver score table
+- segment driver performance view
+- audit comparison tools
+
+Useful, but secondary to getting revision monitoring solid.
+
+Short version
+
+The project is past the big UX grind and has entered the data trust / audit / revision-handling phase.
+
+Process note
+
+All generated PHP files and related code artifacts should follow:
+- MRL-file-generation-and-versioning-standard.txt
+
+Summary
+
+The current project direction is:
+
+1. detect and track revisions reliably
+2. determine whether revisions actually affect MRL
+3. clean up RD eligibility edge cases
+4. consolidate shared helpers
+5. build a user-facing revision model
+6. optionally reuse the derived data for reporting / driver analysis
