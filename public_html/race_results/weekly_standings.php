@@ -14,10 +14,15 @@ require_once $_SERVER['DOCUMENT_ROOT'] . '/sandbox.html';
 /**
  * weekly_standings.php
  *
- * VERSION: v054
- * LAST MODIFIED: 4/14/2026 4:13:18 pm
+ * VERSION: v055
+ * LAST MODIFIED: 4/18/2026 11:33:14 pm
  *
  * CHANGELOG:
+ *
+ * v055 (4/18/2026)
+ *   - CHANGE: Added snapshot timestamp beside the race heading using a dedicated snapshot-footnote style.
+ *   - CHANGE: Appended any missing yearly roster teams from user_teams to weekly race rows as 0-point rows after normal scoring.
+ *   - CHANGE: Missing-pick warnings now evaluate only within the currently selected segment.
  *
  * v054 (4/14/2026)
  *   - CHANGE: Tied rows in weekly, segment, and year tables now share the same lowest numeric position and render those tied positions in bold.
@@ -125,6 +130,9 @@ require_once $_SERVER['DOCUMENT_ROOT'] . '/sandbox.html';
  *   - CHANGE: Nudged expanded weekly driver detail point values slightly left for better visual balance.
  *   - CHANGE: Added a subtle tinted background behind expanded weekly driver detail point cells.
  *
+ * v055 (4/18/2026)
+ * - CHANGE: Added selected race snapshot timestamp beside the Table 1 race title using a dedicated snapshot-footnote style.
+ *
  * PHP: 7.3 compatible.
  */
 
@@ -206,6 +214,21 @@ function rrsg_find_snapshot_file(string $raceFolder): string
     return (string)end($files);
 }
 
+function rrsg_format_snapshot_timestamp(string $snapshotFile): string
+{
+    $base = basename($snapshotFile);
+    if (!preg_match('/^snapshot_(\d{8})_(\d{6})\d*\.html$/', $base, $m)) {
+        return '';
+    }
+
+    $dt = DateTime::createFromFormat('Ymd His', $m[1] . ' ' . $m[2], new DateTimeZone('America/New_York'));
+    if (!$dt) {
+        return '';
+    }
+
+    return $dt->format('n/j/y g:ia');
+}
+
 function rrsg_build_weekly_rows(array $teamRows, array $driverPoints): array
 {
     $weeklyRows = [];
@@ -241,6 +264,101 @@ function rrsg_build_weekly_rows(array $teamRows, array $driverPoints): array
             'original_driverB' => (string)($team['original_driverB'] ?? ''),
             'original_driverC' => (string)($team['original_driverC'] ?? ''),
             'original_driverD' => (string)($team['original_driverD'] ?? ''),
+        ];
+    }
+
+    rrsg_sort_weekly_rows($weeklyRows);
+    return $weeklyRows;
+}
+
+
+function rrsg_get_year_team_roster(string $raceYear, $dbo): array
+{
+    if (!($dbo instanceof PDO)) {
+        return [];
+    }
+
+    $sql = "
+        SELECT
+            ut.userID,
+            ut.teamName,
+            COALESCE(u.userName, '') AS userName
+        FROM user_teams ut
+        LEFT JOIN users u ON u.userID = ut.userID
+        WHERE ut.raceYear = :raceYear
+        ORDER BY ut.teamName ASC, ut.userID ASC
+    ";
+
+    $stmt = $dbo->prepare($sql);
+    $stmt->execute([
+        ':raceYear' => $raceYear,
+    ]);
+
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    if (!is_array($rows)) {
+        return [];
+    }
+
+    $roster = [];
+    foreach ($rows as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+
+        $teamName = trim((string)($row['teamName'] ?? ''));
+        if ($teamName === '') {
+            continue;
+        }
+
+        $roster[$teamName] = [
+            'userID' => (int)($row['userID'] ?? 0),
+            'teamName' => $teamName,
+            'userName' => (string)($row['userName'] ?? ''),
+        ];
+    }
+
+    ksort($roster, SORT_NATURAL | SORT_FLAG_CASE);
+    return $roster;
+}
+
+function rrsg_append_missing_roster_rows(array $weeklyRows, array $roster): array
+{
+    if (empty($roster)) {
+        return $weeklyRows;
+    }
+
+    $seenTeams = [];
+    foreach ($weeklyRows as $row) {
+        $teamName = trim((string)($row['teamName'] ?? ''));
+        if ($teamName !== '') {
+            $seenTeams[strtolower($teamName)] = true;
+        }
+    }
+
+    foreach ($roster as $teamName => $rosterRow) {
+        $teamKey = strtolower((string)$teamName);
+        if (isset($seenTeams[$teamKey])) {
+            continue;
+        }
+
+        $weeklyRows[] = [
+            'teamName' => (string)$teamName,
+            'userName' => (string)($rosterRow['userName'] ?? ''),
+            'driverA' => '',
+            'driverB' => '',
+            'driverC' => '',
+            'driverD' => '',
+            'netA' => 0,
+            'netB' => 0,
+            'netC' => 0,
+            'netD' => 0,
+            'weeklyTotal' => 0,
+            'pick_type' => 'MISS',
+            'effective_race' => 0,
+            'original_driverA' => '',
+            'original_driverB' => '',
+            'original_driverC' => '',
+            'original_driverD' => '',
         ];
     }
 
@@ -524,6 +642,7 @@ function rrsg_segment_breakdown_rows(
     $dbconnect
 ): array {
     $rows = [];
+    $yearRoster = rrsg_get_year_team_roster($selectedYear, $dbo ?? null);
     $racesAscending = $pointRaces;
 
     usort($racesAscending, function ($a, $b) {
@@ -551,6 +670,7 @@ function rrsg_segment_breakdown_rows(
 
         $driverPoints = rrs_load_snapshot_driver_points($snapshotFile);
         $weeklyRows = rrsg_build_weekly_rows($raceTeamRows, $driverPoints);
+        $weeklyRows = rrsg_append_missing_roster_rows($weeklyRows, $yearRoster);
 
         $rows[] = [
             'raceCode' => (string)$race['raceCode'],
@@ -764,6 +884,7 @@ function rrsg_no_picks_message(array $row): string
     return 'No Picks';
 }
 
+
 function rrsg_collect_missing_pick_warnings(
     int $selectedRaceNumber,
     array $pointRaces,
@@ -771,10 +892,16 @@ function rrsg_collect_missing_pick_warnings(
 ): array {
     $warnings = [];
     $labelByNumber = [];
+    $selectedSegment = rrsg_segment_from_race_number($selectedRaceNumber);
+    $segmentBounds = rrsg_segment_bounds($selectedSegment);
 
     foreach ($pointRaces as $race) {
         $raceNumber = (int)($race['number'] ?? 0);
         if ($raceNumber <= 0 || $raceNumber > $selectedRaceNumber) {
+            continue;
+        }
+
+        if ($raceNumber < $segmentBounds['start'] || $raceNumber > $segmentBounds['end']) {
             continue;
         }
 
@@ -797,11 +924,11 @@ function rrsg_collect_missing_pick_warnings(
             continue;
         }
 
-        if ($effectiveRace <= 1) {
+        if ($effectiveRace < $segmentBounds['start']) {
             $effectiveRace = $selectedRaceNumber + 1;
         }
 
-        for ($rn = 1; $rn <= $selectedRaceNumber; $rn++) {
+        for ($rn = $segmentBounds['start']; $rn <= $selectedRaceNumber; $rn++) {
             if (!isset($labelByNumber[$rn])) {
                 continue;
             }
@@ -814,6 +941,7 @@ function rrsg_collect_missing_pick_warnings(
 
     return $warnings;
 }
+
 
 function rrsg_tie_team_map(array $rows, string $scoreKey): array
 {
@@ -1023,6 +1151,7 @@ if ($selectedRace !== null) {
 $teamRowsBase = rr_get_segment_team_picks($dbo ?? null, $dbconnect ?? null, $scoreYear, $scoreSegment);
 $teamRowsSpecial = rrsg_special_pick_rows($scoreYear, $scoreSegment, $dbo ?? null);
 $teamRows = rrsg_overlay_special_rows_for_race($teamRowsBase, $teamRowsSpecial, $selectedRaceNumber, $scoreSegment);
+$yearRoster = rrsg_get_year_team_roster($scoreYear, $dbo ?? null);
 
 $segmentTotals = [];
 $seasonTotals = [];
@@ -1034,6 +1163,7 @@ $selectedRaceMeta = [
     'raceLabel' => '',
     'snapshotFile' => '',
     'driverCount' => 0,
+    'snapshotDisplay' => '',
 ];
 
 $debugRows = [];
@@ -1044,14 +1174,9 @@ $validation = [
     'fail' => [],
 ];
 
-foreach ($teamRows as $team) {
-    $teamName = (string)($team['teamName'] ?? '');
-    if ($teamName === '') {
-        continue;
-    }
-
-    $segmentTotals[$teamName] = 0;
-    $seasonTotals[$teamName] = 0;
+foreach ($yearRoster as $teamName => $rosterRow) {
+    $segmentTotals[(string)$teamName] = 0;
+    $seasonTotals[(string)$teamName] = 0;
 }
 
 if ($selectedRace !== null) {
@@ -1087,6 +1212,7 @@ if ($selectedRace !== null) {
         if ($snapshotFile !== '') {
             $driverPoints = rrs_load_snapshot_driver_points($snapshotFile);
             $weeklyRows = rrsg_build_weekly_rows($raceTeamRows, $driverPoints);
+            $weeklyRows = rrsg_append_missing_roster_rows($weeklyRows, $yearRoster);
             $winner = rrsg_get_weekly_winner($weeklyRows);
 
             foreach ($weeklyRows as $row) {
@@ -1148,6 +1274,7 @@ if ($selectedRace !== null) {
                 'raceLabel' => $raceLabel,
                 'snapshotFile' => $snapshotFile,
                 'driverCount' => count($driverPoints),
+                'snapshotDisplay' => rrsg_format_snapshot_timestamp($snapshotFile),
             ];
         }
     }
@@ -1806,6 +1933,14 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
             font-style: italic;
         }
 
+        .snapshot-footnote {
+            margin-left: 6px;
+            font-size: 0.82em;
+            color: #777;
+            font-style: normal;
+            white-space: nowrap;
+        }
+
         @media (max-width: 1500px) {
             .report-grid {
                 grid-template-columns: minmax(280px, 1fr) minmax(280px, 1fr);
@@ -2044,7 +2179,7 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
 
         <div class="report-grid">
             <div class="report-panel">
-                <div class="panel-title"><?php echo rrsg_h($selectedYear . ' ' . $selectedRaceCode . ' ' . $selectedRaceMeta['raceLabel']); ?></div>
+                <div class="panel-title"><?php echo rrsg_h($selectedYear . ' ' . $selectedRaceCode . ' ' . $selectedRaceMeta['raceLabel']); ?><?php if ((string)$selectedRaceMeta['snapshotDisplay'] !== ''): ?> <span class="snapshot-footnote">(<?php echo rrsg_h($selectedRaceMeta['snapshotDisplay']); ?>)</span><?php endif; ?></div>
                 <div class="table-wrap">
                     <table>
                         <thead>
