@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * race_results_classify_revisions.php
  *
- * VERSION: v001
- * LAST MODIFIED: 4/15/2026 8:39:57 pm
+ * VERSION: v002
+ * LAST MODIFIED: 4/26/2026 1:02:41 am
  *
  * DESCRIPTION:
  * v001 skeleton for the MRL-only revision classification layer.
@@ -13,7 +13,7 @@ declare(strict_types=1);
  * It does not detect revisions by itself; instead, it classifies whether
  * an already-detected race-table revision actually changes MRL-relevant scoring.
  *
- * CURRENT SCOPE OF THIS V001 SKELETON:
+ * CURRENT SCOPE OF THIS V002 BUILD:
  * - bootstrap environment
  * - discover candidate races
  * - discover snapshot pairs
@@ -23,8 +23,16 @@ declare(strict_types=1);
  * - hash and compare those datasets
  * - write JSON / hash / diff artifacts
  * - support both CLI and manual web testing
+ * - support safe include/call usage from race_results_revision_monitor.php
  *
  * CHANGELOG:
+ *
+ * v002 (4/26/2026)
+ * - FIX: race_results_engine.php is now loaded before rr_docroot_from_script_dir() is called, preventing a browser 500 fatal error during bootstrap.
+ * - CHANGE: Added explicit docroot resolution bootstrap so CLI/browser execution and include/call usage share the same config-loading path safely.
+ * - CHANGE: Added RRCR_AUTO_RUN constant guard so the file can be included by race_results_revision_monitor.php without auto-executing the full script.
+ * - CHANGE: Added rrcr_run_single_race() helper for direct per-race classification calls from the revision monitor.
+ * - CHANGE: Added mrl_impact_summary.json output artifact alongside existing JSON/hash/diff outputs.
  *
  * v001 (4/15/2026)
  * - NEW: Initial full-file skeleton for race_results_classify_revisions.php.
@@ -42,12 +50,24 @@ declare(strict_types=1);
 
 date_default_timezone_set('America/New_York');
 
-require_once $_SERVER['DOCUMENT_ROOT'] . '/config.php';
-require_once $_SERVER['DOCUMENT_ROOT'] . '/config_mrl.php';
-require_once $_SERVER['DOCUMENT_ROOT'] . '/functions_mrl.php';
+if (!defined('RRCR_AUTO_RUN')) {
+    define('RRCR_AUTO_RUN', true);
+}
+
+require_once __DIR__ . '/race_results_engine.php';
+
+$docRoot = rr_docroot_from_script_dir(__DIR__);
+
+// CLI/browser safety
+if (empty($_SERVER['HTTP_HOST'])) {
+    $_SERVER['HTTP_HOST'] = 'localhost';
+}
+
+require_once $docRoot . '/config.php';
+require_once $docRoot . '/config_mrl.php';
+require_once $docRoot . '/functions_mrl.php';
 require_once __DIR__ . '/race_results_snapshot_helper.php';
 require_once __DIR__ . '/race_results_team_helper.php';
-require_once __DIR__ . '/race_results_engine.php';
 
 if (function_exists('disableCaching')) {
     disableCaching();
@@ -110,11 +130,11 @@ function rrcr_bootstrap(): array
             $options['race_code'] = strtoupper((string)$argv[2]);
         }
 
-        if (in_array('--verbose', $argv, true)) {
+        if (isset($argv) && is_array($argv) && in_array('--verbose', $argv, true)) {
             $options['verbose'] = true;
         }
 
-        if (in_array('--dry-run', $argv, true)) {
+        if (isset($argv) && is_array($argv) && in_array('--dry-run', $argv, true)) {
             $options['write_artifacts'] = false;
         }
     } else {
@@ -420,7 +440,12 @@ function rrcr_compare_mrl_datasets(array $oldDataset, array $newDataset): array
         $oldRow = isset($oldDrivers[$driverName]) ? $oldDrivers[$driverName] : ['pts' => 0, 'bonus' => 0, 'penalty' => 0, 'net' => 0];
         $newRow = isset($newDrivers[$driverName]) ? $newDrivers[$driverName] : ['pts' => 0, 'bonus' => 0, 'penalty' => 0, 'net' => 0];
 
-        if ((int)$oldRow['net'] !== (int)$newRow['net']) {
+        if (
+            (int)$oldRow['pts'] !== (int)$newRow['pts'] ||
+            (int)$oldRow['bonus'] !== (int)$newRow['bonus'] ||
+            (int)$oldRow['penalty'] !== (int)$newRow['penalty'] ||
+            (int)$oldRow['net'] !== (int)$newRow['net']
+        ) {
             $changedDrivers[] = [
                 'driver' => $driverName,
                 'old' => $oldRow,
@@ -497,18 +522,20 @@ function rrcr_build_diff_summary(array $comparison, array $meta): string
     return implode(PHP_EOL, $lines) . PHP_EOL;
 }
 
-function rrcr_write_artifacts(string $raceFolder, array $currentDataset, string $hash, string $diffText, bool $writeArtifacts = true): array
+function rrcr_write_artifacts(string $raceFolder, array $currentDataset, string $hash, string $diffText, array $summaryData, bool $writeArtifacts = true): array
 {
     $files = [
         'data' => rtrim($raceFolder, '/\\') . '/mrl_impact_data.json',
         'hash' => rtrim($raceFolder, '/\\') . '/mrl_impact_hash.txt',
         'diff' => rtrim($raceFolder, '/\\') . '/mrl_impact_diff.txt',
+        'summary' => rtrim($raceFolder, '/\\') . '/mrl_impact_summary.json',
     ];
 
     if ($writeArtifacts) {
         file_put_contents($files['data'], rrcr_json_encode_pretty($currentDataset) . PHP_EOL);
         file_put_contents($files['hash'], $hash . PHP_EOL);
         file_put_contents($files['diff'], $diffText);
+        file_put_contents($files['summary'], rrcr_json_encode_pretty($summaryData) . PHP_EOL);
     }
 
     return $files;
@@ -551,6 +578,20 @@ function rrcr_classify_race_revision(array $raceInfo, PDO $dbo, bool $writeArtif
 
     $hash = rrcr_hash_mrl_dataset($newDataset);
     $comparison = rrcr_compare_mrl_datasets($oldDataset, $newDataset);
+
+    $summaryData = [
+        'year' => (string)$raceInfo['year'],
+        'race_code' => (string)$raceInfo['raceCode'],
+        'segment' => (string)$raceInfo['segment'],
+        'race_id' => (string)$raceInfo['raceId'],
+        'race_name' => (string)$raceInfo['raceName'],
+        'impact' => !empty($comparison['impact']),
+        'changed_drivers_count' => (int)$comparison['changedDriversCount'],
+        'driver_pool_count' => count($driverPool),
+        'previous_snapshot' => basename((string)$pair['previous']),
+        'current_snapshot' => basename((string)$pair['current']),
+    ];
+
     $diffText = rrcr_build_diff_summary($comparison, [
         'year' => (string)$raceInfo['year'],
         'race_code' => (string)$raceInfo['raceCode'],
@@ -558,7 +599,7 @@ function rrcr_classify_race_revision(array $raceInfo, PDO $dbo, bool $writeArtif
         'driver_pool_count' => count($driverPool),
     ]);
 
-    $artifactFiles = rrcr_write_artifacts((string)$raceInfo['raceFolder'], $newDataset, $hash, $diffText, $writeArtifacts);
+    $artifactFiles = rrcr_write_artifacts((string)$raceInfo['raceFolder'], $newDataset, $hash, $diffText, $summaryData, $writeArtifacts);
 
     if ($verbose) {
         rrcr_log(
@@ -580,6 +621,24 @@ function rrcr_classify_race_revision(array $raceInfo, PDO $dbo, bool $writeArtif
         'comparison' => $comparison,
         'message' => 'Classification complete.',
     ];
+}
+
+function rrcr_run_single_race(string $year, string $raceCode, PDO $dbo, bool $writeArtifacts = true, bool $verbose = false): array
+{
+    $baseDir = rrcr_race_results_base_dir();
+    $candidates = rrcr_get_candidate_races($year, $baseDir, $raceCode);
+
+    if (empty($candidates)) {
+        return [
+            'raceCode' => $raceCode,
+            'classified' => false,
+            'impact' => false,
+            'changedDriversCount' => 0,
+            'message' => 'Race not found or not enough snapshots to compare.',
+        ];
+    }
+
+    return rrcr_classify_race_revision($candidates[0], $dbo, $writeArtifacts, $verbose);
 }
 
 function rrcr_run(array $options, PDO $dbo): array
@@ -676,25 +735,27 @@ function rrcr_render_cli_summary(array $results): void
     }
 }
 
-$options = rrcr_bootstrap();
+if (RRCR_AUTO_RUN) {
+    $options = rrcr_bootstrap();
 
-if (!isset($dbo) || !($dbo instanceof PDO)) {
-    $message = 'PDO handle $dbo is not available.';
+    if (!isset($dbo) || !($dbo instanceof PDO)) {
+        $message = 'PDO handle $dbo is not available.';
 
-    if (rrcr_is_cli()) {
-        rrcr_log($message);
-        exit(1);
+        if (rrcr_is_cli()) {
+            rrcr_log($message);
+            exit(1);
+        }
+
+        echo '<p>' . rrcr_h($message) . '</p>';
+        exit;
     }
 
-    echo '<p>' . rrcr_h($message) . '</p>';
-    exit;
+    $results = rrcr_run($options, $dbo);
+
+    if (rrcr_is_cli()) {
+        rrcr_render_cli_summary($results);
+        exit(0);
+    }
+
+    rrcr_render_web_summary($results);
 }
-
-$results = rrcr_run($options, $dbo);
-
-if (rrcr_is_cli()) {
-    rrcr_render_cli_summary($results);
-    exit(0);
-}
-
-rrcr_render_web_summary($results);
