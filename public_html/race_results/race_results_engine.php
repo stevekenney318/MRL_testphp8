@@ -4,11 +4,16 @@ declare(strict_types=1);
 /**
  * race_results_engine.php
  *
- * VERSION: v1.03.00.02
- * LAST MODIFIED: 2026-02-28
- * BUILD TS: 20260228.060413
+ * VERSION: v004
+ * LAST MODIFIED: 4/26/2026 3:22:03 pm
  *
  * CHANGELOG:
+ * v004 (2026-04-26)
+ *   - FIX: rr_fetch_url() no longer appends the cache-buster query string that is now triggering ESPN's AWS WAF challenge response.
+ *   - FIX: rr_fetch_url() now uses a simplified primary cURL request pattern that matches the successful probe behavior more closely.
+ *   - FIX: rr_fetch_url() now detects the ESPN/AWS WAF challenge shell response and immediately retries with an even lighter fallback request before returning.
+ *   - CHANGE: Added rr_body_looks_like_aws_waf_challenge() helper for consistent WAF/interstitial detection.
+ *
  * v1.03.00.02 (2026-02-28)
  *   - CHANGE: FINAL table hash is now a stable "data hash" (normalized cell text),
  *     not raw table HTML. Prevents duplicate snapshots when ESPN markup changes but
@@ -34,6 +39,8 @@ declare(strict_types=1);
  *
  * PHP: 7.3 compatible.
  */
+
+date_default_timezone_set('America/New_York');
 
 ini_set('display_errors', '0');
 ini_set('log_errors', '1');
@@ -180,39 +187,65 @@ function rr_docroot_from_script_dir(string $scriptDir): string
     throw new RuntimeException("Could not determine DOCUMENT_ROOT from scriptDir='{$scriptDir}'");
 }
 
+function rr_body_looks_like_aws_waf_challenge(string $body, int $httpStatus = 0): bool
+{
+    if ($body === '') {
+        return false;
+    }
+
+    $hasAwsWaf = (stripos($body, 'awsWafCookieDomainList') !== false);
+    $hasGoku   = (stripos($body, 'gokuProps') !== false);
+
+    if ($hasAwsWaf || $hasGoku) {
+        return true;
+    }
+
+    if ($httpStatus === 202 && strlen($body) <= 4096) {
+        return true;
+    }
+
+    return false;
+}
+
 /**
- * Fetch URL via cURL.
+ * Internal low-level fetch helper.
  * Returns: [ok(bool), httpStatus(int), body(string), error(string)]
  */
-function rr_fetch_url(string $url, int $timeoutSeconds): array
+function rr_fetch_url_internal(string $url, int $timeoutSeconds, bool $lightweightMode = false): array
 {
     $ch = curl_init();
-    if ($ch === false) return [false, 0, '', 'cURL init failed'];
+    if ($ch === false) {
+        return [false, 0, '', 'cURL init failed'];
+    }
 
-    // Cache-buster
-    $sep = (strpos($url, '?') === false) ? '?' : '&';
-    $urlWithBust = $url . $sep . '_=' . rawurlencode((string)microtime(true));
+    $ua = $lightweightMode
+        ? 'Mozilla/5.0'
+        : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
-    $ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
-
-    curl_setopt_array($ch, [
-        CURLOPT_URL => $urlWithBust,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_MAXREDIRS => 6,
-        CURLOPT_CONNECTTIMEOUT => $timeoutSeconds,
-        CURLOPT_TIMEOUT => $timeoutSeconds,
-        CURLOPT_USERAGENT => $ua,
-        CURLOPT_HTTPHEADER => [
+    $headers = $lightweightMode
+        ? [
+            'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        ]
+        : [
             'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'Accept-Language: en-US,en;q=0.9',
-            'Cache-Control: no-cache',
-            'Pragma: no-cache',
-        ],
-        CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_SSL_VERIFYHOST => 2,
-        CURLOPT_ENCODING => '',
-    ]);
+        ];
+
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_MAXREDIRS, 6);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $timeoutSeconds);
+    curl_setopt($ch, CURLOPT_TIMEOUT, $timeoutSeconds);
+    curl_setopt($ch, CURLOPT_USERAGENT, $ua);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+    curl_setopt($ch, CURLOPT_ENCODING, '');
+
+    if ($lightweightMode) {
+        curl_setopt($ch, CURLOPT_REFERER, 'https://www.espn.com/racing/results');
+    }
 
     $body = curl_exec($ch);
     $err  = curl_error($ch);
@@ -222,9 +255,41 @@ function rr_fetch_url(string $url, int $timeoutSeconds): array
 
     curl_close($ch);
 
-    if ($body === false || $body === null) return [false, $code, '', $err ?: 'Unknown fetch error'];
-    if ($code >= 400 || $code === 0) return [false, $code, (string)$body, $err ?: ("HTTP error " . $code)];
+    if ($body === false || $body === null) {
+        return [false, $code, '', $err ?: 'Unknown fetch error'];
+    }
+
+    if ($code >= 400 || $code === 0) {
+        return [false, $code, (string)$body, $err ?: ('HTTP error ' . $code)];
+    }
+
     return [true, $code, (string)$body, ''];
+}
+
+/**
+ * Fetch URL via cURL.
+ * Returns: [ok(bool), httpStatus(int), body(string), error(string)]
+ */
+function rr_fetch_url(string $url, int $timeoutSeconds): array
+{
+    // Primary path: simplified request pattern without cache-buster.
+    [$ok, $code, $body, $err] = rr_fetch_url_internal($url, $timeoutSeconds, false);
+
+    // If ESPN/AWS WAF challenge shell is returned, immediately retry with an even lighter request.
+    if ($ok && rr_body_looks_like_aws_waf_challenge($body, $code)) {
+        [$ok2, $code2, $body2, $err2] = rr_fetch_url_internal($url, $timeoutSeconds, true);
+
+        if ($ok2 && !rr_body_looks_like_aws_waf_challenge($body2, $code2)) {
+            return [$ok2, $code2, $body2, $err2];
+        }
+
+        // If both paths still look challenged, prefer the second response because it is the freshest retry.
+        if ($ok2) {
+            return [$ok2, $code2, $body2, $err2];
+        }
+    }
+
+    return [$ok, $code, $body, $err];
 }
 
 /**
