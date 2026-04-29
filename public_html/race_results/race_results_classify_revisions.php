@@ -4,16 +4,17 @@ declare(strict_types=1);
 /**
  * race_results_classify_revisions.php
  *
- * VERSION: v002
- * LAST MODIFIED: 4/26/2026 1:02:41 am
+ * VERSION: v003
+ * LAST MODIFIED: 4/28/2026 12:05:00 pm
  *
  * DESCRIPTION:
- * v001 skeleton for the MRL-only revision classification layer.
- * This script is intended to work alongside race_results_revision_monitor.php.
+ * MRL-only revision classification layer plus admin/audit diff output.
+ * This script works alongside race_results_revision_monitor.php.
  * It does not detect revisions by itself; instead, it classifies whether
- * an already-detected race-table revision actually changes MRL-relevant scoring.
+ * an already-detected race-table revision changes MRL-relevant scoring,
+ * while also writing a full all-driver audit summary for admin review.
  *
- * CURRENT SCOPE OF THIS V002 BUILD:
+ * CURRENT SCOPE OF THIS V003 BUILD:
  * - bootstrap environment
  * - discover candidate races
  * - discover snapshot pairs
@@ -21,11 +22,22 @@ declare(strict_types=1);
  * - extract per-driver scoring from stored snapshots
  * - build normalized MRL-only datasets
  * - hash and compare those datasets
- * - write JSON / hash / diff artifacts
+ * - build full all-driver comparison datasets
+ * - write MRL-only JSON / hash / diff artifacts
+ * - write all-driver audit JSON / diff artifacts
  * - support both CLI and manual web testing
  * - support safe include/call usage from race_results_revision_monitor.php
  *
  * CHANGELOG:
+ *
+ * v003 (4/28/2026)
+ * - NEW: Added all-driver comparison layer so admin review can see every ESPN scoring-table change, not just MRL-driver changes.
+ * - NEW: Added all_driver_impact_summary.json artifact with full-table changed-driver counts and snapshot references.
+ * - NEW: Added all_driver_impact_diff.txt artifact showing PTS / BONUS / PENALTY / NET old->new values for every changed driver.
+ * - NEW: Added all_driver_impact_data_old.json and all_driver_impact_data_new.json artifacts for audit/debug comparison snapshots.
+ * - CHANGE: Clarified web output column label from "Changed Drivers" to "Changed MRL Drivers".
+ * - CHANGE: Added separate "Changed All Drivers" column to web summary.
+ * - CHANGE: rrcr_run_single_race() and rrcr_classify_race_revision() now return both MRL-only and all-driver comparison summaries for downstream monitor/UI use.
  *
  * v002 (4/26/2026)
  * - FIX: race_results_engine.php is now loaded before rr_docroot_from_script_dir() is called, preventing a browser 500 fatal error during bootstrap.
@@ -58,7 +70,6 @@ require_once __DIR__ . '/race_results_engine.php';
 
 $docRoot = rr_docroot_from_script_dir(__DIR__);
 
-// CLI/browser safety
 if (empty($_SERVER['HTTP_HOST'])) {
     $_SERVER['HTTP_HOST'] = 'localhost';
 }
@@ -160,19 +171,10 @@ function rrcr_bootstrap(): array
 
 function rrcr_segment_from_race_number(int $raceNumber): string
 {
-    if ($raceNumber >= 1 && $raceNumber <= 8) {
-        return 'S1';
-    }
-    if ($raceNumber >= 9 && $raceNumber <= 17) {
-        return 'S2';
-    }
-    if ($raceNumber >= 18 && $raceNumber <= 26) {
-        return 'S3';
-    }
-    if ($raceNumber >= 27 && $raceNumber <= 36) {
-        return 'S4';
-    }
-
+    if ($raceNumber >= 1 && $raceNumber <= 8) return 'S1';
+    if ($raceNumber >= 9 && $raceNumber <= 17) return 'S2';
+    if ($raceNumber >= 18 && $raceNumber <= 26) return 'S3';
+    if ($raceNumber >= 27 && $raceNumber <= 36) return 'S4';
     return 'S1';
 }
 
@@ -186,7 +188,6 @@ function rrcr_load_year_index(string $year, string $baseDir): array
     }
 
     $data = rr_load_json($indexFile);
-
     if (!is_array($data) || !isset($data['races']) || !is_array($data['races'])) {
         return [];
     }
@@ -200,9 +201,7 @@ function rrcr_points_races_from_index(array $yearIndex, string $year, string $ba
     $yearFolder = rtrim($baseDir, '/\\') . '/' . $year;
 
     foreach ($yearIndex['races'] as $raceId => $row) {
-        if (!is_array($row)) {
-            continue;
-        }
+        if (!is_array($row)) continue;
 
         $kind = (string)($row['kind'] ?? '');
         $number = (int)($row['number'] ?? 0);
@@ -231,7 +230,6 @@ function rrcr_points_races_from_index(array $yearIndex, string $year, string $ba
         if ((int)$a['number'] !== (int)$b['number']) {
             return ((int)$a['number'] <=> (int)$b['number']);
         }
-
         return strcmp((string)$a['raceCode'], (string)$b['raceCode']);
     });
 
@@ -250,19 +248,11 @@ function rrcr_get_candidate_races(string $year, string $baseDir, string $onlyRac
 
     foreach ($races as $race) {
         $raceFolder = (string)$race['raceFolder'];
-
-        if (!is_dir($raceFolder)) {
-            continue;
-        }
-
-        if ($onlyRaceCode !== '' && (string)$race['raceCode'] !== $onlyRaceCode) {
-            continue;
-        }
+        if (!is_dir($raceFolder)) continue;
+        if ($onlyRaceCode !== '' && (string)$race['raceCode'] !== $onlyRaceCode) continue;
 
         $snapshotFiles = glob($raceFolder . '/snapshot_*.html');
-        if (!is_array($snapshotFiles) || count($snapshotFiles) < 2) {
-            continue;
-        }
+        if (!is_array($snapshotFiles) || count($snapshotFiles) < 2) continue;
 
         $candidates[] = $race;
     }
@@ -273,11 +263,9 @@ function rrcr_get_candidate_races(string $year, string $baseDir, string $onlyRac
 function rrcr_get_race_snapshots(string $raceFolder): array
 {
     $files = glob(rtrim($raceFolder, '/\\') . '/snapshot_*.html');
-
     if (!is_array($files) || empty($files)) {
         return [];
     }
-
     sort($files, SORT_STRING);
     return array_values($files);
 }
@@ -285,7 +273,6 @@ function rrcr_get_race_snapshots(string $raceFolder): array
 function rrcr_get_comparison_pair(array $snapshots): array
 {
     $count = count($snapshots);
-
     if ($count < 2) {
         return ['previous' => '', 'current' => ''];
     }
@@ -308,11 +295,7 @@ function rrcr_get_segment_driver_pool(string $raceYear, string $segment, PDO $db
     $drivers = [];
 
     $sql = "
-        SELECT
-            driverA,
-            driverB,
-            driverC,
-            driverD
+        SELECT driverA, driverB, driverC, driverD
         FROM user_picks
         WHERE raceYear = :raceYear
           AND segment = :segment
@@ -325,15 +308,12 @@ function rrcr_get_segment_driver_pool(string $raceYear, string $segment, PDO $db
     ]);
 
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
     if (!is_array($rows)) {
         return [];
     }
 
     foreach ($rows as $row) {
-        if (!is_array($row)) {
-            continue;
-        }
+        if (!is_array($row)) continue;
 
         foreach (['driverA', 'driverB', 'driverC', 'driverD'] as $field) {
             $name = rrcr_normalize_driver_name((string)($row[$field] ?? ''));
@@ -354,22 +334,18 @@ function rrcr_get_segment_driver_pool(string $raceYear, string $segment, PDO $db
 function rrcr_extract_driver_scoring_from_snapshot(string $snapshotFile): array
 {
     $scores = [];
-
     if (!is_file($snapshotFile)) {
         return $scores;
     }
 
     $driverPoints = rrs_load_snapshot_driver_points($snapshotFile);
-
     if (!is_array($driverPoints)) {
         return $scores;
     }
 
     foreach ($driverPoints as $driverName => $row) {
         $name = rrcr_normalize_driver_name((string)$driverName);
-        if ($name === '' || !is_array($row)) {
-            continue;
-        }
+        if ($name === '' || !is_array($row)) continue;
 
         $scores[$name] = [
             'pts' => (int)($row['pts'] ?? 0),
@@ -396,9 +372,39 @@ function rrcr_build_mrl_dataset(array $driverPool, array $allDriverScores, array
 
     foreach ($sortedPool as $driverName) {
         $name = rrcr_normalize_driver_name((string)$driverName);
-        if ($name === '') {
-            continue;
-        }
+        if ($name === '') continue;
+
+        $row = isset($allDriverScores[$name]) && is_array($allDriverScores[$name])
+            ? $allDriverScores[$name]
+            : ['pts' => 0, 'bonus' => 0, 'penalty' => 0, 'net' => 0];
+
+        $drivers[$name] = [
+            'pts' => (int)($row['pts'] ?? 0),
+            'bonus' => (int)($row['bonus'] ?? 0),
+            'penalty' => (int)($row['penalty'] ?? 0),
+            'net' => (int)($row['net'] ?? 0),
+        ];
+    }
+
+    return [
+        'year' => (string)($meta['year'] ?? ''),
+        'race_code' => (string)($meta['race_code'] ?? ''),
+        'segment' => (string)($meta['segment'] ?? ''),
+        'race_id' => (string)($meta['race_id'] ?? ''),
+        'source_snapshot' => (string)($meta['source_snapshot'] ?? ''),
+        'drivers' => $drivers,
+    ];
+}
+
+function rrcr_build_all_driver_dataset(array $allDriverScores, array $meta = []): array
+{
+    $drivers = [];
+    $allNames = array_keys($allDriverScores);
+    sort($allNames, SORT_STRING | SORT_FLAG_CASE);
+
+    foreach ($allNames as $driverName) {
+        $name = rrcr_normalize_driver_name((string)$driverName);
+        if ($name === '') continue;
 
         $row = isset($allDriverScores[$name]) && is_array($allDriverScores[$name])
             ? $allDriverScores[$name]
@@ -427,7 +433,7 @@ function rrcr_hash_mrl_dataset(array $dataset): string
     return hash('sha256', rrcr_json_encode_pretty($dataset));
 }
 
-function rrcr_compare_mrl_datasets(array $oldDataset, array $newDataset): array
+function rrcr_compare_datasets(array $oldDataset, array $newDataset): array
 {
     $changedDrivers = [];
     $oldDrivers = isset($oldDataset['drivers']) && is_array($oldDataset['drivers']) ? $oldDataset['drivers'] : [];
@@ -464,19 +470,18 @@ function rrcr_compare_mrl_datasets(array $oldDataset, array $newDataset): array
 function rrcr_format_signed_delta(int $oldValue, int $newValue): string
 {
     $delta = $newValue - $oldValue;
-
     if ($delta > 0) {
         return '+' . (string)$delta;
     }
-
     return (string)$delta;
 }
 
 function rrcr_build_diff_summary(array $comparison, array $meta): string
 {
-    $lines = [];
+    $label = isset($meta['label']) && $meta['label'] !== '' ? (string)$meta['label'] : 'MRL driver';
 
-    $lines[] = 'MRL IMPACT CLASSIFICATION';
+    $lines = [];
+    $lines[] = strtoupper($label) . ' IMPACT CLASSIFICATION';
     $lines[] = trim((string)($meta['year'] ?? '') . ' ' . (string)($meta['race_code'] ?? '') . ' ' . (string)($meta['race_name'] ?? ''));
     $lines[] = '';
 
@@ -486,7 +491,7 @@ function rrcr_build_diff_summary(array $comparison, array $meta): string
     }
 
     if (!empty($comparison['changedDrivers'])) {
-        $lines[] = 'Tracked driver changes:';
+        $lines[] = 'Changed ' . strtolower($label) . 's:';
         $lines[] = '';
 
         foreach ($comparison['changedDrivers'] as $row) {
@@ -511,7 +516,7 @@ function rrcr_build_diff_summary(array $comparison, array $meta): string
             $lines[] = '';
         }
     } else {
-        $lines[] = 'Tracked driver changes:';
+        $lines[] = 'Changed ' . strtolower($label) . 's:';
         $lines[] = 'none';
         $lines[] = '';
     }
@@ -522,13 +527,29 @@ function rrcr_build_diff_summary(array $comparison, array $meta): string
     return implode(PHP_EOL, $lines) . PHP_EOL;
 }
 
-function rrcr_write_artifacts(string $raceFolder, array $currentDataset, string $hash, string $diffText, array $summaryData, bool $writeArtifacts = true): array
-{
+function rrcr_write_artifacts(
+    string $raceFolder,
+    array $currentDataset,
+    string $hash,
+    string $diffText,
+    array $summaryData,
+    array $allDriverOldDataset,
+    array $allDriverNewDataset,
+    string $allDriverDiffText,
+    array $allDriverSummaryData,
+    bool $writeArtifacts = true
+): array {
+    $base = rtrim($raceFolder, '/\\');
+
     $files = [
-        'data' => rtrim($raceFolder, '/\\') . '/mrl_impact_data.json',
-        'hash' => rtrim($raceFolder, '/\\') . '/mrl_impact_hash.txt',
-        'diff' => rtrim($raceFolder, '/\\') . '/mrl_impact_diff.txt',
-        'summary' => rtrim($raceFolder, '/\\') . '/mrl_impact_summary.json',
+        'data' => $base . '/mrl_impact_data.json',
+        'hash' => $base . '/mrl_impact_hash.txt',
+        'diff' => $base . '/mrl_impact_diff.txt',
+        'summary' => $base . '/mrl_impact_summary.json',
+        'all_driver_old_data' => $base . '/all_driver_impact_data_old.json',
+        'all_driver_new_data' => $base . '/all_driver_impact_data_new.json',
+        'all_driver_diff' => $base . '/all_driver_impact_diff.txt',
+        'all_driver_summary' => $base . '/all_driver_impact_summary.json',
     ];
 
     if ($writeArtifacts) {
@@ -536,6 +557,11 @@ function rrcr_write_artifacts(string $raceFolder, array $currentDataset, string 
         file_put_contents($files['hash'], $hash . PHP_EOL);
         file_put_contents($files['diff'], $diffText);
         file_put_contents($files['summary'], rrcr_json_encode_pretty($summaryData) . PHP_EOL);
+
+        file_put_contents($files['all_driver_old_data'], rrcr_json_encode_pretty($allDriverOldDataset) . PHP_EOL);
+        file_put_contents($files['all_driver_new_data'], rrcr_json_encode_pretty($allDriverNewDataset) . PHP_EOL);
+        file_put_contents($files['all_driver_diff'], $allDriverDiffText);
+        file_put_contents($files['all_driver_summary'], rrcr_json_encode_pretty($allDriverSummaryData) . PHP_EOL);
     }
 
     return $files;
@@ -552,6 +578,8 @@ function rrcr_classify_race_revision(array $raceInfo, PDO $dbo, bool $writeArtif
             'classified' => false,
             'impact' => false,
             'changedDriversCount' => 0,
+            'allDriverImpact' => false,
+            'allDriverChangedCount' => 0,
             'message' => 'Not enough snapshots to compare.',
         ];
     }
@@ -576,8 +604,25 @@ function rrcr_classify_race_revision(array $raceInfo, PDO $dbo, bool $writeArtif
         'source_snapshot' => basename((string)$pair['current']),
     ]);
 
+    $allDriverOldDataset = rrcr_build_all_driver_dataset($oldScores, [
+        'year' => (string)$raceInfo['year'],
+        'race_code' => (string)$raceInfo['raceCode'],
+        'segment' => (string)$raceInfo['segment'],
+        'race_id' => (string)$raceInfo['raceId'],
+        'source_snapshot' => basename((string)$pair['previous']),
+    ]);
+
+    $allDriverNewDataset = rrcr_build_all_driver_dataset($newScores, [
+        'year' => (string)$raceInfo['year'],
+        'race_code' => (string)$raceInfo['raceCode'],
+        'segment' => (string)$raceInfo['segment'],
+        'race_id' => (string)$raceInfo['raceId'],
+        'source_snapshot' => basename((string)$pair['current']),
+    ]);
+
     $hash = rrcr_hash_mrl_dataset($newDataset);
-    $comparison = rrcr_compare_mrl_datasets($oldDataset, $newDataset);
+    $comparison = rrcr_compare_datasets($oldDataset, $newDataset);
+    $allDriverComparison = rrcr_compare_datasets($allDriverOldDataset, $allDriverNewDataset);
 
     $summaryData = [
         'year' => (string)$raceInfo['year'],
@@ -587,7 +632,21 @@ function rrcr_classify_race_revision(array $raceInfo, PDO $dbo, bool $writeArtif
         'race_name' => (string)$raceInfo['raceName'],
         'impact' => !empty($comparison['impact']),
         'changed_drivers_count' => (int)$comparison['changedDriversCount'],
+        'changed_drivers_label' => 'MRL drivers only',
         'driver_pool_count' => count($driverPool),
+        'previous_snapshot' => basename((string)$pair['previous']),
+        'current_snapshot' => basename((string)$pair['current']),
+    ];
+
+    $allDriverSummaryData = [
+        'year' => (string)$raceInfo['year'],
+        'race_code' => (string)$raceInfo['raceCode'],
+        'segment' => (string)$raceInfo['segment'],
+        'race_id' => (string)$raceInfo['raceId'],
+        'race_name' => (string)$raceInfo['raceName'],
+        'impact' => !empty($allDriverComparison['impact']),
+        'changed_drivers_count' => (int)$allDriverComparison['changedDriversCount'],
+        'changed_drivers_label' => 'All scoring-table drivers',
         'previous_snapshot' => basename((string)$pair['previous']),
         'current_snapshot' => basename((string)$pair['current']),
     ];
@@ -597,15 +656,35 @@ function rrcr_classify_race_revision(array $raceInfo, PDO $dbo, bool $writeArtif
         'race_code' => (string)$raceInfo['raceCode'],
         'race_name' => (string)$raceInfo['raceName'],
         'driver_pool_count' => count($driverPool),
+        'label' => 'MRL driver',
     ]);
 
-    $artifactFiles = rrcr_write_artifacts((string)$raceInfo['raceFolder'], $newDataset, $hash, $diffText, $summaryData, $writeArtifacts);
+    $allDriverDiffText = rrcr_build_diff_summary($allDriverComparison, [
+        'year' => (string)$raceInfo['year'],
+        'race_code' => (string)$raceInfo['raceCode'],
+        'race_name' => (string)$raceInfo['raceName'],
+        'label' => 'All driver',
+    ]);
+
+    $artifactFiles = rrcr_write_artifacts(
+        (string)$raceInfo['raceFolder'],
+        $newDataset,
+        $hash,
+        $diffText,
+        $summaryData,
+        $allDriverOldDataset,
+        $allDriverNewDataset,
+        $allDriverDiffText,
+        $allDriverSummaryData,
+        $writeArtifacts
+    );
 
     if ($verbose) {
         rrcr_log(
-            (string)$raceInfo['raceCode'] . ' classified. '
-            . 'Impact=' . (!empty($comparison['impact']) ? 'YES' : 'NO')
-            . ' changedDrivers=' . (string)$comparison['changedDriversCount']
+            (string)$raceInfo['raceCode']
+            . ' classified. Impact=' . (!empty($comparison['impact']) ? 'YES' : 'NO')
+            . ' changedMRLDrivers=' . (string)$comparison['changedDriversCount']
+            . ' changedAllDrivers=' . (string)$allDriverComparison['changedDriversCount']
         );
     }
 
@@ -615,6 +694,9 @@ function rrcr_classify_race_revision(array $raceInfo, PDO $dbo, bool $writeArtif
         'impact' => !empty($comparison['impact']),
         'changedDriversCount' => (int)$comparison['changedDriversCount'],
         'driverPoolCount' => count($driverPool),
+        'allDriverImpact' => !empty($allDriverComparison['impact']),
+        'allDriverChangedCount' => (int)$allDriverComparison['changedDriversCount'],
+        'allDriverComparison' => $allDriverComparison,
         'previousSnapshot' => basename((string)$pair['previous']),
         'currentSnapshot' => basename((string)$pair['current']),
         'artifactFiles' => $artifactFiles,
@@ -634,6 +716,8 @@ function rrcr_run_single_race(string $year, string $raceCode, PDO $dbo, bool $wr
             'classified' => false,
             'impact' => false,
             'changedDriversCount' => 0,
+            'allDriverImpact' => false,
+            'allDriverChangedCount' => 0,
             'message' => 'Race not found or not enough snapshots to compare.',
         ];
     }
@@ -655,6 +739,7 @@ function rrcr_run(array $options, PDO $dbo): array
         'candidates' => [],
         'classifiedCount' => 0,
         'impactCount' => 0,
+        'allDriverImpactCount' => 0,
         'runs' => [],
     ];
 
@@ -669,13 +754,9 @@ function rrcr_run(array $options, PDO $dbo): array
         $result = rrcr_classify_race_revision($raceInfo, $dbo, $writeArtifacts, $verbose);
         $results['runs'][] = $result;
 
-        if (!empty($result['classified'])) {
-            $results['classifiedCount']++;
-        }
-
-        if (!empty($result['impact'])) {
-            $results['impactCount']++;
-        }
+        if (!empty($result['classified'])) $results['classifiedCount']++;
+        if (!empty($result['impact'])) $results['impactCount']++;
+        if (!empty($result['allDriverImpact'])) $results['allDriverImpactCount']++;
     }
 
     return $results;
@@ -686,7 +767,7 @@ function rrcr_render_web_summary(array $results): void
     echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>MRL Revision Classification</title>';
     echo '<style>';
     echo 'body { font-family: Arial, Helvetica, sans-serif; margin: 16px; line-height: 1.35; }';
-    echo 'table { border-collapse: collapse; width: 100%; max-width: 1100px; }';
+    echo 'table { border-collapse: collapse; width: 100%; max-width: 1250px; }';
     echo 'th, td { border: 1px solid #444; padding: 6px 8px; text-align: left; vertical-align: top; }';
     echo 'th { background: #f2f2f2; }';
     echo '.yes { font-weight: bold; color: #0b6d2b; }';
@@ -696,10 +777,11 @@ function rrcr_render_web_summary(array $results): void
     echo '<h2>MRL Revision Classification</h2>';
     echo '<p><strong>Year:</strong> ' . rrcr_h($results['year']) . '</p>';
     echo '<p><strong>Classified:</strong> ' . rrcr_h((string)$results['classifiedCount']) . ' &nbsp; ';
-    echo '<strong>Impact:</strong> ' . rrcr_h((string)$results['impactCount']) . '</p>';
+    echo '<strong>MRL Impact:</strong> ' . rrcr_h((string)$results['impactCount']) . ' &nbsp; ';
+    echo '<strong>All-Driver Changes:</strong> ' . rrcr_h((string)$results['allDriverImpactCount']) . '</p>';
 
     echo '<table>';
-    echo '<tr><th>Race</th><th>Classified</th><th>Impact</th><th>Changed Drivers</th><th>Previous Snapshot</th><th>Current Snapshot</th><th>Message</th></tr>';
+    echo '<tr><th>Race</th><th>Classified</th><th>MRL Impact</th><th>Changed MRL Drivers</th><th>Changed All Drivers</th><th>Previous Snapshot</th><th>Current Snapshot</th><th>Message</th></tr>';
 
     $runs = isset($results['runs']) && is_array($results['runs']) ? $results['runs'] : [];
     foreach ($runs as $row) {
@@ -708,6 +790,7 @@ function rrcr_render_web_summary(array $results): void
         echo '<td>' . (!empty($row['classified']) ? 'YES' : 'NO') . '</td>';
         echo '<td class="' . (!empty($row['impact']) ? 'yes' : 'no') . '">' . (!empty($row['impact']) ? 'YES' : 'NO') . '</td>';
         echo '<td>' . rrcr_h((string)($row['changedDriversCount'] ?? 0)) . '</td>';
+        echo '<td>' . rrcr_h((string)($row['allDriverChangedCount'] ?? 0)) . '</td>';
         echo '<td>' . rrcr_h((string)($row['previousSnapshot'] ?? '')) . '</td>';
         echo '<td>' . rrcr_h((string)($row['currentSnapshot'] ?? '')) . '</td>';
         echo '<td>' . rrcr_h((string)($row['message'] ?? '')) . '</td>';
@@ -722,15 +805,17 @@ function rrcr_render_cli_summary(array $results): void
     rrcr_log('Classification summary');
     rrcr_log('Year: ' . (string)$results['year']);
     rrcr_log('Classified: ' . (string)$results['classifiedCount']);
-    rrcr_log('Impact: ' . (string)$results['impactCount']);
+    rrcr_log('MRL impact: ' . (string)$results['impactCount']);
+    rrcr_log('All-driver changes: ' . (string)$results['allDriverImpactCount']);
 
     $runs = isset($results['runs']) && is_array($results['runs']) ? $results['runs'] : [];
     foreach ($runs as $row) {
         rrcr_log(
-            (string)($row['raceCode'] ?? '') .
-            ' classified=' . (!empty($row['classified']) ? 'YES' : 'NO') .
-            ' impact=' . (!empty($row['impact']) ? 'YES' : 'NO') .
-            ' changedDrivers=' . (string)($row['changedDriversCount'] ?? 0)
+            (string)($row['raceCode'] ?? '')
+            . ' classified=' . (!empty($row['classified']) ? 'YES' : 'NO')
+            . ' impact=' . (!empty($row['impact']) ? 'YES' : 'NO')
+            . ' changedMRLDrivers=' . (string)($row['changedDriversCount'] ?? 0)
+            . ' changedAllDrivers=' . (string)($row['allDriverChangedCount'] ?? 0)
         );
     }
 }

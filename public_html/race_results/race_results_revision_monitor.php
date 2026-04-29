@@ -4,10 +4,16 @@ declare(strict_types=1);
 /**
  * race_results_revision_monitor.php
  *
- * VERSION: v003
- * LAST MODIFIED: 4/26/2026 12:59:07 pm
+ * VERSION: v004
+ * LAST MODIFIED: 4/29/2026 1:44:53 pm
  *
  * CHANGELOG:
+ * v004 (4/29/2026)
+ *   - CHANGE: Added all-driver change count support from race_results_classify_revisions.php.
+ *   - CHANGE: revision_meta.json now records changed_all_drivers_count for downstream UI / audit use.
+ *   - CHANGE: Browser/log classification output now reports changed all-driver count alongside changed MRL-driver count.
+ *   - CHANGE: Revision email now includes all-driver change count in addition to MRL-only counts.
+ *
  * v003 (4/26/2026)
  *   - NEW: Added safe include support for race_results_classify_revisions.php so revision monitor can call the classifier directly.
  *   - NEW: Added revision metadata artifact writing to revision_meta.json for downstream UI / audit use.
@@ -38,7 +44,7 @@ ini_set('log_errors', '1');
 ini_set('error_log', __DIR__ . '/_race_results_revision_monitor_php_errors.log');
 error_reporting(E_ALL);
 
-const RR_REVISION_MONITOR_SIGNATURE = 'RACE_RESULTS_REVISION_MONITOR v003';
+const RR_REVISION_MONITOR_SIGNATURE = 'RACE_RESULTS_REVISION_MONITOR v004';
 
 require_once __DIR__ . '/race_results_engine.php';
 
@@ -444,6 +450,7 @@ foreach ($completedRaces as $race) {
         'classified' => false,
         'impact' => false,
         'changedDriversCount' => 0,
+        'changedAllDriversCount' => 0,
         'driverPoolCount' => 0,
         'message' => 'Classification not run.',
         'artifactFiles' => [],
@@ -460,15 +467,18 @@ foreach ($completedRaces as $race) {
                 "CLASSIFICATION raceCode={$raceCode} classified="
                 . (!empty($classification['classified']) ? 'YES' : 'NO')
                 . " impact=" . (!empty($classification['impact']) ? 'YES' : 'NO')
-                . " changedDrivers=" . (string)($classification['changedDriversCount'] ?? 0)
+                . " changedMRLDrivers=" . (string)($classification['changedDriversCount'] ?? 0)
+                . " changedAllDrivers=" . (string)($classification['changedAllDriversCount'] ?? 0)
             );
             rrrev_out(
                 "  Classification: "
                 . (!empty($classification['classified']) ? 'YES' : 'NO')
                 . " / Impact: "
                 . (!empty($classification['impact']) ? 'YES' : 'NO')
-                . " / Changed drivers: "
+                . " / Changed MRL drivers: "
                 . (string)($classification['changedDriversCount'] ?? 0)
+                . " / Changed all drivers: "
+                . (string)($classification['changedAllDriversCount'] ?? 0)
             );
         } catch (Throwable $e) {
             $classification['message'] = 'Classification exception: ' . $e->getMessage();
@@ -519,6 +529,7 @@ foreach ($completedRaces as $race) {
         'stored_hash_before' => $storedHash,
         'stored_hash_after' => $currentHash,
         'changed_drivers_count' => (int)($classification['changedDriversCount'] ?? 0),
+        'changed_all_drivers_count' => (int)($classification['changedAllDriversCount'] ?? 0),
         'driver_pool_count' => (int)($classification['driverPoolCount'] ?? 0),
         'classifier_message' => (string)($classification['message'] ?? ''),
         'artifact_files' => isset($classification['artifactFiles']) && is_array($classification['artifactFiles'])
@@ -552,8 +563,9 @@ foreach ($completedRaces as $race) {
         "New hash     : {$currentHash}\n" .
         "MRL impact   : {$impactLine}\n" .
         "Visible rev  : {$visibleLine}\n" .
-        "Changed drv  : " . (string)($classification['changedDriversCount'] ?? 0) . "\n" .
-        "Driver pool  : " . (string)($classification['driverPoolCount'] ?? 0) . "\n\n" .
+        "Changed MRL drivers : " . (string)($classification['changedDriversCount'] ?? 0) . "\n" .
+        "Changed all drivers : " . (string)($classification['changedAllDriversCount'] ?? 0) . "\n" .
+        "Driver pool        : " . (string)($classification['driverPoolCount'] ?? 0) . "\n\n" .
         "Previous snapshot : " . (string)($revisionMeta['previous_snapshot'] ?? '') . "\n" .
         "Current snapshot  : " . (string)($revisionMeta['current_snapshot'] ?? '') . "\n" .
         "revision_meta.json: " . basename($revisionMetaPath) . "\n";
