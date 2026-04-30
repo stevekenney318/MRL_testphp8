@@ -4,15 +4,19 @@ declare(strict_types=1);
 /**
  * race_results_revision_monitor.php
  *
- * VERSION: v004
- * LAST MODIFIED: 4/29/2026 1:44:53 pm
+ * VERSION: v005
+ * LAST MODIFIED: 4/29/2026 2:30:00 pm
  *
  * CHANGELOG:
+ * v005 (4/29/2026)
+ *   - CHANGE: Revised revision email subject to use plain ASCII formatting for safer delivery/readability.
+ *   - CHANGE: Rebuilt revision email body as real HTML with clearer sections for race, impact, snapshots, and artifacts.
+ *   - CHANGE: Revision email now formats classifier details and artifact lists with line breaks and emphasis for easier scanning.
+ *
  * v004 (4/29/2026)
- *   - CHANGE: Added all-driver change count support from race_results_classify_revisions.php.
- *   - CHANGE: revision_meta.json now records changed_all_drivers_count for downstream UI / audit use.
- *   - CHANGE: Browser/log classification output now reports changed all-driver count alongside changed MRL-driver count.
- *   - CHANGE: Revision email now includes all-driver change count in addition to MRL-only counts.
+ *   - CHANGE: Added changedAllDriversCount support from classifier output.
+ *   - CHANGE: revision_meta.json now stores changed_all_drivers_count.
+ *   - CHANGE: Browser/log/email summary now includes changed all drivers count.
  *
  * v003 (4/26/2026)
  *   - NEW: Added safe include support for race_results_classify_revisions.php so revision monitor can call the classifier directly.
@@ -44,7 +48,7 @@ ini_set('log_errors', '1');
 ini_set('error_log', __DIR__ . '/_race_results_revision_monitor_php_errors.log');
 error_reporting(E_ALL);
 
-const RR_REVISION_MONITOR_SIGNATURE = 'RACE_RESULTS_REVISION_MONITOR v004';
+const RR_REVISION_MONITOR_SIGNATURE = 'RACE_RESULTS_REVISION_MONITOR v005';
 
 require_once __DIR__ . '/race_results_engine.php';
 
@@ -233,6 +237,80 @@ function rrrev_build_fetch_debug(string $html, array $details = []): array
     return $debug;
 }
 
+function rrrev_html(string $value): string
+{
+    return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+}
+
+function rrrev_build_revision_email_html(
+    int $year,
+    string $raceLabel,
+    string $folderName,
+    string $raceUrl,
+    string $storedHash,
+    string $currentHash,
+    string $impactLine,
+    string $visibleLine,
+    int $changedMrlDrivers,
+    int $changedAllDrivers,
+    int $driverPoolCount,
+    string $previousSnapshot,
+    string $currentSnapshot,
+    string $revisionMetaPath,
+    array $artifactFiles
+): string {
+    $html = '';
+    $html .= '<div style="font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.45; color: #222;">';
+    $html .= '<p style="margin:0 0 16px 0;">A revision was detected for a previously completed race.</p>';
+
+    $html .= '<table style="border-collapse: collapse; margin: 0 0 18px 0;">';
+    $rows = [
+        'Year' => (string)$year,
+        'Race' => $raceLabel,
+        'Folder' => $folderName,
+        'URL' => $raceUrl,
+        'Stored hash' => $storedHash,
+        'New hash' => $currentHash,
+        'MRL impact' => $impactLine,
+        'Visible rev' => $visibleLine,
+        'Changed MRL drivers' => (string)$changedMrlDrivers,
+        'Changed all drivers' => (string)$changedAllDrivers,
+        'Driver pool' => (string)$driverPoolCount,
+        'Previous snapshot' => $previousSnapshot,
+        'Current snapshot' => $currentSnapshot,
+        'revision_meta.json' => basename($revisionMetaPath),
+    ];
+
+    foreach ($rows as $label => $value) {
+        $html .= '<tr>';
+        $html .= '<td style="padding: 2px 12px 2px 0; vertical-align: top;"><strong>' . rrrev_html($label) . ':</strong></td>';
+        if ($label === 'URL') {
+            $html .= '<td style="padding: 2px 0;"><a href="' . rrrev_html($value) . '">' . rrrev_html($value) . '</a></td>';
+        } else {
+            $html .= '<td style="padding: 2px 0;">' . rrrev_html($value) . '</td>';
+        }
+        $html .= '</tr>';
+    }
+    $html .= '</table>';
+
+    if (!empty($artifactFiles)) {
+        $html .= '<p style="margin: 0 0 6px 0;"><strong>Classifier artifacts</strong></p>';
+        $html .= '<ul style="margin: 0 0 18px 20px; padding: 0;">';
+        foreach ($artifactFiles as $label => $artifactPath) {
+            $html .= '<li><strong>' . rrrev_html((string)$label) . ':</strong> ' . rrrev_html(basename((string)$artifactPath)) . '</li>';
+        }
+        $html .= '</ul>';
+    }
+
+    $html .= '<p style="margin: 0 0 6px 0;">A new snapshot has been saved and the race has been flagged as <strong>Under Review</strong>.</p>';
+    $html .= '<p style="margin: 0 0 16px 0;">Please check the race folder and review the change before accepting revised standings.</p>';
+    $html .= '<p style="margin: 0; color: #666; font-size: 13px;">Run: ' . rrrev_html(rr_now_local_string()) . '<br>';
+    $html .= 'Sig: ' . rrrev_html(RR_REVISION_MONITOR_SIGNATURE) . '</p>';
+    $html .= '</div>';
+
+    return $html;
+}
+
 // ------------------------- MAIN -------------------------
 $scriptSha = rr_sha256_file_string(__FILE__);
 $token     = bin2hex(random_bytes(8));
@@ -281,13 +359,13 @@ $skipRaceId = '';
 if ($okLatest && $latestUrl !== '') {
     $skipUrl = $latestUrl;
     $skipRaceId = rr_extract_race_id_from_url($latestUrl);
-    rr_log_line($logFile, "LATEST (live) race URL identified — will skip: {$latestUrl}");
+    rr_log_line($logFile, "LATEST (live) race URL identified - will skip: {$latestUrl}");
     rrrev_out("Skipping latest/live race (owned by live monitor): " . $skipRaceId);
 } else {
     // Non-fatal: if we can't determine the latest, log a warning but continue.
     // Worst case we check all races including the live one — harmless for revision detection.
     $latestDiag = is_array($latestDebug ?? null) ? json_encode($latestDebug, JSON_UNESCAPED_SLASHES) : '';
-    rr_log_line($logFile, "WARNING: Could not determine latest race URL ({$errLatest}) — will scan all known races. debug={$latestDiag}");
+    rr_log_line($logFile, "WARNING: Could not determine latest race URL ({$errLatest}) - will scan all known races. debug={$latestDiag}");
     rrrev_out("WARNING: Could not determine latest race URL. Scanning all known races.");
     if (!empty($latestDebug) && is_array($latestDebug)) {
         rrrev_out("Latest-race diagnostics: HTTP " . (string)($latestDebug['httpStatus'] ?? '') . " / bytes " . (string)($latestDebug['htmlBytes'] ?? '') . " / races found " . (string)($latestDebug['raceCount'] ?? ''));
@@ -358,7 +436,7 @@ foreach ($completedRaces as $race) {
         // Log and skip; we only revision-check races that already have a known-good baseline.
         $errors++;
         rr_log_line($logFile, "SKIP (no baseline hash) raceId={$raceId} folder={$folderName}");
-        rrrev_out("  SKIP: No baseline hash on file — race not yet finalized in system.");
+        rrrev_out("  SKIP: No baseline hash on file - race not yet finalized in system.");
         continue;
     }
 
@@ -386,7 +464,7 @@ foreach ($completedRaces as $race) {
             "NO SCORING TABLE raceId={$raceId} folder={$folderName} url={$raceUrl} http={$statusFetch} reason={$reason} debug="
             . json_encode($fetchDebug, JSON_UNESCAPED_SLASHES)
         );
-        rrrev_out("  SKIP: No valid scoring table returned — reason: {$reason}");
+        rrrev_out("  SKIP: No valid scoring table returned - reason: {$reason}");
         rrrev_out("  Fetch diagnostics: HTTP {$statusFetch} / bytes " . (string)$fetchDebug['html_bytes'] . " / tables " . (string)$fetchDebug['table_count']);
         if ($fetchDebug['title'] !== '') {
             rrrev_out("  Title: " . (string)$fetchDebug['title']);
@@ -467,7 +545,7 @@ foreach ($completedRaces as $race) {
                 "CLASSIFICATION raceCode={$raceCode} classified="
                 . (!empty($classification['classified']) ? 'YES' : 'NO')
                 . " impact=" . (!empty($classification['impact']) ? 'YES' : 'NO')
-                . " changedMRLDrivers=" . (string)($classification['changedDriversCount'] ?? 0)
+                . " changedDrivers=" . (string)($classification['changedDriversCount'] ?? 0)
                 . " changedAllDrivers=" . (string)($classification['changedAllDriversCount'] ?? 0)
             );
             rrrev_out(
@@ -545,43 +623,34 @@ foreach ($completedRaces as $race) {
     $raceLabel = $raceName !== '' ? $raceName : $folderName;
     $shortCode = $raceCode !== '' ? ($raceCode . ' ') : '';
 
-    $subject = "[MRL] REVISION DETECTED – {$year} {$shortCode}{$raceLabel}";
+    $subject = '[MRL] REVISION DETECTED - ' . $year . ' ' . trim($shortCode . $raceLabel);
     if ($displayTag !== '') {
-        $subject .= " ({$displayTag})";
+        $subject .= ' (' . $displayTag . ')';
     }
 
     $impactLine = $mrlImpact ? 'YES' : 'NO';
     $visibleLine = $displayTag !== '' ? $displayTag : 'none';
+    $changedMrlDrivers = (int)($classification['changedDriversCount'] ?? 0);
+    $changedAllDrivers = (int)($classification['changedAllDriversCount'] ?? 0);
+    $driverPoolCount = (int)($classification['driverPoolCount'] ?? 0);
 
-    $message =
-        "A revision was detected for a previously completed race.\n\n" .
-        "Year         : {$year}\n" .
-        "Race         : {$raceLabel}\n" .
-        "Folder       : {$folderName}\n" .
-        "URL          : {$raceUrl}\n\n" .
-        "Stored hash  : {$storedHash}\n" .
-        "New hash     : {$currentHash}\n" .
-        "MRL impact   : {$impactLine}\n" .
-        "Visible rev  : {$visibleLine}\n" .
-        "Changed MRL drivers : " . (string)($classification['changedDriversCount'] ?? 0) . "\n" .
-        "Changed all drivers : " . (string)($classification['changedAllDriversCount'] ?? 0) . "\n" .
-        "Driver pool        : " . (string)($classification['driverPoolCount'] ?? 0) . "\n\n" .
-        "Previous snapshot : " . (string)($revisionMeta['previous_snapshot'] ?? '') . "\n" .
-        "Current snapshot  : " . (string)($revisionMeta['current_snapshot'] ?? '') . "\n" .
-        "revision_meta.json: " . basename($revisionMetaPath) . "\n";
-
-    if (!empty($classification['artifactFiles']) && is_array($classification['artifactFiles'])) {
-        $message .= "\nClassifier artifacts:\n";
-        foreach ($classification['artifactFiles'] as $label => $artifactPath) {
-            $message .= "- {$label}: " . basename((string)$artifactPath) . "\n";
-        }
-    }
-
-    $message .=
-        "\nA new snapshot has been saved and the race has been flagged as Under Review.\n" .
-        "Please check the race folder and review the change before accepting revised standings.\n\n" .
-        "Run: " . rr_now_local_string() . "\n" .
-        "Sig: " . RR_REVISION_MONITOR_SIGNATURE . "\n";
+    $message = rrrev_build_revision_email_html(
+        (int)$year,
+        $raceLabel,
+        $folderName,
+        $raceUrl,
+        $storedHash,
+        $currentHash,
+        $impactLine,
+        $visibleLine,
+        $changedMrlDrivers,
+        $changedAllDrivers,
+        $driverPoolCount,
+        (string)($revisionMeta['previous_snapshot'] ?? ''),
+        (string)($revisionMeta['current_snapshot'] ?? ''),
+        $revisionMetaPath,
+        isset($classification['artifactFiles']) && is_array($classification['artifactFiles']) ? $classification['artifactFiles'] : []
+    );
 
     $sentOk = false;
     try {
