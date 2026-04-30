@@ -14,10 +14,16 @@ require_once $_SERVER['DOCUMENT_ROOT'] . '/sandbox.html';
 /**
  * weekly_standings.php
  *
- * VERSION: v055
- * LAST MODIFIED: 4/19/2026 4:18:54 pm
+ * VERSION: v056
+ * LAST MODIFIED: 4/30/2026 2:49:14 am
  *
  * CHANGELOG:
+ *
+ * v056 (4/30/2026)
+ *   - CHANGE: Weekly standings now reads revision_meta.json for race revision display labels.
+ *   - CHANGE: Direct MRL-impacting revisions show their display tag, such as (Rev A), in the Race dropdown and main heading.
+ *   - CHANGE: Downstream races after an MRL-impacting revision show an adjusted label only when that downstream race is not Pending Review.
+ *   - CHANGE: Pending Review remains a separate button/banner and is not merged into the race heading.
  *
  * v055 (4/19/2026)
  *   - FIX: Weekly standings now defaults Live and direct race selection to the latest race that has an actual snapshot, preventing in-progress indexed races from rendering empty standings.
@@ -234,6 +240,110 @@ function rrsg_filter_races_with_snapshots(array $races): array
     }
 
     return $result;
+}
+
+function rrsg_load_revision_meta(string $raceFolder): array
+{
+    $path = rtrim($raceFolder, '/\\') . '/revision_meta.json';
+    if (!is_file($path)) {
+        return [];
+    }
+
+    $data = rr_load_json($path);
+    return is_array($data) ? $data : [];
+}
+
+function rrsg_race_is_pending_review(string $raceFolder): bool
+{
+    return is_file(rtrim($raceFolder, '/\\') . '/under_review.flag');
+}
+
+function rrsg_revision_display_tag_from_meta(array $meta): string
+{
+    if (empty($meta)) {
+        return '';
+    }
+
+    if (empty($meta['display_rev']) || empty($meta['mrl_impact'])) {
+        return '';
+    }
+
+    $tag = trim((string)($meta['display_tag'] ?? ''));
+    return $tag !== '' ? $tag : '';
+}
+
+function rrsg_direct_revision_tag_for_race(array $race): string
+{
+    $raceFolder = (string)($race['raceFolder'] ?? '');
+    if ($raceFolder === '') {
+        return '';
+    }
+
+    return rrsg_revision_display_tag_from_meta(rrsg_load_revision_meta($raceFolder));
+}
+
+function rrsg_downstream_revision_tag_for_race(array $targetRace, array $pointRaces): string
+{
+    $targetNumber = (int)($targetRace['number'] ?? 0);
+    $targetFolder = (string)($targetRace['raceFolder'] ?? '');
+
+    if ($targetNumber <= 0 || $targetFolder === '') {
+        return '';
+    }
+
+    // Downstream/adjusted labeling waits until the downstream race itself is no longer Pending Review.
+    if (rrsg_race_is_pending_review($targetFolder)) {
+        return '';
+    }
+
+    $bestSourceNumber = 0;
+    $bestSourceTag = '';
+
+    foreach ($pointRaces as $sourceRace) {
+        $sourceNumber = (int)($sourceRace['number'] ?? 0);
+        if ($sourceNumber <= 0 || $sourceNumber >= $targetNumber) {
+            continue;
+        }
+
+        $sourceTag = rrsg_direct_revision_tag_for_race($sourceRace);
+        if ($sourceTag === '') {
+            continue;
+        }
+
+        if ($sourceNumber > $bestSourceNumber) {
+            $bestSourceNumber = $sourceNumber;
+            $bestSourceTag = $sourceTag;
+        }
+    }
+
+    if ($bestSourceTag === '') {
+        return '';
+    }
+
+    return 'Adjusted ' . $bestSourceTag;
+}
+
+function rrsg_revision_suffix_for_race(array $race, array $pointRaces): string
+{
+    $directTag = rrsg_direct_revision_tag_for_race($race);
+    if ($directTag !== '') {
+        return ' (' . $directTag . ')';
+    }
+
+    $downstreamTag = rrsg_downstream_revision_tag_for_race($race, $pointRaces);
+    if ($downstreamTag !== '') {
+        return ' (' . $downstreamTag . ')';
+    }
+
+    return '';
+}
+
+function rrsg_revision_display_label_for_race(array $race, array $pointRaces): string
+{
+    return (string)$race['raceCode']
+        . ' '
+        . rrsg_short_race_label((string)$race['raceName'])
+        . rrsg_revision_suffix_for_race($race, $pointRaces);
 }
 
 function rrsg_find_latest_available_view(array $availableYears, string $baseDir): array
@@ -671,7 +781,7 @@ function rrsg_build_year_race_options(array $availableYears, string $baseDir): a
         foreach ($pointRacesAsc as $race) {
             $result[$yearOpt][] = [
                 'raceCode' => (string)$race['raceCode'],
-                'label' => (string)$race['raceCode'] . ' ' . rrsg_short_race_label((string)$race['raceName']),
+                'label' => rrsg_revision_display_label_for_race($race, $pointRacesAsc),
                 'number' => (int)$race['number'],
             ];
         }
@@ -1203,7 +1313,7 @@ if ($selectedRace !== null) {
     $selectedRaceNumber = (int)$selectedRace['number'];
     $scoreSegment = rrsg_segment_from_race_number($selectedRaceNumber);
     $segmentBounds = rrsg_segment_bounds($scoreSegment);
-    $selectedRaceDisplay = (string)$selectedRace['raceCode'] . ' ' . rrsg_short_race_label((string)$selectedRace['raceName']);
+    $selectedRaceDisplay = rrsg_revision_display_label_for_race($selectedRace, $pointRacesAsc);
 }
 
 $teamRowsBase = rr_get_segment_team_picks($dbo ?? null, $dbconnect ?? null, $scoreYear, $scoreSegment);
@@ -1219,6 +1329,7 @@ $selectedRaceWeeklyRows = [];
 $selectedRaceMeta = [
     'raceCode' => '',
     'raceLabel' => '',
+    'raceDisplayLabel' => '',
     'snapshotFile' => '',
     'driverCount' => 0,
     'snapshotDisplay' => '',
@@ -1330,6 +1441,7 @@ if ($selectedRace !== null) {
             $selectedRaceMeta = [
                 'raceCode' => $raceCode,
                 'raceLabel' => $raceLabel,
+                'raceDisplayLabel' => rrsg_revision_display_label_for_race($race, $pointRacesAsc),
                 'snapshotFile' => $snapshotFile,
                 'driverCount' => count($driverPoints),
                 'snapshotDisplay' => rrsg_format_snapshot_timestamp($snapshotFile),
@@ -1531,7 +1643,7 @@ if ((int)$selectedYear < 2026 && $selectedRace !== null) {
 
 $underReview = false;
 if ($selectedRace !== null) {
-    $underReview = is_file((string)$selectedRace['raceFolder'] . '/under_review.flag');
+    $underReview = rrsg_race_is_pending_review((string)$selectedRace['raceFolder']);
 }
 
 $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
@@ -2107,7 +2219,7 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
                 <option value="">Select Race</option>
                 <?php foreach ($selectablePointRacesAsc as $raceOpt): ?>
                     <option value="<?php echo rrsg_h($raceOpt['raceCode']); ?>" <?php echo ($raceOpt['raceCode'] === $selectedRaceCode ? 'selected' : ''); ?>>
-                        <?php echo rrsg_h($raceOpt['raceCode'] . ' ' . rrsg_short_race_label((string)$raceOpt['raceName'])); ?>
+                        <?php echo rrsg_h(rrsg_revision_display_label_for_race($raceOpt, $selectablePointRacesAsc)); ?>
                     </option>
                 <?php endforeach; ?>
             </select>
@@ -2237,7 +2349,7 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
 
         <div class="report-grid">
             <div class="report-panel">
-                <div class="panel-title"><?php echo rrsg_h($selectedYear . ' ' . $selectedRaceCode . ' ' . $selectedRaceMeta['raceLabel']); ?><?php if ((string)$selectedRaceMeta['snapshotDisplay'] !== ''): ?> <span class="snapshot-footnote">(<?php echo rrsg_h($selectedRaceMeta['snapshotDisplay']); ?>)</span><?php endif; ?></div>
+                <div class="panel-title"><?php echo rrsg_h($selectedYear . ' ' . $selectedRaceMeta['raceDisplayLabel']); ?><?php if ((string)$selectedRaceMeta['snapshotDisplay'] !== ''): ?> <span class="snapshot-footnote">(<?php echo rrsg_h($selectedRaceMeta['snapshotDisplay']); ?>)</span><?php endif; ?></div>
                 <div class="table-wrap">
                     <table>
                         <thead>
