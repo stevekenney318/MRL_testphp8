@@ -12,10 +12,18 @@ if (!headers_sent()) {
 /**
  * race_results_dashboard.php
  *
- * VERSION: v002
- * LAST MODIFIED: 4/15/2026 5:30:00 am
+ * VERSION: v003
+ * LAST MODIFIED: 5/3/2026 11:38:57 pm
  *
  * CHANGELOG:
+ *
+ * v003 (2026-05-03)
+ *   - NEW: Revision Monitor tab now includes a Revision Classification summary using existing revision metadata/classifier artifacts.
+ *   - NEW: Added classifier report status and direct link to race_results_classify_revisions.php?year=YYYY.
+ *   - NEW: Live Monitor tab now includes RD Status JSON in the File Status section.
+ *   - NEW: Added RD Status JSON display card so the dashboard can show the latest RD check result even when no teams are eligible.
+ *   - CHANGE: Dashboard now reads _race_results_rd_status.json written by race_results_monitor.php v129.
+ *
  * v002 (2026-04-15)
  *   - NEW: Tabbed layout — Live Monitor tab and Revision Monitor tab.
  *   - Tab switching is pure JS/CSS (no page reload).
@@ -44,16 +52,18 @@ $baseDir = __DIR__;
 $heartbeatFile = $baseDir . '/_race_results_monitor_heartbeat.txt';
 $stateFile     = $baseDir . '/_race_results_monitor_state.json';
 $logFile       = $baseDir . '/_race_results_monitor.log';
+$rdStatusFile  = $baseDir . '/_race_results_rd_status.json';
 
 // --- Revision Monitor files ---
 $revHeartbeatFile = $baseDir . '/_race_results_revision_monitor_heartbeat.txt';
 $revLogFile       = $baseDir . '/_race_results_revision_monitor.log';
+$classifierFile   = $baseDir . '/race_results_classify_revisions.php';
 
 $defaultTailLines = 10;
 $maxTailLines     = 200;
 
 $tailLines = isset($_GET['lines']) ? (int)$_GET['lines'] : $defaultTailLines;
-if ($tailLines < 1)           $tailLines = $defaultTailLines;
+if ($tailLines < 1)             $tailLines = $defaultTailLines;
 if ($tailLines > $maxTailLines) $tailLines = $maxTailLines;
 
 $autoRefresh = isset($_GET['refresh']) ? (int)$_GET['refresh'] : 30;
@@ -61,6 +71,9 @@ if ($autoRefresh < 0)    $autoRefresh = 0;
 if ($autoRefresh > 3600) $autoRefresh = 3600;
 
 $activeTab = (isset($_GET['tab']) && $_GET['tab'] === 'revision') ? 'revision' : 'live';
+
+$classYear = isset($_GET['year']) ? (int)$_GET['year'] : 2026;
+if ($classYear < 2000 || $classYear > 2100) $classYear = 2026;
 
 // -----------------------------------------------------------------------------
 // Helpers
@@ -95,9 +108,9 @@ function rr_dash_file_size_string(string $path): string
     if (!is_file($path)) return '—';
     $size = @filesize($path);
     if ($size === false) return '—';
-    if ($size < 1024)             return $size . ' B';
-    if ($size < 1024 * 1024)      return number_format($size / 1024, 1) . ' KB';
-    return number_format($size / 1024 / 1024, 2) . ' MB';
+    if ($size < 1024)        return $size . ' B';
+    if ($size < 1048576)     return number_format($size / 1024, 1) . ' KB';
+    return number_format($size / 1048576, 2) . ' MB';
 }
 
 function rr_dash_tail_lines(string $path, int $lineCount): string
@@ -107,9 +120,9 @@ function rr_dash_tail_lines(string $path, int $lineCount): string
     $fh = @fopen($path, 'rb');
     if ($fh === false) return '';
 
-    $buffer    = '';
+    $buffer = '';
     $chunkSize = 4096;
-    $pos       = 0;
+    $pos = 0;
     $lineCounter = 0;
 
     @fseek($fh, 0, SEEK_END);
@@ -173,28 +186,217 @@ function rr_dash_build_url(string $path, array $params): string
     return $path . '?' . http_build_query($params);
 }
 
+function rr_dash_json_value(string $raw, string $key): string
+{
+    if ($raw === '') return '';
+    $decoded = json_decode($raw, true);
+    if (!is_array($decoded)) return '';
+    if (!array_key_exists($key, $decoded)) return '';
+    if (is_array($decoded[$key])) return json_encode($decoded[$key]);
+    return (string)$decoded[$key];
+}
+
+function rr_dash_load_json_file(string $path): array
+{
+    if (!is_file($path)) return [];
+    $raw = @file_get_contents($path);
+    if ($raw === false || $raw === '') return [];
+    $decoded = json_decode($raw, true);
+    return is_array($decoded) ? $decoded : [];
+}
+
+function rr_dash_first_existing_int(array $data, array $keys): int
+{
+    foreach ($keys as $key) {
+        if (array_key_exists($key, $data)) {
+            if (is_array($data[$key])) return count($data[$key]);
+            return (int)$data[$key];
+        }
+    }
+
+    return 0;
+}
+
+function rr_dash_first_existing_bool(array $data, array $keys): bool
+{
+    foreach ($keys as $key) {
+        if (array_key_exists($key, $data)) {
+            $value = $data[$key];
+            if (is_bool($value)) return $value;
+            if (is_numeric($value)) return ((int)$value !== 0);
+            $valueString = strtoupper(trim((string)$value));
+            return in_array($valueString, ['1', 'YES', 'TRUE', 'Y'], true);
+        }
+    }
+
+    return false;
+}
+
+function rr_dash_race_code_from_folder(string $folderName): string
+{
+    if (preg_match('/^([REZ]\d{2})_/', $folderName, $m)) {
+        return (string)$m[1];
+    }
+
+    return '';
+}
+
+function rr_dash_short_race_label(string $raceName, string $folderName): string
+{
+    $label = trim($raceName);
+
+    if ($label === '') {
+        $parts = explode('_', $folderName);
+        if (count($parts) > 2) {
+            array_shift($parts);
+            array_pop($parts);
+            $label = implode(' ', $parts);
+        }
+    }
+
+    $label = preg_replace('/^NASCAR Cup Series at /i', '', $label);
+    $label = preg_replace('/^NASCAR Cup Series /i', '', $label);
+    $label = trim((string)$label);
+
+    return $label !== '' ? $label : 'Race';
+}
+
+function rr_dash_revision_classification_summary(string $baseDir, int $year): array
+{
+    $yearFolder = rtrim($baseDir, '/\\') . '/' . (string)$year;
+    $yearIndex = rr_dash_load_json_file($yearFolder . '/_year_index.json');
+
+    $rows = [];
+    $classifiedCount = 0;
+    $mrlImpactCount = 0;
+    $allDriverChangeRaceCount = 0;
+
+    if (!isset($yearIndex['races']) || !is_array($yearIndex['races'])) {
+        return [
+            'year' => $year,
+            'rows' => [],
+            'classified_count' => 0,
+            'mrl_impact_count' => 0,
+            'all_driver_change_race_count' => 0,
+            'message' => 'Year index not found or invalid.',
+        ];
+    }
+
+    foreach ($yearIndex['races'] as $raceId => $raceInfo) {
+        if (!is_array($raceInfo)) continue;
+        if ((string)($raceInfo['kind'] ?? '') !== 'R') continue;
+
+        $folderName = (string)($raceInfo['folder'] ?? '');
+        if ($folderName === '') continue;
+
+        $raceFolder = $yearFolder . '/' . $folderName;
+        if (!is_dir($raceFolder)) continue;
+
+        $revisionMeta = rr_dash_load_json_file($raceFolder . '/revision_meta.json');
+        $mrlSummary = rr_dash_load_json_file($raceFolder . '/mrl_impact_summary.json');
+        $allSummary = rr_dash_load_json_file($raceFolder . '/all_driver_impact_summary.json');
+
+        $hasRevisionMeta = !empty($revisionMeta);
+        $hasMrlSummary = !empty($mrlSummary);
+        $hasAllSummary = !empty($allSummary);
+
+        if (!$hasRevisionMeta && !$hasMrlSummary && !$hasAllSummary) {
+            continue;
+        }
+
+        $raceNumber = (int)($raceInfo['number'] ?? 0);
+        $raceCode = rr_dash_race_code_from_folder($folderName);
+        if ($raceCode === '' && $raceNumber > 0) {
+            $raceCode = 'R' . str_pad((string)$raceNumber, 2, '0', STR_PAD_LEFT);
+        }
+
+        $raceLabel = rr_dash_short_race_label((string)($raceInfo['race_name'] ?? ''), $folderName);
+
+        $mrlImpact = false;
+        if ($hasRevisionMeta) {
+            $mrlImpact = !empty($revisionMeta['mrl_impact']);
+        } elseif ($hasMrlSummary) {
+            $mrlImpact = rr_dash_first_existing_bool($mrlSummary, ['impact', 'mrl_impact', 'impactDetected']);
+        }
+
+        $changedMrlDrivers = 0;
+        if ($hasRevisionMeta) {
+            $changedMrlDrivers = (int)($revisionMeta['changed_drivers_count'] ?? 0);
+        } elseif ($hasMrlSummary) {
+            $changedMrlDrivers = rr_dash_first_existing_int($mrlSummary, ['changed_drivers_count', 'changedDriversCount', 'changed_driver_count', 'changedDrivers', 'changes']);
+        }
+
+        $changedAllDrivers = 0;
+        if ($hasRevisionMeta) {
+            $changedAllDrivers = (int)($revisionMeta['changed_all_drivers_count'] ?? 0);
+        } elseif ($hasAllSummary) {
+            $changedAllDrivers = rr_dash_first_existing_int($allSummary, ['changed_all_drivers_count', 'changedDriversCount', 'changed_driver_count', 'changedDrivers', 'changes']);
+        }
+
+        $classifiedCount++;
+        if ($mrlImpact) $mrlImpactCount++;
+        if ($changedAllDrivers > 0) $allDriverChangeRaceCount++;
+
+        $rows[] = [
+            'race_number' => $raceNumber,
+            'race_code' => $raceCode,
+            'race_label' => $raceLabel,
+            'mrl_impact' => $mrlImpact,
+            'changed_mrl_drivers' => $changedMrlDrivers,
+            'changed_all_drivers' => $changedAllDrivers,
+            'display_tag' => (string)($revisionMeta['display_tag'] ?? ''),
+            'pending_review' => !empty($revisionMeta['pending_review']) || is_file($raceFolder . '/under_review.flag'),
+            'status' => (string)($revisionMeta['status'] ?? ($hasMrlSummary || $hasAllSummary ? 'classified' : '')),
+            'last_detected_at' => (string)($revisionMeta['last_detected_at'] ?? ''),
+            'folder' => $folderName,
+            'has_revision_meta' => $hasRevisionMeta,
+        ];
+    }
+
+    usort($rows, static function ($a, $b): int {
+        return ((int)$a['race_number']) <=> ((int)$b['race_number']);
+    });
+
+    return [
+        'year' => $year,
+        'rows' => $rows,
+        'classified_count' => $classifiedCount,
+        'mrl_impact_count' => $mrlImpactCount,
+        'all_driver_change_race_count' => $allDriverChangeRaceCount,
+        'message' => $classifiedCount > 0 ? 'Classification artifacts found.' : 'No classification artifacts found yet.',
+    ];
+}
+
 // -----------------------------------------------------------------------------
 // Read data — Live Monitor
 // -----------------------------------------------------------------------------
 $heartbeatRaw = rr_dash_read_file($heartbeatFile);
 $stateRaw     = rr_dash_read_file($stateFile);
+$rdStatusRaw  = rr_dash_read_file($rdStatusFile);
 $logTailRaw   = rr_dash_tail_lines($logFile, $tailLines);
 $lastLogLine  = rr_dash_last_line($logFile);
 $statePretty  = rr_dash_pretty_json($stateRaw);
+$rdStatusPretty = rr_dash_pretty_json($rdStatusRaw);
 
 $heartbeatExists = rr_dash_file_exists($heartbeatFile);
 $stateExists     = rr_dash_file_exists($stateFile);
+$rdStatusExists  = rr_dash_file_exists($rdStatusFile);
 $logExists       = rr_dash_file_exists($logFile);
+
+$rdStatusCode = rr_dash_json_value($rdStatusRaw, 'status');
+$rdStatusMessage = rr_dash_json_value($rdStatusRaw, 'message');
 
 // -----------------------------------------------------------------------------
 // Read data — Revision Monitor
 // -----------------------------------------------------------------------------
-$revHeartbeatRaw  = rr_dash_read_file($revHeartbeatFile);
-$revLogTailRaw    = rr_dash_tail_lines($revLogFile, $tailLines);
-$revLastLogLine   = rr_dash_last_line($revLogFile);
+$revHeartbeatRaw = rr_dash_read_file($revHeartbeatFile);
+$revLogTailRaw   = rr_dash_tail_lines($revLogFile, $tailLines);
+$revLastLogLine  = rr_dash_last_line($revLogFile);
 
 $revHeartbeatExists = rr_dash_file_exists($revHeartbeatFile);
 $revLogExists       = rr_dash_file_exists($revLogFile);
+$classifierExists   = rr_dash_file_exists($classifierFile);
+$classSummary       = rr_dash_revision_classification_summary($baseDir, $classYear);
 
 $pageGenerated = date('Y-m-d g:i:s A');
 $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
@@ -216,6 +418,7 @@ $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
             --accent2: #b99352;
             --line:    rgba(216,186,134,.25);
             --ok:      #6fd08c;
+            --warn:    #ffd45d;
             --bad:     #ef6b6b;
             --link:    #8cc8ff;
             --shadow:  0 10px 28px rgba(0,0,0,.28);
@@ -242,7 +445,6 @@ $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
             padding: 18px;
         }
 
-        /* ---- HEADER ---- */
         .header {
             background: linear-gradient(180deg, #1f1f1f, #1b1b1b);
             border: 1px solid var(--line);
@@ -252,7 +454,6 @@ $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
             margin-bottom: 16px;
         }
 
-        /* ---- TABS ---- */
         .tab-bar {
             display: flex;
             gap: 14px;
@@ -296,7 +497,6 @@ $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
             font-size: 15px;
         }
 
-        /* ---- TOOLBAR ---- */
         .toolbar {
             margin-top: 14px;
             display: flex;
@@ -318,7 +518,6 @@ $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
 
         .btn:hover { background: #333333; }
 
-        /* ---- GRID ---- */
         .grid {
             display: grid;
             grid-template-columns: 1fr;
@@ -330,7 +529,6 @@ $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
             .full { grid-column: 1 / -1; }
         }
 
-        /* ---- CARDS ---- */
         .card {
             background: linear-gradient(180deg, var(--panel), var(--panel2));
             border: 1px solid var(--line);
@@ -345,7 +543,6 @@ $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
             font-size: 28px;
         }
 
-        /* ---- STATUS LIST ---- */
         .status-list { display: grid; gap: 10px; }
 
         .status-row {
@@ -374,8 +571,9 @@ $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
             width: fit-content;
         }
 
-        .badge.ok  { background: rgba(111,208,140,.15); color: var(--ok);  border: 1px solid rgba(111,208,140,.35); }
-        .badge.bad { background: rgba(239,107,107,.15); color: var(--bad); border: 1px solid rgba(239,107,107,.35); }
+        .badge.ok   { background: rgba(111,208,140,.15); color: var(--ok);   border: 1px solid rgba(111,208,140,.35); }
+        .badge.warn { background: rgba(255,212,93,.15);  color: var(--warn); border: 1px solid rgba(255,212,93,.35); }
+        .badge.bad  { background: rgba(239,107,107,.15); color: var(--bad);  border: 1px solid rgba(239,107,107,.35); }
 
         .meta { color: var(--muted); font-size: 14px; }
 
@@ -416,7 +614,39 @@ $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
             word-break: break-word;
         }
 
-        /* ---- TAB PANELS ---- */
+        .summary-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        table.dash-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            overflow: hidden;
+            border-radius: 10px;
+        }
+
+        table.dash-table th,
+        table.dash-table td {
+            text-align: left;
+            padding: 8px 10px;
+            border-bottom: 1px solid rgba(255,255,255,.06);
+            vertical-align: top;
+        }
+
+        table.dash-table th {
+            color: var(--accent);
+            background: rgba(0,0,0,.22);
+            font-weight: 700;
+        }
+
+        table.dash-table tr:nth-child(even) td {
+            background: rgba(255,255,255,.025);
+        }
+
         .tab-panel { display: none; }
         .tab-panel.active { display: block; }
     </style>
@@ -424,12 +654,10 @@ $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
 <body>
 <div class="wrap">
 
-    <!-- HEADER -->
     <div class="header">
-
         <div class="tab-bar">
             <a class="tab-btn <?= $activeTab === 'live' ? 'active' : 'inactive' ?>"
-               href="<?=h(rr_dash_build_url($selfUrl, ['tab'=>'live',     'lines'=>$tailLines, 'refresh'=>$autoRefresh]))?>"
+               href="<?=h(rr_dash_build_url($selfUrl, ['tab'=>'live', 'lines'=>$tailLines, 'refresh'=>$autoRefresh]))?>"
                id="tab-live-link">Race Results Dashboard</a>
             <a class="tab-btn <?= $activeTab === 'revision' ? 'active' : 'inactive' ?>"
                href="<?=h(rr_dash_build_url($selfUrl, ['tab'=>'revision', 'lines'=>$tailLines, 'refresh'=>$autoRefresh]))?>"
@@ -438,7 +666,7 @@ $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
 
         <p class="subtitle">
             <?= $activeTab === 'live'
-                ? 'Quick view for heartbeat, monitor state, and recent log activity'
+                ? 'Quick view for heartbeat, monitor state, RD status, and recent log activity'
                 : 'Quick view for revision monitor heartbeat and recent revision log activity' ?>
         </p>
 
@@ -467,9 +695,6 @@ $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
         </div>
     </div>
 
-    <!-- ================================================================ -->
-    <!-- TAB: LIVE MONITOR                                                 -->
-    <!-- ================================================================ -->
     <div class="tab-panel <?= $activeTab === 'live' ? 'active' : '' ?>" id="panel-live">
 
         <div class="card" style="margin-bottom:16px;">
@@ -508,6 +733,19 @@ $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
                     </div>
 
                     <div class="status-row">
+                        <div class="label">RD Status</div>
+                        <div class="badge <?=h(rr_dash_status_class($rdStatusExists))?>"><?=h(rr_dash_status_label($rdStatusExists))?></div>
+                        <div class="meta">
+                            Modified: <?=h(rr_dash_file_mtime_string($rdStatusFile))?> |
+                            Size: <?=h(rr_dash_file_size_string($rdStatusFile))?> |
+                            <a class="inline-link" href="_race_results_rd_status.json" target="_blank" rel="noopener">Open raw file</a>
+                            <?php if ($rdStatusCode !== ''): ?>
+                                | Status: <?=h($rdStatusCode)?>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+
+                    <div class="status-row">
                         <div class="label">Monitor Log</div>
                         <div class="badge <?=h(rr_dash_status_class($logExists))?>"><?=h(rr_dash_status_label($logExists))?></div>
                         <div class="meta">
@@ -530,6 +768,18 @@ $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
             </div>
 
             <div class="card full">
+                <h2>RD Status JSON</h2>
+                <?php if ($rdStatusPretty !== ''): ?>
+                <?php if ($rdStatusMessage !== ''): ?>
+                <div class="last-line" style="margin-bottom:12px;"><?=h($rdStatusMessage)?></div>
+                <?php endif; ?>
+                <pre><?=h($rdStatusPretty)?></pre>
+                <?php else: ?>
+                <div class="empty">RD status JSON file is missing or empty. It will appear after the monitor runs an RD check.</div>
+                <?php endif; ?>
+            </div>
+
+            <div class="card full">
                 <h2>Monitor State JSON</h2>
                 <?php if ($statePretty !== ''): ?>
                 <pre><?=h($statePretty)?></pre>
@@ -548,11 +798,8 @@ $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
             </div>
 
         </div>
-    </div><!-- /panel-live -->
+    </div>
 
-    <!-- ================================================================ -->
-    <!-- TAB: REVISION MONITOR                                             -->
-    <!-- ================================================================ -->
     <div class="tab-panel <?= $activeTab === 'revision' ? 'active' : '' ?>" id="panel-revision">
 
         <div class="card" style="margin-bottom:16px;">
@@ -590,6 +837,16 @@ $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
                         </div>
                     </div>
 
+                    <div class="status-row">
+                        <div class="label">Classifier</div>
+                        <div class="badge <?=h(rr_dash_status_class($classifierExists))?>"><?=h(rr_dash_status_label($classifierExists))?></div>
+                        <div class="meta">
+                            Modified: <?=h(rr_dash_file_mtime_string($classifierFile))?> |
+                            Size: <?=h(rr_dash_file_size_string($classifierFile))?> |
+                            <a class="inline-link" href="race_results_classify_revisions.php?year=<?=h((string)$classYear)?>" target="_blank" rel="noopener">Open full classification report</a>
+                        </div>
+                    </div>
+
                 </div>
             </div>
 
@@ -603,6 +860,55 @@ $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
             </div>
 
             <div class="card full">
+                <h2>Revision Classification</h2>
+
+                <div class="summary-pills">
+                    <span class="pill">Year: <?=h((string)$classYear)?></span>
+                    <span class="pill">Classified: <?=h((string)$classSummary['classified_count'])?></span>
+                    <span class="pill">MRL Impact: <?=h((string)$classSummary['mrl_impact_count'])?></span>
+                    <span class="pill">All-Driver Change Races: <?=h((string)$classSummary['all_driver_change_race_count'])?></span>
+                    <a class="btn" href="race_results_classify_revisions.php?year=<?=h((string)$classYear)?>" target="_blank" rel="noopener">Open Full Classification Report</a>
+                </div>
+
+                <?php if (!empty($classSummary['rows']) && is_array($classSummary['rows'])): ?>
+                <table class="dash-table">
+                    <thead>
+                        <tr>
+                            <th>Race</th>
+                            <th>MRL Impact</th>
+                            <th>Changed MRL</th>
+                            <th>Changed All</th>
+                            <th>Display</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($classSummary['rows'] as $row): ?>
+                        <?php
+                            $impactBadge = !empty($row['mrl_impact']) ? 'bad' : 'ok';
+                            $statusText = (string)($row['status'] ?? '');
+                            if (!empty($row['pending_review'])) {
+                                $statusText = trim($statusText . ' Pending Review');
+                            }
+                            if ($statusText === '') $statusText = 'classified';
+                        ?>
+                        <tr>
+                            <td><?=h((string)$row['race_code'])?> <?=h((string)$row['race_label'])?></td>
+                            <td><span class="badge <?=h($impactBadge)?>"><?=!empty($row['mrl_impact']) ? 'YES' : 'NO'?></span></td>
+                            <td><?=h((string)$row['changed_mrl_drivers'])?></td>
+                            <td><?=h((string)$row['changed_all_drivers'])?></td>
+                            <td><?=h((string)($row['display_tag'] !== '' ? $row['display_tag'] : '—'))?></td>
+                            <td><?=h($statusText)?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+                <?php else: ?>
+                <div class="empty"><?=h((string)$classSummary['message'])?></div>
+                <?php endif; ?>
+            </div>
+
+            <div class="card full">
                 <h2>Last <?=h((string)$tailLines)?> Log Lines</h2>
                 <?php if ($revLogTailRaw !== ''): ?>
                 <pre><?=h(trim($revLogTailRaw))?></pre>
@@ -612,20 +918,20 @@ $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
             </div>
 
         </div>
-    </div><!-- /panel-revision -->
+    </div>
 
     <div class="footer">
         MRL Race Results Dashboard • Drop-in page for /race_results/
     </div>
 
-</div><!-- /wrap -->
+</div>
 
 <?php if ($autoRefresh > 0): ?>
 <script>
 (function () {
     var refreshSeconds = <?= (int)$autoRefresh ?>;
-    var countdownEl    = document.getElementById('countdown');
-    var remaining      = refreshSeconds;
+    var countdownEl = document.getElementById('countdown');
+    var remaining = refreshSeconds;
 
     function tick() {
         if (countdownEl) countdownEl.textContent = String(remaining);

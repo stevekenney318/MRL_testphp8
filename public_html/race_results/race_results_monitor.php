@@ -4,10 +4,16 @@ declare(strict_types=1);
 /**
  * race_results_monitor.php
  *
- * VERSION: v128
- * LAST MODIFIED: 4/5/2026 9:32:22 pm
+ * VERSION: v129
+ * LAST MODIFIED: 5/3/2026 11:02:27 pm
  *
  * CHANGELOG:
+ *
+ * v129 (5/3/2026)
+ *   - FIX: RD detection now evaluates only completed segment races with saved snapshot data, preventing future/unrun races from creating false RD eligibility.
+ *   - CHANGE: RD detection details now write to _race_results_rd.log instead of cluttering the main monitor health log.
+ *   - CHANGE: Suppressed repeated per-team MANUAL_SELECTION_REQUIRED lines from _race_results_monitor.log.
+ *   - CHANGE: Added _race_results_rd_status.json so the dashboard can show RD check status even when no teams are eligible.
  *
  * v128 (4/5/2026)
  *   - CHANGE: RD pending JSON is now written in each race folder where eligibility still exists.
@@ -39,7 +45,7 @@ ini_set('log_errors', '1');
 ini_set('error_log', __DIR__ . '/_race_results_monitor_php_errors.log');
 error_reporting(E_ALL);
 
-const RR_MONITOR_SIGNATURE = 'RACE_RESULTS_MONITOR v128';
+const RR_MONITOR_SIGNATURE = 'RACE_RESULTS_MONITOR v129';
 
 require_once __DIR__ . '/race_results_engine.php';
 require_once __DIR__ . '/race_results_snapshot_helper.php';
@@ -68,6 +74,8 @@ $rdSubjectPrefix = '[MRL] RD Eligible: ';
 $stateFile     = __DIR__ . '/_race_results_monitor_state.json';
 $logFile       = __DIR__ . '/_race_results_monitor.log';
 $heartbeatFile = __DIR__ . '/_race_results_monitor_heartbeat.txt';
+$rdLogFile     = __DIR__ . '/_race_results_rd.log';
+$rdStatusFile  = __DIR__ . '/_race_results_rd_status.json';
 
 $yearIndexFile = __DIR__ . '/' . (string)$year . '/_year_index.json';
 
@@ -356,8 +364,6 @@ function rr_monitor_build_segment_driver_points(
             continue;
         }
 
-        $raceDriverPoints[$n] = [];
-
         if (!isset($pointRaces[$n])) {
             continue;
         }
@@ -368,9 +374,11 @@ function rr_monitor_build_segment_driver_points(
         }
 
         $driverRows = rrs_load_snapshot_driver_points($snapshotFile);
-        if (!is_array($driverRows)) {
+        if (!is_array($driverRows) || empty($driverRows)) {
             continue;
         }
+
+        $raceDriverPoints[$n] = [];
 
         foreach ($driverRows as $driverName => $driverData) {
             if (!is_array($driverData)) {
@@ -379,9 +387,124 @@ function rr_monitor_build_segment_driver_points(
 
             $raceDriverPoints[$n][(string)$driverName] = (int)($driverData['net'] ?? 0);
         }
+
+        if (empty($raceDriverPoints[$n])) {
+            unset($raceDriverPoints[$n]);
+        }
     }
 
+    ksort($raceDriverPoints, SORT_NUMERIC);
     return $raceDriverPoints;
+}
+
+function rr_monitor_detect_team_rd_eligibility_completed_only(
+    PDO $dbo,
+    int $year,
+    string $segment,
+    array $teamRow,
+    array $raceDriverPoints
+): array {
+    $teamName = (string)($teamRow['teamName'] ?? '');
+
+    if ($teamName === '') {
+        return [
+            'teamName' => '',
+            'segment' => $segment,
+            'base_pick_row' => $teamRow,
+            'qualifiers' => [],
+            'qualifier_count' => 0,
+            'status' => 'NO_TEAM_NAME',
+            'auto_select_allowed' => false,
+        ];
+    }
+
+    if (mrl_rd_team_used_rd_this_year($dbo, (string)$year, $teamName)) {
+        return [
+            'teamName' => $teamName,
+            'segment' => $segment,
+            'base_pick_row' => $teamRow,
+            'qualifiers' => [],
+            'qualifier_count' => 0,
+            'status' => 'RD_ALREADY_USED',
+            'auto_select_allowed' => false,
+        ];
+    }
+
+    $completedRaceNumbers = array_keys($raceDriverPoints);
+    sort($completedRaceNumbers, SORT_NUMERIC);
+
+    $qualifiers = [];
+    $slots = [
+        'A' => (string)($teamRow['driverA'] ?? ''),
+        'B' => (string)($teamRow['driverB'] ?? ''),
+        'C' => (string)($teamRow['driverC'] ?? ''),
+        'D' => (string)($teamRow['driverD'] ?? ''),
+    ];
+
+    foreach ($slots as $slot => $driverName) {
+        $driverName = trim($driverName);
+        if ($driverName === '') {
+            continue;
+        }
+
+        $zeroStreak = 0;
+        $zeroRaces = [];
+
+        foreach ($completedRaceNumbers as $raceNumber) {
+            $raceNumber = (int)$raceNumber;
+            if (!isset($raceDriverPoints[$raceNumber]) || !is_array($raceDriverPoints[$raceNumber])) {
+                continue;
+            }
+
+            $net = 0;
+            if (array_key_exists($driverName, $raceDriverPoints[$raceNumber])) {
+                $net = (int)$raceDriverPoints[$raceNumber][$driverName];
+            }
+
+            if ($net === 0) {
+                $zeroStreak++;
+                $zeroRaces[] = $raceNumber;
+
+                if ($zeroStreak >= 2) {
+                    $effectiveRace = mrl_rd_next_race_in_segment($dbo, $year, $segment, $raceNumber);
+                    if ($effectiveRace !== null) {
+                        $qualifiers[] = [
+                            'qualified' => true,
+                            'slot' => $slot,
+                            'driver' => $driverName,
+                            'zero_races' => array_slice($zeroRaces, -2),
+                            'effective_race' => $effectiveRace,
+                        ];
+                    }
+                    break;
+                }
+            } else {
+                $zeroStreak = 0;
+                $zeroRaces = [];
+            }
+        }
+    }
+
+    $qualifierCount = count($qualifiers);
+    $status = 'NO_RD';
+    $autoSelectAllowed = false;
+
+    if ($qualifierCount === 1) {
+        $status = 'RD_AVAILABLE';
+        $autoSelectAllowed = true;
+    } elseif ($qualifierCount > 1) {
+        $status = 'MANUAL_SELECTION_REQUIRED';
+    }
+
+    return [
+        'teamName' => $teamName,
+        'segment' => $segment,
+        'base_pick_row' => $teamRow,
+        'qualifiers' => $qualifiers,
+        'qualifier_count' => $qualifierCount,
+        'status' => $status,
+        'auto_select_allowed' => $autoSelectAllowed,
+    ];
 }
 
 function rr_monitor_rd_pending_path(string $raceFolder, string $teamName): string
@@ -490,6 +613,45 @@ function rr_monitor_send_rd_email($user_home, string $notifyEmail, string $subje
     }
 }
 
+
+function rr_monitor_write_rd_status(string $path, array $status): void
+{
+    $status['written_at'] = date('Y-m-d\TH:i:s');
+    rr_save_json($path, $status);
+}
+
+function rr_monitor_rd_status_payload(
+    int $year,
+    int $latestRaceNumber,
+    string $raceFolderName,
+    string $segment,
+    string $status,
+    string $message,
+    array $extra = []
+): array {
+    $raceCode = '';
+    if ($latestRaceNumber > 0) {
+        $raceCode = 'R' . str_pad((string)$latestRaceNumber, 2, '0', STR_PAD_LEFT);
+    }
+
+    $payload = [
+        'checked_at' => date('Y-m-d H:i:s'),
+        'year' => $year,
+        'race_number' => $latestRaceNumber,
+        'race_code' => $raceCode,
+        'race_folder' => $raceFolderName,
+        'segment' => $segment,
+        'status' => $status,
+        'message' => $message,
+    ];
+
+    foreach ($extra as $key => $value) {
+        $payload[(string)$key] = $value;
+    }
+
+    return $payload;
+}
+
 function rr_monitor_run_rd_detection(
     int $year,
     int $latestRaceNumber,
@@ -502,32 +664,111 @@ function rr_monitor_run_rd_detection(
     string $notifyEmail,
     $user_home,
     string $rdSubjectPrefix,
-    string $logFile,
+    string $rdLogFile,
+    string $rdStatusFile,
     string $publicHost
 ): void {
+    $segment = ($latestRaceNumber > 0)
+        ? rr_monitor_segment_from_race_number($latestRaceNumber)
+        : '';
+
     if (!($dbo instanceof PDO)) {
-        rr_log_line($logFile, 'RD DETECTION SKIPPED: PDO not available.');
+        rr_monitor_write_rd_status(
+            $rdStatusFile,
+            rr_monitor_rd_status_payload(
+                $year,
+                $latestRaceNumber,
+                $raceFolderName,
+                $segment,
+                'SKIPPED',
+                'PDO not available.'
+            )
+        );
+        rr_log_line($rdLogFile, 'RD DETECTION SKIPPED: PDO not available.');
         return;
     }
 
     if ($latestRaceNumber <= 0) {
-        rr_log_line($logFile, 'RD DETECTION SKIPPED: latest race number unavailable.');
+        rr_monitor_write_rd_status(
+            $rdStatusFile,
+            rr_monitor_rd_status_payload(
+                $year,
+                $latestRaceNumber,
+                $raceFolderName,
+                $segment,
+                'SKIPPED',
+                'Latest race number unavailable.'
+            )
+        );
+        rr_log_line($rdLogFile, 'RD DETECTION SKIPPED: latest race number unavailable.');
         return;
     }
 
-    $segment = rr_monitor_segment_from_race_number($latestRaceNumber);
     $raceDriverPoints = rr_monitor_build_segment_driver_points($year, $segment, $latestRaceNumber, $yearIndex, $yearFolder);
+    $completedRaceNumbers = array_keys($raceDriverPoints);
+    sort($completedRaceNumbers, SORT_NUMERIC);
 
     if (empty($raceDriverPoints)) {
-        rr_log_line($logFile, 'RD DETECTION SKIPPED: no race driver points built for ' . $year . ' ' . $segment . '.');
+        rr_monitor_write_rd_status(
+            $rdStatusFile,
+            rr_monitor_rd_status_payload(
+                $year,
+                $latestRaceNumber,
+                $raceFolderName,
+                $segment,
+                'SKIPPED',
+                'No completed race driver points built.',
+                [
+                    'completed_race_count' => 0,
+                    'completed_races' => [],
+                    'team_count' => 0,
+                    'eligible_count' => 0,
+                    'manual_required_count' => 0,
+                    'json_written_count' => 0,
+                    'email_sent_count' => 0,
+                    'email_failed_count' => 0,
+                ]
+            )
+        );
+        rr_log_line($rdLogFile, 'RD DETECTION SKIPPED: no completed race driver points built for ' . $year . ' ' . $segment . '.');
         return;
     }
 
     $teamRows = rr_get_segment_team_picks($dbo, $dbconnect, (string)$year, $segment);
     if (empty($teamRows)) {
-        rr_log_line($logFile, 'RD DETECTION SKIPPED: no baseline team rows found for ' . $year . ' ' . $segment . '.');
+        rr_monitor_write_rd_status(
+            $rdStatusFile,
+            rr_monitor_rd_status_payload(
+                $year,
+                $latestRaceNumber,
+                $raceFolderName,
+                $segment,
+                'SKIPPED',
+                'No baseline team rows found.',
+                [
+                    'completed_race_count' => count($completedRaceNumbers),
+                    'completed_races' => array_values($completedRaceNumbers),
+                    'team_count' => 0,
+                    'eligible_count' => 0,
+                    'manual_required_count' => 0,
+                    'json_written_count' => 0,
+                    'email_sent_count' => 0,
+                    'email_failed_count' => 0,
+                ]
+            )
+        );
+        rr_log_line($rdLogFile, 'RD DETECTION SKIPPED: no baseline team rows found for ' . $year . ' ' . $segment . '.');
         return;
     }
+
+    $teamCount = 0;
+    $eligibleCount = 0;
+    $manualRequiredCount = 0;
+    $jsonWrittenCount = 0;
+    $emailSentCount = 0;
+    $emailFailedCount = 0;
+    $eligibleTeams = [];
+    $manualTeams = [];
 
     foreach ($teamRows as $teamRow) {
         $teamName = (string)($teamRow['teamName'] ?? '');
@@ -535,28 +776,36 @@ function rr_monitor_run_rd_detection(
             continue;
         }
 
-        $eligibility = mrl_rd_detect_team_segment_eligibility(
+        $teamCount++;
+
+        $eligibility = rr_monitor_detect_team_rd_eligibility_completed_only(
             $dbo,
-            (string)$year,
+            $year,
             $segment,
-            $teamName,
+            $teamRow,
             $raceDriverPoints
         );
 
         $status = (string)($eligibility['status'] ?? '');
         if ($status !== 'RD_AVAILABLE') {
             if ($status === 'MANUAL_SELECTION_REQUIRED') {
-                rr_log_line($logFile, 'RD MANUAL SELECTION REQUIRED team=' . $teamName . ' segment=' . $segment);
+                $manualRequiredCount++;
+                $manualTeams[] = $teamName;
+                rr_log_line($rdLogFile, 'RD MANUAL SELECTION REQUIRED team=' . $teamName . ' segment=' . $segment);
             }
             continue;
         }
+
+        $eligibleCount++;
+        $eligibleTeams[] = $teamName;
 
         $payload = rr_monitor_rd_payload($eligibility);
         $jsonPath = rr_monitor_rd_pending_path($raceFolder, $teamName);
         $createdOrChanged = rr_monitor_write_rd_pending_json($jsonPath, $payload);
 
         if ($createdOrChanged) {
-            rr_log_line($logFile, 'RD JSON WRITTEN team=' . $teamName . ' file=' . basename($jsonPath));
+            $jsonWrittenCount++;
+            rr_log_line($rdLogFile, 'RD JSON WRITTEN team=' . $teamName . ' file=' . basename($jsonPath));
 
             $sentOk = rr_monitor_send_rd_email(
                 $user_home,
@@ -569,15 +818,57 @@ function rr_monitor_run_rd_detection(
                 $year
             );
 
+            if ($sentOk) {
+                $emailSentCount++;
+            } else {
+                $emailFailedCount++;
+            }
+
             rr_log_line(
-                $logFile,
+                $rdLogFile,
                 $sentOk
                     ? 'RD EMAIL SENT team=' . $teamName . ' file=' . basename($jsonPath)
                     : 'RD EMAIL FAILED team=' . $teamName . ' file=' . basename($jsonPath)
             );
         }
     }
+
+    $finalStatus = 'OK';
+    $message = 'No RD eligibility found.';
+
+    if ($manualRequiredCount > 0) {
+        $finalStatus = 'MANUAL_REVIEW';
+        $message = (string)$manualRequiredCount . ' team(s) require manual RD selection review.';
+    } elseif ($eligibleCount > 0) {
+        $finalStatus = 'ACTION';
+        $message = (string)$eligibleCount . ' RD eligible team(s) found.';
+    }
+
+    rr_monitor_write_rd_status(
+        $rdStatusFile,
+        rr_monitor_rd_status_payload(
+            $year,
+            $latestRaceNumber,
+            $raceFolderName,
+            $segment,
+            $finalStatus,
+            $message,
+            [
+                'completed_race_count' => count($completedRaceNumbers),
+                'completed_races' => array_values($completedRaceNumbers),
+                'team_count' => $teamCount,
+                'eligible_count' => $eligibleCount,
+                'manual_required_count' => $manualRequiredCount,
+                'json_written_count' => $jsonWrittenCount,
+                'email_sent_count' => $emailSentCount,
+                'email_failed_count' => $emailFailedCount,
+                'eligible_teams' => $eligibleTeams,
+                'manual_required_teams' => $manualTeams,
+            ]
+        )
+    );
 }
+
 
 function rr_monitor_norm_header(string $s): ?string
 {
@@ -900,7 +1191,8 @@ if ($finalHashNow !== '' && is_file($hashFilePath)) {
                 $notifyEmail,
                 $user_home,
                 $rdSubjectPrefix,
-                $logFile,
+                $rdLogFile,
+                $rdStatusFile,
                 $publicHost
             );
         }
@@ -941,7 +1233,8 @@ if (!$shouldEmail) {
             $notifyEmail,
             $user_home,
             $rdSubjectPrefix,
-            $logFile,
+            $rdLogFile,
+            $rdStatusFile,
             $publicHost
         );
     }
@@ -1023,7 +1316,8 @@ if ($raceNum !== null && $raceNum > 0 && !$isExh) {
         $notifyEmail,
         $user_home,
         $rdSubjectPrefix,
-        $logFile,
+        $rdLogFile,
+        $rdStatusFile,
         $publicHost
     );
 }
