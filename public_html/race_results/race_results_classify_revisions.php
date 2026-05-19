@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * race_results_classify_revisions.php
  *
- * VERSION: v005
- * LAST MODIFIED: 5/19/2026 1:08:21 am
+ * VERSION: v006
+ * LAST MODIFIED: 5/19/2026 2:26:02 am
  *
  * DESCRIPTION:
  * MRL-only revision classification layer plus admin/audit diff output.
@@ -14,7 +14,7 @@ declare(strict_types=1);
  * an already-detected race-table revision changes MRL-relevant scoring,
  * while also writing a full all-driver audit summary for admin review.
  *
- * CURRENT SCOPE OF THIS V005 BUILD:
+ * CURRENT SCOPE OF THIS V006 BUILD:
  * - bootstrap environment
  * - discover candidate races
  * - discover snapshot pairs
@@ -31,8 +31,18 @@ declare(strict_types=1);
  * - avoid auto-running when included by revision monitor or other scripts
  * - include clearer revision status fields in classifier output
  * - separate all-driver, MRL-listed-driver, and segment-picked-driver change counts
+ * - include changed-driver detail records in reports and JSON summaries
  *
  * CHANGELOG:
+ *
+ * v006 (5/19/2026)
+ * - NEW: Added changed_driver_details / changedDriverDetails arrays identifying each changed scoring-table driver.
+ * - NEW: Changed-driver details include old/new PTS, BONUS, PENALTY, NET values plus MRL-listed and segment-picked flags.
+ * - CHANGE: Removed redundant visible Classified column from the web report while preserving classified=true/false in JSON artifacts.
+ * - CHANGE: Removed visible Status column from the web report while preserving status_label / revision_status in JSON artifacts.
+ * - CHANGE: Added detailed changed-driver section to the web report.
+ * - CHANGE: Removed Changed Drivers from the main summary table to keep the report width manageable.
+ * - CHANGE: MRL Impact now displays NO as the green/good state and YES as the red/attention state.
  *
  * v005 (5/19/2026)
  * - NEW: Added MRL-listed driver classification between all-driver changes and active segment-picked changes.
@@ -83,8 +93,8 @@ declare(strict_types=1);
 
 date_default_timezone_set('America/New_York');
 
-const RRCR_VERSION = 'v005';
-const RRCR_SIGNATURE = 'RACE_RESULTS_CLASSIFY_REVISIONS v005';
+const RRCR_VERSION = 'v006';
+const RRCR_SIGNATURE = 'RACE_RESULTS_CLASSIFY_REVISIONS v006';
 const RRCR_SUMMARY_FILE = '_race_results_classification_summary.json';
 const RRCR_LAST_RUN_FILE = '_race_results_classification_last_run.json';
 
@@ -721,6 +731,112 @@ function rrcr_compare_datasets(array $oldDataset, array $newDataset): array
     ];
 }
 
+
+function rrcr_bool_yes_no(bool $value): string
+{
+    return $value ? 'YES' : 'NO';
+}
+
+function rrcr_driver_pool_lookup(array $driverPool): array
+{
+    $lookup = [];
+
+    foreach ($driverPool as $driverName) {
+        $name = rrcr_normalize_driver_name((string)$driverName);
+        if ($name !== '') {
+            $lookup[strtolower($name)] = true;
+        }
+    }
+
+    return $lookup;
+}
+
+function rrcr_build_changed_driver_details(array $allDriverComparison, array $mrlListedDriverPool, array $segmentDriverPool): array
+{
+    $details = [];
+    $mrlListedLookup = rrcr_driver_pool_lookup($mrlListedDriverPool);
+    $segmentLookup = rrcr_driver_pool_lookup($segmentDriverPool);
+    $changedDrivers = isset($allDriverComparison['changedDrivers']) && is_array($allDriverComparison['changedDrivers'])
+        ? $allDriverComparison['changedDrivers']
+        : [];
+
+    foreach ($changedDrivers as $row) {
+        if (!is_array($row)) continue;
+
+        $driverName = rrcr_normalize_driver_name((string)($row['driver'] ?? ''));
+        if ($driverName === '') continue;
+
+        $old = isset($row['old']) && is_array($row['old']) ? $row['old'] : [];
+        $new = isset($row['new']) && is_array($row['new']) ? $row['new'] : [];
+
+        $oldPts = (int)($old['pts'] ?? 0);
+        $newPts = (int)($new['pts'] ?? 0);
+        $oldBonus = (int)($old['bonus'] ?? 0);
+        $newBonus = (int)($new['bonus'] ?? 0);
+        $oldPenalty = (int)($old['penalty'] ?? 0);
+        $newPenalty = (int)($new['penalty'] ?? 0);
+        $oldNet = (int)($old['net'] ?? 0);
+        $newNet = (int)($new['net'] ?? 0);
+        $key = strtolower($driverName);
+
+        $details[] = [
+            'driver' => $driverName,
+            'mrl_listed' => isset($mrlListedLookup[$key]),
+            'segment_picked' => isset($segmentLookup[$key]),
+            'old' => [
+                'pts' => $oldPts,
+                'bonus' => $oldBonus,
+                'penalty' => $oldPenalty,
+                'net' => $oldNet,
+            ],
+            'new' => [
+                'pts' => $newPts,
+                'bonus' => $newBonus,
+                'penalty' => $newPenalty,
+                'net' => $newNet,
+            ],
+            'delta' => [
+                'pts' => $newPts - $oldPts,
+                'bonus' => $newBonus - $oldBonus,
+                'penalty' => $newPenalty - $oldPenalty,
+                'net' => $newNet - $oldNet,
+            ],
+        ];
+    }
+
+    usort($details, function ($a, $b) {
+        return strcasecmp((string)($a['driver'] ?? ''), (string)($b['driver'] ?? ''));
+    });
+
+    return $details;
+}
+
+function rrcr_changed_driver_details_compact(array $details): string
+{
+    if (empty($details)) {
+        return 'none';
+    }
+
+    $parts = [];
+    foreach ($details as $row) {
+        if (!is_array($row)) continue;
+        $driverName = (string)($row['driver'] ?? '');
+        if ($driverName === '') continue;
+
+        $tags = [];
+        $tags[] = !empty($row['mrl_listed']) ? 'MRL-listed' : 'non-MRL';
+        $tags[] = !empty($row['segment_picked']) ? 'segment-picked' : 'not segment-picked';
+
+        $delta = isset($row['delta']) && is_array($row['delta']) ? $row['delta'] : [];
+        $netDelta = (int)($delta['net'] ?? 0);
+        $netText = $netDelta === 0 ? 'net 0' : 'net ' . ($netDelta > 0 ? '+' : '') . (string)$netDelta;
+
+        $parts[] = $driverName . ' (' . implode(', ', $tags) . ', ' . $netText . ')';
+    }
+
+    return !empty($parts) ? implode('; ', $parts) : 'none';
+}
+
 function rrcr_format_signed_delta(int $oldValue, int $newValue): string
 {
     $delta = $newValue - $oldValue;
@@ -847,6 +963,7 @@ function rrcr_classify_race_revision(array $raceInfo, PDO $dbo, bool $writeArtif
             'mrlListedDriverImpact' => false,
             'allDriverImpact' => false,
             'allDriverChangedCount' => 0,
+            'changedDriverDetails' => [],
             'message' => 'Not enough snapshots to compare.',
         ], $revisionStatus);
     }
@@ -908,6 +1025,7 @@ function rrcr_classify_race_revision(array $raceInfo, PDO $dbo, bool $writeArtif
     $comparison = rrcr_compare_datasets($oldDataset, $newDataset);
     $mrlListedComparison = rrcr_compare_datasets($mrlListedOldDataset, $mrlListedNewDataset);
     $allDriverComparison = rrcr_compare_datasets($allDriverOldDataset, $allDriverNewDataset);
+    $changedDriverDetails = rrcr_build_changed_driver_details($allDriverComparison, $mrlListedDriverPool, $driverPool);
 
     $summaryData = [
         'year' => (string)$raceInfo['year'],
@@ -927,6 +1045,7 @@ function rrcr_classify_race_revision(array $raceInfo, PDO $dbo, bool $writeArtif
         'mrl_listed_driver_pool_count' => count($mrlListedDriverPool),
         'previous_snapshot' => basename((string)$pair['previous']),
         'current_snapshot' => basename((string)$pair['current']),
+        'changed_driver_details' => $changedDriverDetails,
     ];
 
     $allDriverSummaryData = [
@@ -942,6 +1061,7 @@ function rrcr_classify_race_revision(array $raceInfo, PDO $dbo, bool $writeArtif
         'changed_segment_picked_drivers_count' => (int)$comparison['changedDriversCount'],
         'previous_snapshot' => basename((string)$pair['previous']),
         'current_snapshot' => basename((string)$pair['current']),
+        'changed_driver_details' => $changedDriverDetails,
     ];
 
     $diffText = rrcr_build_diff_summary($comparison, [
@@ -1004,6 +1124,7 @@ function rrcr_classify_race_revision(array $raceInfo, PDO $dbo, bool $writeArtif
         'allDriverChangedCount' => (int)$allDriverComparison['changedDriversCount'],
         'mrlListedComparison' => $mrlListedComparison,
         'allDriverComparison' => $allDriverComparison,
+        'changedDriverDetails' => $changedDriverDetails,
         'previousSnapshot' => basename((string)$pair['previous']),
         'currentSnapshot' => basename((string)$pair['current']),
         'artifactFiles' => $artifactFiles,
@@ -1039,6 +1160,7 @@ function rrcr_summarize_run_row(array $row): array
         'under_review_flag' => !empty($row['under_review_flag']),
         'previous_snapshot' => (string)($row['previousSnapshot'] ?? ''),
         'current_snapshot' => (string)($row['currentSnapshot'] ?? ''),
+        'changed_driver_details' => isset($row['changedDriverDetails']) && is_array($row['changedDriverDetails']) ? $row['changedDriverDetails'] : [],
         'message' => (string)($row['message'] ?? ''),
     ];
 }
@@ -1142,6 +1264,7 @@ function rrcr_run_single_race(string $year, string $raceCode, PDO $dbo, bool $wr
             'mrlListedDriverImpact' => false,
             'allDriverImpact' => false,
             'allDriverChangedCount' => 0,
+            'changedDriverDetails' => [],
             'message' => 'Race not found or not enough snapshots to compare.',
             'status_label' => 'Not Classified',
             'pending_review' => false,
@@ -1208,6 +1331,8 @@ function rrcr_render_web_summary(array $results): void
     echo 'th { background: #f2f2f2; }';
     echo '.yes { font-weight: bold; color: #0b6d2b; }';
     echo '.no { font-weight: bold; color: #8b0000; }';
+    echo '.impact-no { font-weight: bold; color: #0b6d2b; }';
+    echo '.impact-yes { font-weight: bold; color: #8b0000; }';
     echo '.muted { color: #666; font-size: 13px; }';
     echo '.badge { display: inline-block; padding: 2px 7px; border-radius: 999px; background: #eee; font-size: 12px; }';
     echo '.pending { background: #fff3cd; border: 1px solid #e0c36a; }';
@@ -1236,21 +1361,15 @@ function rrcr_render_web_summary(array $results): void
 
     echo '<table>';
     echo '<tr>';
-    echo '<th>Race</th><th>Race Name</th><th>Status</th><th>Classified</th><th>MRL Impact</th><th>Changed All</th><th>MRL-Listed</th><th>Segment-Picked</th><th>Previous Snapshot</th><th>Current Snapshot</th><th>Message</th>';
+    echo '<th>Race</th><th>Race Name</th><th>MRL Impact</th><th>Changed All</th><th>MRL-Listed</th><th>Segment-Picked</th><th>Previous Snapshot</th><th>Current Snapshot</th><th>Message</th>';
     echo '</tr>';
 
     $runs = isset($results['runs']) && is_array($results['runs']) ? $results['runs'] : [];
     foreach ($runs as $row) {
-        $pending = !empty($row['pending_review']);
-        $statusLabel = (string)($row['status_label'] ?? 'Classified');
-        $statusClass = $pending ? 'pending' : 'ok';
-
         echo '<tr>';
         echo '<td>' . rrcr_h((string)($row['raceCode'] ?? '')) . '</td>';
         echo '<td>' . rrcr_h(rrcr_short_race_name((string)($row['raceName'] ?? ''))) . '</td>';
-        echo '<td><span class="badge ' . $statusClass . '">' . rrcr_h($statusLabel) . '</span></td>';
-        echo '<td>' . (!empty($row['classified']) ? 'YES' : 'NO') . '</td>';
-        echo '<td class="' . (!empty($row['impact']) ? 'yes' : 'no') . '">' . (!empty($row['impact']) ? 'YES' : 'NO') . '</td>';
+        echo '<td class="' . (!empty($row['impact']) ? 'impact-yes' : 'impact-no') . '">' . (!empty($row['impact']) ? 'YES' : 'NO') . '</td>';
         echo '<td>' . rrcr_h((string)($row['changedAllDriversCount'] ?? ($row['allDriverChangedCount'] ?? 0))) . '</td>';
         echo '<td>' . rrcr_h((string)($row['changedMrlListedDriversCount'] ?? 0)) . '</td>';
         echo '<td>' . rrcr_h((string)($row['changedSegmentPickedDriversCount'] ?? ($row['changedDriversCount'] ?? 0))) . '</td>';
@@ -1260,7 +1379,59 @@ function rrcr_render_web_summary(array $results): void
         echo '</tr>';
     }
 
-    echo '</table></body></html>';
+    echo '</table>';
+
+    $detailRows = [];
+    foreach ($runs as $row) {
+        if (!is_array($row)) continue;
+        $changedDetails = isset($row['changedDriverDetails']) && is_array($row['changedDriverDetails']) ? $row['changedDriverDetails'] : [];
+        if (!empty($changedDetails)) {
+            $detailRows[] = $row;
+        }
+    }
+
+    if (!empty($detailRows)) {
+        echo '<h3>Changed Driver Details</h3>';
+        echo '<table>';
+        echo '<tr><th>Race</th><th>Driver</th><th>MRL-Listed</th><th>Segment-Picked</th><th>PTS</th><th>BONUS</th><th>PENALTY</th><th>NET</th></tr>';
+
+        foreach ($detailRows as $row) {
+            $raceCode = (string)($row['raceCode'] ?? '');
+            $changedDetails = isset($row['changedDriverDetails']) && is_array($row['changedDriverDetails']) ? $row['changedDriverDetails'] : [];
+
+            foreach ($changedDetails as $detail) {
+                if (!is_array($detail)) continue;
+                $old = isset($detail['old']) && is_array($detail['old']) ? $detail['old'] : [];
+                $new = isset($detail['new']) && is_array($detail['new']) ? $detail['new'] : [];
+                $driverName = (string)($detail['driver'] ?? '');
+                if ($driverName === '') continue;
+
+                $oldPts = (int)($old['pts'] ?? 0);
+                $newPts = (int)($new['pts'] ?? 0);
+                $oldBonus = (int)($old['bonus'] ?? 0);
+                $newBonus = (int)($new['bonus'] ?? 0);
+                $oldPenalty = (int)($old['penalty'] ?? 0);
+                $newPenalty = (int)($new['penalty'] ?? 0);
+                $oldNet = (int)($old['net'] ?? 0);
+                $newNet = (int)($new['net'] ?? 0);
+
+                echo '<tr>';
+                echo '<td>' . rrcr_h($raceCode) . '</td>';
+                echo '<td>' . rrcr_h($driverName) . '</td>';
+                echo '<td>' . rrcr_h(rrcr_bool_yes_no(!empty($detail['mrl_listed']))) . '</td>';
+                echo '<td>' . rrcr_h(rrcr_bool_yes_no(!empty($detail['segment_picked']))) . '</td>';
+                echo '<td>' . rrcr_h((string)$oldPts . ' -> ' . (string)$newPts . ' (' . rrcr_format_signed_delta($oldPts, $newPts) . ')') . '</td>';
+                echo '<td>' . rrcr_h((string)$oldBonus . ' -> ' . (string)$newBonus . ' (' . rrcr_format_signed_delta($oldBonus, $newBonus) . ')') . '</td>';
+                echo '<td>' . rrcr_h((string)$oldPenalty . ' -> ' . (string)$newPenalty . ' (' . rrcr_format_signed_delta($oldPenalty, $newPenalty) . ')') . '</td>';
+                echo '<td>' . rrcr_h((string)$oldNet . ' -> ' . (string)$newNet . ' (' . rrcr_format_signed_delta($oldNet, $newNet) . ')') . '</td>';
+                echo '</tr>';
+            }
+        }
+
+        echo '</table>';
+    }
+
+    echo '</body></html>';
 }
 
 function rrcr_render_cli_summary(array $results): void
@@ -1280,6 +1451,7 @@ function rrcr_render_cli_summary(array $results): void
             . ' changedAllDrivers=' . (string)($row['changedAllDriversCount'] ?? ($row['allDriverChangedCount'] ?? 0))
             . ' changedMRLListedDrivers=' . (string)($row['changedMrlListedDriversCount'] ?? 0)
             . ' changedSegmentPickedDrivers=' . (string)($row['changedSegmentPickedDriversCount'] ?? ($row['changedDriversCount'] ?? 0))
+            . ' changedDrivers="' . rrcr_changed_driver_details_compact(isset($row['changedDriverDetails']) && is_array($row['changedDriverDetails']) ? $row['changedDriverDetails'] : []) . '"'
             . ' status="' . (string)($row['status_label'] ?? 'Classified') . '"'
         );
     }
