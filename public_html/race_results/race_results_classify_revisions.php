@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * race_results_classify_revisions.php
  *
- * VERSION: v007
- * LAST MODIFIED: 5/19/2026 5:29:37 pm
+ * VERSION: v008
+ * LAST MODIFIED: 5/19/2026 6:16:37 pm
  *
  * DESCRIPTION:
  * MRL-only revision classification layer plus admin/audit diff output.
@@ -34,6 +34,12 @@ declare(strict_types=1);
  * - include changed-driver detail records in reports and JSON summaries
  *
  * CHANGELOG:
+ *
+ * v008 (5/19/2026)
+ * - FIX: Replaced guessed MRL-listed driver pool discovery with the canonical selectable-driver source used by showDrivers.php.
+ * - CHANGE: MRL-listed pool now reads `A Drivers`, `B Drivers`, `C Drivers`, and `D Drivers` by driverYear.
+ * - CHANGE: Preserves segment-picked pool as the true MRL scoring-impact driver pool.
+ * - FIX: Corrected driver-pool sorting so associative driver-name maps keep names instead of collapsing to boolean values.
  *
  * v007 (5/19/2026)
  * - FIX: Tightened the MRL-listed driver reference pool so it prefers the current-year selectable driver list instead of broad active/history rows.
@@ -99,8 +105,8 @@ declare(strict_types=1);
 
 date_default_timezone_set('America/New_York');
 
-const RRCR_VERSION = 'v007';
-const RRCR_SIGNATURE = 'RACE_RESULTS_CLASSIFY_REVISIONS v007';
+const RRCR_VERSION = 'v008';
+const RRCR_SIGNATURE = 'RACE_RESULTS_CLASSIFY_REVISIONS v008';
 const RRCR_SUMMARY_FILE = '_race_results_classification_summary.json';
 const RRCR_LAST_RUN_FILE = '_race_results_classification_last_run.json';
 
@@ -557,8 +563,12 @@ function rrcr_fetch_driver_pool_from_drivers_table(
 function rrcr_sort_driver_pool(array $drivers): array
 {
     $pool = [];
-    foreach ($drivers as $driverName) {
-        $name = rrcr_normalize_driver_name((string)$driverName);
+
+    foreach ($drivers as $key => $value) {
+        // Support both numeric arrays of names and associative maps like [driverName => true].
+        $candidate = is_string($key) && !is_numeric($key) ? $key : $value;
+        $name = rrcr_normalize_driver_name((string)$candidate);
+
         if ($name !== '') {
             $pool[$name] = true;
         }
@@ -576,131 +586,68 @@ function rrcr_get_mrl_listed_driver_pool(string $raceYear, PDO $dbo): array
 {
     $drivers = [];
 
-    $columns = rrcr_table_columns($dbo, 'drivers');
-    if (!empty($columns)) {
-        $nameColumns = rrcr_existing_columns_from_candidates($columns, [
-            'driverName', 'driver_name', 'driver', 'name', 'fullName', 'full_name', 'driverFullName'
-        ]);
-        $yearColumns = rrcr_existing_columns_from_candidates($columns, [
-            'raceYear', 'race_year', 'year', 'season', 'driverYear', 'driver_year',
-            'yearValue', 'year_value', 'pickYear', 'pick_year', 'raceYr', 'race_yr',
-            'seasonYear', 'season_year', 'yearID', 'yearId', 'year_id', 'raceYearID',
-            'raceYearId', 'race_year_id', 'driverYearID', 'driverYearId', 'driver_year_id'
-        ]);
-        $groupColumns = rrcr_existing_columns_from_candidates($columns, [
-            'driverGroup', 'driver_group', 'groupName', 'group_name', 'driverGroupName',
-            'driver_group_name', 'pickGroup', 'pick_group', 'group', 'tier', 'driverTier',
-            'driver_tier', 'groupID', 'groupId', 'group_id', 'driverGroupID',
-            'driverGroupId', 'driver_group_id'
-        ]);
-        $activeColumns = rrcr_existing_columns_from_candidates($columns, [
-            'active', 'isActive', 'is_active', 'enabled', 'current', 'isCurrent',
-            'is_current', 'pickable', 'isPickable', 'is_pickable', 'eligible',
-            'isEligible', 'is_eligible', 'useForPicks', 'use_for_picks'
-        ]);
+    // Canonical source for the yearly selectable MRL driver list.
+    // This matches public_html/showDrivers.php, which builds the available driver chart from:
+    // `A Drivers`, `B Drivers`, `C Drivers`, and `D Drivers`, filtered by driverYear.
+    $groupTables = ['A Drivers', 'B Drivers', 'C Drivers', 'D Drivers'];
 
-        $cleanCandidates = [];
-        $broadFallback = [];
-
-        foreach ($nameColumns as $nameColumn) {
-            $yearOptions = array_merge($yearColumns, ['']);
-            $groupOptions = array_merge($groupColumns, ['']);
-            $activeOptions = array_merge($activeColumns, ['']);
-
-            foreach ($yearOptions as $yearColumn) {
-                foreach ($groupOptions as $groupColumn) {
-                    foreach ($activeOptions as $activeColumn) {
-                        // Avoid the completely unfiltered drivers table unless it is the only possible source.
-                        $hasAnyFilter = ($yearColumn !== '' || $groupColumn !== '' || $activeColumn !== '');
-                        if (!$hasAnyFilter) {
-                            continue;
-                        }
-
-                        $candidate = rrcr_fetch_driver_pool_from_drivers_table(
-                            $raceYear,
-                            $dbo,
-                            (string)$nameColumn,
-                            (string)$yearColumn,
-                            (string)$groupColumn,
-                            (string)$activeColumn,
-                            (string)$yearColumn !== '',
-                            (string)$groupColumn !== '',
-                            (string)$activeColumn !== ''
-                        );
-
-                        $candidate = rrcr_sort_driver_pool($candidate);
-                        $count = count($candidate);
-                        if ($count <= 0) {
-                            continue;
-                        }
-
-                        // Do not accept tiny false-positive pools from a guessed column match.
-                        if ($count >= 30 && $count <= 45) {
-                            $cleanCandidates[] = [
-                                'count' => $count,
-                                'score' => rrcr_pool_preference_score($count),
-                                'pool' => $candidate,
-                            ];
-                            continue;
-                        }
-
-                        // Broad fallback is safer than a tiny pool because it will not incorrectly mark
-                        // selectable MRL drivers such as Ryan Preece as non-MRL.
-                        if ($count > count($broadFallback) && $count >= 45 && $count <= 120) {
-                            $broadFallback = $candidate;
-                        }
-                    }
-                }
-            }
-        }
-
-        if (!empty($cleanCandidates)) {
-            usort($cleanCandidates, function ($a, $b) {
-                if ((int)$a['score'] !== (int)$b['score']) {
-                    return (int)$a['score'] <=> (int)$b['score'];
-                }
-                return (int)$a['count'] <=> (int)$b['count'];
-            });
-
-            return rrcr_sort_driver_pool($cleanCandidates[0]['pool']);
-        }
-
-        if (!empty($broadFallback)) {
-            $drivers = rrcr_sort_driver_pool($broadFallback);
-        }
-    }
-
-    // Backup source: all drivers selected anywhere in the requested season.
-    // This keeps the classification useful if the selectable driver table cannot be resolved.
-    if (empty($drivers)) {
+    foreach ($groupTables as $tableName) {
         try {
-            $sql = "
-                SELECT driverA, driverB, driverC, driverD
-                FROM user_picks
-                WHERE raceYear = :raceYear
-            ";
-            $stmt = $dbo->prepare($sql);
+            $stmt = $dbo->prepare('SELECT driverName FROM `' . $tableName . '` WHERE driverYear = :raceYear');
             $stmt->execute([':raceYear' => $raceYear]);
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            if (is_array($rows)) {
-                foreach ($rows as $row) {
-                    if (!is_array($row)) continue;
-                    foreach (['driverA', 'driverB', 'driverC', 'driverD'] as $field) {
-                        $name = rrcr_normalize_driver_name((string)($row[$field] ?? ''));
-                        if ($name !== '') {
-                            $drivers[$name] = true;
-                        }
-                    }
+            if (!is_array($rows)) {
+                continue;
+            }
+
+            foreach ($rows as $row) {
+                if (!is_array($row)) continue;
+                $name = rrcr_normalize_driver_name((string)($row['driverName'] ?? ''));
+                if ($name !== '') {
+                    $drivers[$name] = true;
                 }
             }
         } catch (Throwable $e) {
-            return [];
+            // Continue checking the other group tables. If all fail, the backup below can still run.
+            continue;
         }
+    }
+
+    if (!empty($drivers)) {
+        return rrcr_sort_driver_pool($drivers);
+    }
+
+    // Backup source: all drivers selected anywhere in the requested season.
+    // This keeps classification functional if the canonical A/B/C/D driver tables are unavailable.
+    try {
+        $sql = "
+            SELECT driverA, driverB, driverC, driverD
+            FROM user_picks
+            WHERE raceYear = :raceYear
+        ";
+        $stmt = $dbo->prepare($sql);
+        $stmt->execute([':raceYear' => $raceYear]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if (is_array($rows)) {
+            foreach ($rows as $row) {
+                if (!is_array($row)) continue;
+                foreach (['driverA', 'driverB', 'driverC', 'driverD'] as $field) {
+                    $name = rrcr_normalize_driver_name((string)($row[$field] ?? ''));
+                    if ($name !== '') {
+                        $drivers[$name] = true;
+                    }
+                }
+            }
+        }
+    } catch (Throwable $e) {
+        return [];
     }
 
     return rrcr_sort_driver_pool($drivers);
 }
+
 
 function rrcr_get_segment_driver_pool(string $raceYear, string $segment, PDO $dbo): array
 {
