@@ -1,0 +1,412 @@
+<!-- MASTER: "Counter" + one-time script & styles -->
+<div class="mrl-header">Upcoming Races</div>
+
+<!-- NEWS & UPDATE section (between header and schedule) -->
+<!-- <div class="mrl-news-wrap">
+  <div class="mrl-header">News &amp; Update</div>
+
+  <div class="mrl-news-text">
+    DAYTONA BEACH, Fla. — The start time for Sunday’s Daytona 500 has been moved one hour earlier because of the threat of inclement weather.
+    <br><br>
+    NASCAR officials made the schedule adjustment Saturday, coordinating with Daytona International Speedway and TV partners for an official program start at 1:30 p.m. ET
+  </div>
+</div> -->
+
+  <div class="mrl-race">
+    <div class="mrl-race-number">All Star Race</div>
+    <div class="mrl-countdown"
+         data-title="Dover"
+         data-date="5/17/2026"
+         data-time="1:00 pm"
+         data-tz="America/New_York"></div>
+  </div>
+
+<script>
+if (!window.MRL_COUNTDOWN_LOADED) {
+  window.MRL_COUNTDOWN_LOADED = true;
+
+  (function () {
+    function pad(n){return n<10?'0'+n:n;}
+
+    function tzOffsetISO(tz, y, m, d, hh, mi){
+      const fmt = new Intl.DateTimeFormat('en-US',{
+        timeZone: tz, hour12: false, hour:'2-digit', minute:'2-digit',
+        timeZoneName: 'shortOffset'
+      });
+      const parts = fmt.formatToParts(new Date(Date.UTC(y, m-1, d, hh, mi, 0)));
+      const tzPart = parts.find(p => p.type === 'timeZoneName')?.value || '';
+      const mOff = tzPart.match(/([+-]\d{1,2})(?::?(\d{2}))?/);
+      if (mOff){
+        const sign = mOff[1].startsWith('-') ? '-' : '+';
+        const hh2 = String(Math.abs(parseInt(mOff[1],10))).padStart(2,'0');
+        const mm2 = mOff[2] || '00';
+        return `${sign}${hh2}:${mm2}`;
+      }
+      return '-05:00';
+    }
+
+    function buildIsoFromParts({dateStr, timeStr, tz, offsetStr}){
+      const m = (dateStr||'').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if(!m) return null;
+      let [_, mm, dd, yyyy] = m; mm = String(+mm).padStart(2,'0'); dd = String(+dd).padStart(2,'0');
+
+      const t = (timeStr||'').trim().toLowerCase().match(/^(\d{1,2})(?::(\d{2}))?\s*([ap]m)$/);
+      if(!t) return null;
+      let h = +t[1], min = +(t[2]||'0'); const mer = t[3];
+      if(mer==='pm' && h!==12) h+=12; if(mer==='am' && h===12) h=0;
+
+      const off = tz ? tzOffsetISO(tz, +yyyy, +mm, +dd, h, min) : (offsetStr||'-05:00');
+      return `${yyyy}-${mm}-${dd}T${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}:00${off}`;
+    }
+
+    function render(el){
+      if (el.dataset.mrlInit) return;      // prevent double-render
+      const iso =
+        buildIsoFromParts({
+          dateStr: el.dataset.date,
+          timeStr: el.dataset.time,
+          tz: el.dataset.tz,
+          offsetStr: el.dataset.offset
+        }) || el.dataset.target;
+
+      if(!iso){ el.innerHTML = "<em>Invalid date/time</em>"; el.dataset.mrlInit='1'; return; }
+      const target = new Date(iso);
+
+      const raceDateLabel = target.toLocaleString('en-US', {
+        timeZone: el.dataset.tz || 'America/New_York',
+        month: 'numeric', day: 'numeric', year: 'numeric',
+        hour: 'numeric', minute: '2-digit', hour12: true
+      }).toLowerCase().replace(',', '');
+
+      function tick(){
+        const now = new Date();
+        let diff = target - now; if (diff < 0) diff = 0;
+        const d = Math.floor(diff/86400000);
+        const h = Math.floor(diff%86400000/3600000);
+        const m = Math.floor(diff%3600000/60000);
+        el.innerHTML = `
+          <div class="mrl-box">
+            <div class="mrl-title">${el.dataset.title||""}</div>
+            <div class="mrl-row">
+              <div class="unit"><span class="num">${d}</span><span class="lab">DAYS</span></div>
+              <span class="sep">:</span>
+              <div class="unit"><span class="num">${pad(h)}</span><span class="lab">HOURS</span></div>
+              <span class="sep">:</span>
+              <div class="unit"><span class="num red">${pad(m)}</span><span class="lab">MINUTES</span></div>
+            </div>
+            <div class="mrl-race-dt">${raceDateLabel}</div>
+          </div>`;
+      }
+      tick(); setInterval(tick, 1000);
+      el.dataset.mrlInit = '1';
+    }
+
+    function renderAll(){
+      document.querySelectorAll(".mrl-countdown").forEach(render);
+    }
+
+    // 1) Render immediately (covers current DOM)
+    renderAll();
+
+    // 2) Also render on DOMContentLoaded (covers WP timing quirks)
+    document.addEventListener('DOMContentLoaded', renderAll);
+
+    // 3) Watch for newly added countdown nodes (e.g., editor inserts)
+    const mo = new MutationObserver((mutations) => {
+      for (const m of mutations){
+        m.addedNodes && m.addedNodes.forEach(node=>{
+          if (node.nodeType===1){
+            if (node.matches && node.matches('.mrl-countdown')) render(node);
+            node.querySelectorAll && node.querySelectorAll('.mrl-countdown').forEach(render);
+          }
+        });
+      }
+    });
+    mo.observe(document.documentElement, {childList:true, subtree:true});
+  })();
+}
+</script>
+
+<style>
+/* Header style */
+.mrl-header{
+  font-size:32px;
+  font-weight:bold;
+  color:#ff0000;
+  text-shadow:1px 1px 3px #555;
+  text-align:center;
+  margin:0 0 6px 0;
+  border-top: thick double #32a1ce;
+  border-bottom: thick double #32a1ce;
+}
+
+/* Base (no background box) */
+.mrl-box{ border:none; background:transparent; margin:0 auto; padding:0; max-width:720px; text-align:center; font-family:inherit; }
+
+/* Title above each timer */
+.mrl-title{ color:#2a4f8e; font-weight:600; margin:0 0 6px 0; font-size:24px; line-height:1.1; }
+
+/* Countdown row */
+.mrl-row{ display:flex; justify-content:center; align-items:flex-start; gap:4px; white-space:nowrap; margin:0; padding:0; }
+.unit{ display:flex; flex-direction:column; align-items:center; min-width:64px; }
+.num{ font-size:48px; font-weight:500; line-height:1; }
+.num.red{ color:#ff0000; }
+.lab{ font-size:10px; color:#333; letter-spacing:.05em; margin:0; transform:translateY(-5px); }
+
+/* Colons */
+.sep{ font-size:32px; line-height:1; position:relative; top:2px; margin:0 2px; opacity:.9; }
+
+/* Race date/time label */
+.mrl-race-dt{ font-size:20px; color:#555; margin:2px 0 0 0; letter-spacing:.03em; }
+
+/* Tighten stacked spacing */
+.mrl-countdown .mrl-box{ margin:-16px 0 !important; }
+
+/* --- News & Update styles --- */
+/* Keep it aligned with your countdown max width, and give it a little breathing room */
+.mrl-news-wrap{
+  max-width: 720px;
+  margin: 10px auto 20px auto;
+  text-align: center;
+}
+
+/* Same font style/size as race names, but red */
+.mrl-news-text{
+  font-size: 24px;       /* matches .mrl-title */
+  font-weight: 600;      /* matches .mrl-title */
+  line-height: 1.2;
+  color: #ff0000;        /* red */
+  margin: 6px 0 0 0;
+}
+
+@media (max-width:520px){
+  .mrl-header{ font-size:26px; }
+  .mrl-title{ font-size:18px; }
+  .num{ font-size:30px; }
+  .lab{ font-size:9px; transform:translateY(-4px); }
+  .sep{ font-size:26px; top:1px; }
+
+  /* News matches responsive title sizing too */
+  .mrl-news-text{ font-size:18px; }
+}
+
+/* Segment wrapper — keep this self-contained */
+.mrl-segment-group{
+  max-width: 850px;
+  margin: 0 auto 40px auto;
+  padding: 10px 20px 25px 20px;
+
+  /* Use transparent so WP theme “white card” doesn’t show inside your section */
+  background: transparent !important;
+
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.mrl-segment-title{
+  text-align:center;
+  font-size:30px;
+  font-weight:bold;
+  margin: 10px 0 25px 0;
+}
+
+.mrl-race{
+  padding: 34px 0;
+  border-top: 3px solid #666;
+}
+
+.mrl-race:first-child{
+  border-top:none;
+}
+
+.mrl-race-number{
+  text-align:center;
+  font-size:22px;
+  font-weight:bold;
+  color:#ff0000;
+  letter-spacing:2px;
+  text-shadow:1px 1px 3px #555;
+  margin: 0 0 8px 0;
+}
+</style>
+
+<!-- Races section starts here .... -->
+<!-- Races section starts here .... -->
+<!-- Races section starts here .... -->
+
+<div class="mrl-segment-group">
+
+  <!-- <h2 class="mrl-segment-title">2026 Segment 1</h2> -->
+
+  <!-- <div class="mrl-race">
+    <div class="mrl-race-number">RACE 1</div>
+    <div class="mrl-countdown"
+         data-title="2026 DAYTONA 500"
+         data-date="2/15/2026"
+         data-time="1:30 pm"
+         data-tz="America/New_York"></div>
+  </div> -->
+
+  <!-- <div class="mrl-race">
+    <div class="mrl-race-number">RACE 2</div>
+    <div class="mrl-countdown"
+         data-title="2026 Ambetter Health 400"
+         data-date="2/22/2026"
+         data-time="3:00 pm"
+         data-tz="America/New_York"></div>
+  </div> -->
+
+  <!-- <div class="mrl-race">
+    <div class="mrl-race-number">RACE 3</div>
+    <div class="mrl-countdown"
+         data-title="2026 Pennzoil 400"
+         data-date="3/1/2026"
+         data-time="3:30 pm"
+         data-tz="America/New_York"></div>
+  </div> -->
+
+  <!-- <div class="mrl-race">
+    <div class="mrl-race-number">RACE 4</div>
+    <div class="mrl-countdown"
+         data-title="2026 Shriners Children's 500"
+         data-date="3/8/2026"
+         data-time="3:30 pm"
+         data-tz="America/New_York"></div>
+  </div> -->
+
+  <!-- <div class="mrl-race">
+    <div class="mrl-race-number">RACE 5</div>
+    <div class="mrl-countdown"
+         data-title="2026 Ruoff Mortgage 500"
+         data-date="3/15/2026"
+         data-time="4:00 pm"
+         data-tz="America/New_York"></div>
+  </div> -->
+<!-- 
+  <div class="mrl-race">
+    <div class="mrl-race-number">RACE 6</div>
+    <div class="mrl-countdown"
+         data-title="2026 Food City 500"
+         data-date="3/22/2026"
+         data-time="3:00 pm"
+         data-tz="America/New_York"></div>
+  </div> -->
+<!-- Check race names above here -->
+<!-- 
+  <div class="mrl-race">
+    <div class="mrl-race-number">RACE 7</div>
+    <div class="mrl-countdown"
+         data-title="Cook Out 400"
+         data-date="3/29/2026"
+         data-time="3:30 pm"
+         data-tz="America/New_York"></div>
+  </div> -->
+
+  <!-- <div class="mrl-race">
+    <div class="mrl-race-number">RACE 8</div>
+    <div class="mrl-countdown"
+         data-title="Food City 500"
+         data-date="4/12/2026"
+         data-time="3:00 pm"
+         data-tz="America/New_York"></div>
+  </div> -->
+
+  <!-- <h2 class="mrl-segment-title">End of Segment 1</h2> -->
+
+  <!-- <div class="mrl-race">
+    <div class="mrl-race-number">SEGMENT 2 PICKS DUE!</div>
+    <div class="mrl-countdown"
+         data-title=""
+         data-date="4/19/2026"
+         data-time="2:00 pm"
+         data-tz="America/New_York"></div>
+  </div> -->
+<!-- </div>
+<div class="mrl-segment-group"> -->
+
+  <h2 class="mrl-segment-title">2026 Segment 2</h2>
+
+  <!-- <div class="mrl-race">
+    <div class="mrl-race-number">RACE 9</div>
+    <div class="mrl-countdown"
+         data-title="AdventHealth 400"
+         data-date="4/19/2026"
+         data-time="2:00 pm"
+         data-tz="America/New_York"></div>
+  </div> -->
+
+  <!-- <div class="mrl-race">
+    <div class="mrl-race-number">RACE 10</div>
+    <div class="mrl-countdown"
+         data-title="Jack Link's 500"
+         data-date="4/26/2026"
+         data-time="3:00 pm"
+         data-tz="America/New_York"></div>
+  </div> -->
+
+  <!-- <div class="mrl-race">
+    <div class="mrl-race-number">RACE 11</div>
+    <div class="mrl-countdown"
+         data-title="Wurth 400 presented by LIQUI MOLY"
+         data-date="5/3/2026"
+         data-time="3:30 pm"
+         data-tz="America/New_York"></div>
+  </div> -->
+
+  <!-- <div class="mrl-race">
+    <div class="mrl-race-number">RACE 12</div>
+    <div class="mrl-countdown"
+         data-title="Go Bowling at The Glen"
+         data-date="5/10/2026"
+         data-time="3:00 pm"
+         data-tz="America/New_York"></div>
+  </div> -->
+
+  <div class="mrl-race">
+    <div class="mrl-race-number">RACE 13</div>
+    <div class="mrl-countdown"
+         data-title="Coca-Cola 600"
+         data-date="5/24/2026"
+         data-time="6:00 pm"
+         data-tz="America/New_York"></div>
+  </div>
+
+  <div class="mrl-race">
+    <div class="mrl-race-number">RACE 14</div>
+    <div class="mrl-countdown"
+         data-title="Cracker Barrel 400"
+         data-date="5/31/2026"
+         data-time="7:00 pm"
+         data-tz="America/New_York"></div>
+  </div>
+
+  <div class="mrl-race">
+    <div class="mrl-race-number">RACE 15</div>
+    <div class="mrl-countdown"
+         data-title="FireKeepers Casino 400"
+         data-date="6/7/2026"
+         data-time="3:00 pm"
+         data-tz="America/New_York"></div>
+  </div>
+
+  <div class="mrl-race">
+    <div class="mrl-race-number">RACE 16</div>
+    <div class="mrl-countdown"
+         data-title="NASCAR Cup Series Race at Pocono"
+         data-date="6/14/2026"
+         data-time="3:00 pm"
+         data-tz="America/New_York"></div>
+  </div>
+
+  <div class="mrl-race">
+    <div class="mrl-race-number">RACE 17</div>
+    <div class="mrl-countdown"
+         data-title="Anduril 250"
+         data-date="6/21/2026"
+         data-time="4:00 pm"
+         data-tz="America/New_York"></div>
+  </div>
+
+  <h2 class="mrl-segment-title">End of Segment 2</h2>
+</div>
