@@ -12,10 +12,19 @@ if (!headers_sent()) {
 /**
  * race_results_dashboard.php
  *
- * VERSION: v003
- * LAST MODIFIED: 5/3/2026 11:38:57 pm
+ * VERSION: v004
+ * LAST MODIFIED: 5/18/2026 11:01:00 pm
  *
  * CHANGELOG:
+ *
+ * v004 (2026-05-18)
+ *   - NEW: Revision Classification now uses the trusted classifier v004 summary files instead of independently scanning race folders.
+ *   - NEW: Added _race_results_classification_summary.json and _race_results_classification_last_run.json to Revision Monitor File Status.
+ *   - NEW: Added trusted classifier signature/version/generated/SAPI/source-file details to the Revision Classification card.
+ *   - NEW: Added Classification Last Run JSON display card for quick troubleshooting.
+ *   - CHANGE: Dashboard no longer mixes stale revision_meta.json, mrl_impact_summary.json, all_driver_impact_summary.json, and under_review.flag artifacts to build classification totals.
+ *   - CHANGE: Revision Classification rows now normalize v004 classifier fields, including status_label, pending_review, display_tag, changed MRL drivers, and changed all drivers.
+ *   - CHANGE: If the trusted classifier summary is missing, dashboard now clearly asks to run race_results_classify_revisions.php?year=YYYY instead of inventing a folder-artifact summary.
  *
  * v003 (2026-05-03)
  *   - NEW: Revision Monitor tab now includes a Revision Classification summary using existing revision metadata/classifier artifacts.
@@ -58,6 +67,8 @@ $rdStatusFile  = $baseDir . '/_race_results_rd_status.json';
 $revHeartbeatFile = $baseDir . '/_race_results_revision_monitor_heartbeat.txt';
 $revLogFile       = $baseDir . '/_race_results_revision_monitor.log';
 $classifierFile   = $baseDir . '/race_results_classify_revisions.php';
+$classSummaryFile = $baseDir . '/_race_results_classification_summary.json';
+$classLastRunFile = $baseDir . '/_race_results_classification_last_run.json';
 
 $defaultTailLines = 10;
 $maxTailLines     = 200;
@@ -192,7 +203,7 @@ function rr_dash_json_value(string $raw, string $key): string
     $decoded = json_decode($raw, true);
     if (!is_array($decoded)) return '';
     if (!array_key_exists($key, $decoded)) return '';
-    if (is_array($decoded[$key])) return json_encode($decoded[$key]);
+    if (is_array($decoded[$key])) return (string)json_encode($decoded[$key]);
     return (string)$decoded[$key];
 }
 
@@ -217,6 +228,18 @@ function rr_dash_first_existing_int(array $data, array $keys): int
     return 0;
 }
 
+function rr_dash_first_existing_string(array $data, array $keys, string $default = ''): string
+{
+    foreach ($keys as $key) {
+        if (array_key_exists($key, $data)) {
+            if (is_array($data[$key])) return (string)json_encode($data[$key]);
+            return (string)$data[$key];
+        }
+    }
+
+    return $default;
+}
+
 function rr_dash_first_existing_bool(array $data, array $keys): bool
 {
     foreach ($keys as $key) {
@@ -232,138 +255,149 @@ function rr_dash_first_existing_bool(array $data, array $keys): bool
     return false;
 }
 
-function rr_dash_race_code_from_folder(string $folderName): string
+function rr_dash_normalize_classifier_row(array $row): array
 {
-    if (preg_match('/^([REZ]\d{2})_/', $folderName, $m)) {
-        return (string)$m[1];
+    $raceCode = rr_dash_first_existing_string($row, ['raceCode', 'race_code', 'race', 'race_code_display'], '');
+    $raceName = rr_dash_first_existing_string($row, ['raceName', 'race_name', 'race_label', 'label'], '');
+    $raceNumber = rr_dash_first_existing_int($row, ['raceNumber', 'race_number', 'number']);
+
+    if ($raceCode === '' && $raceNumber > 0) {
+        $raceCode = 'R' . str_pad((string)$raceNumber, 2, '0', STR_PAD_LEFT);
     }
 
-    return '';
-}
+    $classified = rr_dash_first_existing_bool($row, ['classified', 'is_classified']);
+    if (!$classified) {
+        $classified = rr_dash_first_existing_string($row, ['message'], '') === 'Classification complete.';
+    }
 
-function rr_dash_short_race_label(string $raceName, string $folderName): string
-{
-    $label = trim($raceName);
+    $mrlImpact = rr_dash_first_existing_bool($row, ['impact', 'mrl_impact', 'mrlImpact']);
+    $allDriverImpact = rr_dash_first_existing_bool($row, ['allDriverImpact', 'all_driver_impact', 'all_driver_changed']);
 
-    if ($label === '') {
-        $parts = explode('_', $folderName);
-        if (count($parts) > 2) {
-            array_shift($parts);
-            array_pop($parts);
-            $label = implode(' ', $parts);
+    $changedMrlDrivers = rr_dash_first_existing_int($row, [
+        'changedDriversCount',
+        'changed_drivers_count',
+        'changed_mrl_drivers',
+        'changed_mrl_drivers_count'
+    ]);
+
+    $changedAllDrivers = rr_dash_first_existing_int($row, [
+        'allDriverChangedCount',
+        'all_driver_changed_count',
+        'changed_all_drivers',
+        'changed_all_drivers_count'
+    ]);
+
+    if (!$allDriverImpact && $changedAllDrivers > 0) {
+        $allDriverImpact = true;
+    }
+
+    $statusLabel = rr_dash_first_existing_string($row, ['status_label', 'statusLabel'], '');
+    $status = rr_dash_first_existing_string($row, ['revision_status', 'status'], '');
+    $pendingReview = rr_dash_first_existing_bool($row, ['pending_review', 'pendingReview']);
+
+    if ($statusLabel === '') {
+        if ($pendingReview && $status !== '') {
+            $statusLabel = trim($status . ' / Pending Review');
+        } elseif ($pendingReview) {
+            $statusLabel = 'Pending Review';
+        } elseif ($status !== '') {
+            $statusLabel = $status;
+        } elseif ($classified) {
+            $statusLabel = 'Classified';
+        } else {
+            $statusLabel = 'Not classified';
         }
     }
 
-    $label = preg_replace('/^NASCAR Cup Series at /i', '', $label);
-    $label = preg_replace('/^NASCAR Cup Series /i', '', $label);
-    $label = trim((string)$label);
-
-    return $label !== '' ? $label : 'Race';
+    return [
+        'race_number' => $raceNumber,
+        'race_code' => $raceCode,
+        'race_label' => $raceName,
+        'classified' => $classified,
+        'mrl_impact' => $mrlImpact,
+        'all_driver_impact' => $allDriverImpact,
+        'changed_mrl_drivers' => $changedMrlDrivers,
+        'changed_all_drivers' => $changedAllDrivers,
+        'display_tag' => rr_dash_first_existing_string($row, ['display_tag', 'displayTag'], ''),
+        'pending_review' => $pendingReview,
+        'status_label' => $statusLabel,
+        'previous_snapshot' => rr_dash_first_existing_string($row, ['previousSnapshot', 'previous_snapshot'], ''),
+        'current_snapshot' => rr_dash_first_existing_string($row, ['currentSnapshot', 'current_snapshot'], ''),
+        'message' => rr_dash_first_existing_string($row, ['message'], ''),
+    ];
 }
 
-function rr_dash_revision_classification_summary(string $baseDir, int $year): array
+function rr_dash_trusted_revision_classification_summary(string $summaryFile, string $lastRunFile, int $year): array
 {
-    $yearFolder = rtrim($baseDir, '/\\') . '/' . (string)$year;
-    $yearIndex = rr_dash_load_json_file($yearFolder . '/_year_index.json');
+    $summary = rr_dash_load_json_file($summaryFile);
+    $lastRun = rr_dash_load_json_file($lastRunFile);
 
-    $rows = [];
-    $classifiedCount = 0;
-    $mrlImpactCount = 0;
-    $allDriverChangeRaceCount = 0;
-
-    if (!isset($yearIndex['races']) || !is_array($yearIndex['races'])) {
+    if (empty($summary)) {
         return [
             'year' => $year,
+            'trusted_source' => false,
             'rows' => [],
             'classified_count' => 0,
             'mrl_impact_count' => 0,
             'all_driver_change_race_count' => 0,
-            'message' => 'Year index not found or invalid.',
+            'signature' => '',
+            'version' => '',
+            'generated_at' => '',
+            'sapi' => '',
+            'message' => 'Trusted classification summary is missing. Run race_results_classify_revisions.php?year=' . (string)$year . ' to generate it.',
+            'last_run' => $lastRun,
         ];
     }
 
-    foreach ($yearIndex['races'] as $raceId => $raceInfo) {
-        if (!is_array($raceInfo)) continue;
-        if ((string)($raceInfo['kind'] ?? '') !== 'R') continue;
-
-        $folderName = (string)($raceInfo['folder'] ?? '');
-        if ($folderName === '') continue;
-
-        $raceFolder = $yearFolder . '/' . $folderName;
-        if (!is_dir($raceFolder)) continue;
-
-        $revisionMeta = rr_dash_load_json_file($raceFolder . '/revision_meta.json');
-        $mrlSummary = rr_dash_load_json_file($raceFolder . '/mrl_impact_summary.json');
-        $allSummary = rr_dash_load_json_file($raceFolder . '/all_driver_impact_summary.json');
-
-        $hasRevisionMeta = !empty($revisionMeta);
-        $hasMrlSummary = !empty($mrlSummary);
-        $hasAllSummary = !empty($allSummary);
-
-        if (!$hasRevisionMeta && !$hasMrlSummary && !$hasAllSummary) {
-            continue;
+    $rawRows = [];
+    foreach (['rows', 'runs', 'races', 'classifications'] as $key) {
+        if (isset($summary[$key]) && is_array($summary[$key])) {
+            $rawRows = $summary[$key];
+            break;
         }
+    }
 
-        $raceNumber = (int)($raceInfo['number'] ?? 0);
-        $raceCode = rr_dash_race_code_from_folder($folderName);
-        if ($raceCode === '' && $raceNumber > 0) {
-            $raceCode = 'R' . str_pad((string)$raceNumber, 2, '0', STR_PAD_LEFT);
-        }
-
-        $raceLabel = rr_dash_short_race_label((string)($raceInfo['race_name'] ?? ''), $folderName);
-
-        $mrlImpact = false;
-        if ($hasRevisionMeta) {
-            $mrlImpact = !empty($revisionMeta['mrl_impact']);
-        } elseif ($hasMrlSummary) {
-            $mrlImpact = rr_dash_first_existing_bool($mrlSummary, ['impact', 'mrl_impact', 'impactDetected']);
-        }
-
-        $changedMrlDrivers = 0;
-        if ($hasRevisionMeta) {
-            $changedMrlDrivers = (int)($revisionMeta['changed_drivers_count'] ?? 0);
-        } elseif ($hasMrlSummary) {
-            $changedMrlDrivers = rr_dash_first_existing_int($mrlSummary, ['changed_drivers_count', 'changedDriversCount', 'changed_driver_count', 'changedDrivers', 'changes']);
-        }
-
-        $changedAllDrivers = 0;
-        if ($hasRevisionMeta) {
-            $changedAllDrivers = (int)($revisionMeta['changed_all_drivers_count'] ?? 0);
-        } elseif ($hasAllSummary) {
-            $changedAllDrivers = rr_dash_first_existing_int($allSummary, ['changed_all_drivers_count', 'changedDriversCount', 'changed_driver_count', 'changedDrivers', 'changes']);
-        }
-
-        $classifiedCount++;
-        if ($mrlImpact) $mrlImpactCount++;
-        if ($changedAllDrivers > 0) $allDriverChangeRaceCount++;
-
-        $rows[] = [
-            'race_number' => $raceNumber,
-            'race_code' => $raceCode,
-            'race_label' => $raceLabel,
-            'mrl_impact' => $mrlImpact,
-            'changed_mrl_drivers' => $changedMrlDrivers,
-            'changed_all_drivers' => $changedAllDrivers,
-            'display_tag' => (string)($revisionMeta['display_tag'] ?? ''),
-            'pending_review' => !empty($revisionMeta['pending_review']) || is_file($raceFolder . '/under_review.flag'),
-            'status' => (string)($revisionMeta['status'] ?? ($hasMrlSummary || $hasAllSummary ? 'classified' : '')),
-            'last_detected_at' => (string)($revisionMeta['last_detected_at'] ?? ''),
-            'folder' => $folderName,
-            'has_revision_meta' => $hasRevisionMeta,
-        ];
+    $rows = [];
+    foreach ($rawRows as $row) {
+        if (!is_array($row)) continue;
+        $rows[] = rr_dash_normalize_classifier_row($row);
     }
 
     usort($rows, static function ($a, $b): int {
-        return ((int)$a['race_number']) <=> ((int)$b['race_number']);
+        $aNum = (int)($a['race_number'] ?? 0);
+        $bNum = (int)($b['race_number'] ?? 0);
+        if ($aNum !== $bNum) return $aNum <=> $bNum;
+        return strcmp((string)($a['race_code'] ?? ''), (string)($b['race_code'] ?? ''));
     });
 
+    $classifiedCount = rr_dash_first_existing_int($summary, ['classified_count', 'classifiedCount']);
+    $mrlImpactCount = rr_dash_first_existing_int($summary, ['mrl_impact_count', 'impactCount', 'mrlImpactCount']);
+    $allDriverChangeRaceCount = rr_dash_first_existing_int($summary, ['all_driver_change_race_count', 'allDriverImpactCount', 'allDriverChangeRaceCount']);
+
+    if ($classifiedCount === 0 && !empty($rows)) {
+        foreach ($rows as $row) {
+            if (!empty($row['classified'])) $classifiedCount++;
+            if (!empty($row['mrl_impact'])) $mrlImpactCount++;
+            if (!empty($row['changed_all_drivers'])) $allDriverChangeRaceCount++;
+        }
+    }
+
+    $summaryYear = rr_dash_first_existing_int($summary, ['year']);
+    if ($summaryYear <= 0) $summaryYear = $year;
+
     return [
-        'year' => $year,
+        'year' => $summaryYear,
+        'trusted_source' => true,
         'rows' => $rows,
         'classified_count' => $classifiedCount,
         'mrl_impact_count' => $mrlImpactCount,
         'all_driver_change_race_count' => $allDriverChangeRaceCount,
-        'message' => $classifiedCount > 0 ? 'Classification artifacts found.' : 'No classification artifacts found yet.',
+        'signature' => rr_dash_first_existing_string($summary, ['signature', 'script_signature', 'source_signature'], ''),
+        'version' => rr_dash_first_existing_string($summary, ['version', 'script_version'], ''),
+        'generated_at' => rr_dash_first_existing_string($summary, ['generated_at', 'generatedAt', 'written_at', 'created_at'], ''),
+        'sapi' => rr_dash_first_existing_string($summary, ['sapi', 'php_sapi'], ''),
+        'message' => rr_dash_first_existing_string($summary, ['message'], 'Trusted classifier summary loaded.'),
+        'last_run' => $lastRun,
     ];
 }
 
@@ -392,11 +426,16 @@ $rdStatusMessage = rr_dash_json_value($rdStatusRaw, 'message');
 $revHeartbeatRaw = rr_dash_read_file($revHeartbeatFile);
 $revLogTailRaw   = rr_dash_tail_lines($revLogFile, $tailLines);
 $revLastLogLine  = rr_dash_last_line($revLogFile);
+$classSummaryRaw = rr_dash_read_file($classSummaryFile);
+$classLastRunRaw = rr_dash_read_file($classLastRunFile);
+$classLastRunPretty = rr_dash_pretty_json($classLastRunRaw);
 
 $revHeartbeatExists = rr_dash_file_exists($revHeartbeatFile);
 $revLogExists       = rr_dash_file_exists($revLogFile);
 $classifierExists   = rr_dash_file_exists($classifierFile);
-$classSummary       = rr_dash_revision_classification_summary($baseDir, $classYear);
+$classSummaryExists = rr_dash_file_exists($classSummaryFile);
+$classLastRunExists = rr_dash_file_exists($classLastRunFile);
+$classSummary       = rr_dash_trusted_revision_classification_summary($classSummaryFile, $classLastRunFile, $classYear);
 
 $pageGenerated = date('Y-m-d g:i:s A');
 $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
@@ -667,7 +706,7 @@ $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
         <p class="subtitle">
             <?= $activeTab === 'live'
                 ? 'Quick view for heartbeat, monitor state, RD status, and recent log activity'
-                : 'Quick view for revision monitor heartbeat and recent revision log activity' ?>
+                : 'Quick view for revision monitor heartbeat, classifier summary, and recent revision log activity' ?>
         </p>
 
         <div class="toolbar">
@@ -847,6 +886,26 @@ $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
                         </div>
                     </div>
 
+                    <div class="status-row">
+                        <div class="label">Class Summary</div>
+                        <div class="badge <?=h(rr_dash_status_class($classSummaryExists))?>"><?=h(rr_dash_status_label($classSummaryExists))?></div>
+                        <div class="meta">
+                            Modified: <?=h(rr_dash_file_mtime_string($classSummaryFile))?> |
+                            Size: <?=h(rr_dash_file_size_string($classSummaryFile))?> |
+                            <a class="inline-link" href="_race_results_classification_summary.json" target="_blank" rel="noopener">Open raw file</a>
+                        </div>
+                    </div>
+
+                    <div class="status-row">
+                        <div class="label">Class Last Run</div>
+                        <div class="badge <?=h(rr_dash_status_class($classLastRunExists))?>"><?=h(rr_dash_status_label($classLastRunExists))?></div>
+                        <div class="meta">
+                            Modified: <?=h(rr_dash_file_mtime_string($classLastRunFile))?> |
+                            Size: <?=h(rr_dash_file_size_string($classLastRunFile))?> |
+                            <a class="inline-link" href="_race_results_classification_last_run.json" target="_blank" rel="noopener">Open raw file</a>
+                        </div>
+                    </div>
+
                 </div>
             </div>
 
@@ -863,12 +922,26 @@ $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
                 <h2>Revision Classification</h2>
 
                 <div class="summary-pills">
-                    <span class="pill">Year: <?=h((string)$classYear)?></span>
+                    <span class="pill">Year: <?=h((string)$classSummary['year'])?></span>
+                    <span class="pill">Source: <?=!empty($classSummary['trusted_source']) ? 'Trusted v004 summary' : 'Missing trusted summary'?></span>
                     <span class="pill">Classified: <?=h((string)$classSummary['classified_count'])?></span>
                     <span class="pill">MRL Impact: <?=h((string)$classSummary['mrl_impact_count'])?></span>
                     <span class="pill">All-Driver Change Races: <?=h((string)$classSummary['all_driver_change_race_count'])?></span>
+                    <?php if ((string)$classSummary['signature'] !== ''): ?>
+                    <span class="pill">Signature: <?=h((string)$classSummary['signature'])?></span>
+                    <?php endif; ?>
+                    <?php if ((string)$classSummary['generated_at'] !== ''): ?>
+                    <span class="pill">Generated: <?=h((string)$classSummary['generated_at'])?></span>
+                    <?php endif; ?>
+                    <?php if ((string)$classSummary['sapi'] !== ''): ?>
+                    <span class="pill">SAPI: <?=h((string)$classSummary['sapi'])?></span>
+                    <?php endif; ?>
                     <a class="btn" href="race_results_classify_revisions.php?year=<?=h((string)$classYear)?>" target="_blank" rel="noopener">Open Full Classification Report</a>
                 </div>
+
+                <?php if ((string)$classSummary['message'] !== ''): ?>
+                <div class="last-line" style="margin-bottom:12px;"><?=h((string)$classSummary['message'])?></div>
+                <?php endif; ?>
 
                 <?php if (!empty($classSummary['rows']) && is_array($classSummary['rows'])): ?>
                 <table class="dash-table">
@@ -880,31 +953,43 @@ $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
                             <th>Changed All</th>
                             <th>Display</th>
                             <th>Status</th>
+                            <th>Snapshots</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($classSummary['rows'] as $row): ?>
                         <?php
                             $impactBadge = !empty($row['mrl_impact']) ? 'bad' : 'ok';
-                            $statusText = (string)($row['status'] ?? '');
-                            if (!empty($row['pending_review'])) {
-                                $statusText = trim($statusText . ' Pending Review');
-                            }
-                            if ($statusText === '') $statusText = 'classified';
+                            $displayText = (string)($row['display_tag'] ?? '');
+                            if ($displayText === '') $displayText = '—';
+                            $statusText = (string)($row['status_label'] ?? '');
+                            if ($statusText === '') $statusText = !empty($row['classified']) ? 'Classified' : 'Not classified';
+                            $snapText = trim((string)($row['previous_snapshot'] ?? '') . ' → ' . (string)($row['current_snapshot'] ?? ''));
+                            if ($snapText === '→') $snapText = '—';
                         ?>
                         <tr>
                             <td><?=h((string)$row['race_code'])?> <?=h((string)$row['race_label'])?></td>
                             <td><span class="badge <?=h($impactBadge)?>"><?=!empty($row['mrl_impact']) ? 'YES' : 'NO'?></span></td>
                             <td><?=h((string)$row['changed_mrl_drivers'])?></td>
                             <td><?=h((string)$row['changed_all_drivers'])?></td>
-                            <td><?=h((string)($row['display_tag'] !== '' ? $row['display_tag'] : '—'))?></td>
+                            <td><?=h($displayText)?></td>
                             <td><?=h($statusText)?></td>
+                            <td><?=h($snapText)?></td>
                         </tr>
                         <?php endforeach; ?>
                     </tbody>
                 </table>
                 <?php else: ?>
                 <div class="empty"><?=h((string)$classSummary['message'])?></div>
+                <?php endif; ?>
+            </div>
+
+            <div class="card full">
+                <h2>Classification Last Run JSON</h2>
+                <?php if ($classLastRunPretty !== ''): ?>
+                <pre><?=h($classLastRunPretty)?></pre>
+                <?php else: ?>
+                <div class="empty">Classification last-run JSON file is missing or empty. Run the full classifier report to create it.</div>
                 <?php endif; ?>
             </div>
 

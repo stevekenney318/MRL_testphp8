@@ -4,10 +4,19 @@ declare(strict_types=1);
 /**
  * race_results_revision_monitor.php
  *
- * VERSION: v005
- * LAST MODIFIED: 4/29/2026 2:30:00 pm
+ * VERSION: v006
+ * LAST MODIFIED: 5/19/2026 12:26:34 am
  *
  * CHANGELOG:
+ * v006 (5/19/2026)
+ *   - FIX: under_review.flag is no longer created before classification runs.
+ *   - FIX: Hash/snapshot changes with no driver scoring changes are now treated as non-scoring changes, not Pending Review.
+ *   - FIX: revision_meta.json now sets pending_review=false when classification finds no MRL impact.
+ *   - CHANGE: MRL-impacting revisions still create under_review.flag, receive visible Rev sequencing, and send the normal revision email.
+ *   - CHANGE: All-driver-only scoring changes with no MRL impact are logged, saved, classified, and emailed as informational no-MRL-impact changes, but do not create under_review.flag.
+ *   - CHANGE: Non-scoring page/hash changes are logged and saved for audit, but do not create under_review.flag and do not send email.
+ *   - CHANGE: Classification-unavailable revisions remain conservative: they create under_review.flag and send the normal revision email because impact is unknown.
+ *
  * v005 (4/29/2026)
  *   - CHANGE: Revised revision email subject to use plain ASCII formatting for safer delivery/readability.
  *   - CHANGE: Rebuilt revision email body as real HTML with clearer sections for race, impact, snapshots, and artifacts.
@@ -48,7 +57,7 @@ ini_set('log_errors', '1');
 ini_set('error_log', __DIR__ . '/_race_results_revision_monitor_php_errors.log');
 error_reporting(E_ALL);
 
-const RR_REVISION_MONITOR_SIGNATURE = 'RACE_RESULTS_REVISION_MONITOR v005';
+const RR_REVISION_MONITOR_SIGNATURE = 'RACE_RESULTS_REVISION_MONITOR v006';
 
 require_once __DIR__ . '/race_results_engine.php';
 
@@ -242,6 +251,26 @@ function rrrev_html(string $value): string
     return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 }
 
+function rrrev_send_email(USER $user_home, string $notifyEmail, string $message, string $subject, string $logFile, string $raceId, string $folderName, string $emailType): bool
+{
+    $sentOk = false;
+    try {
+        $sentOk = (bool)$user_home->send_mail($notifyEmail, $message, $subject);
+    } catch (Throwable $e) {
+        rr_log_line($logFile, "EMAIL EXCEPTION type={$emailType} raceId={$raceId}: " . $e->getMessage());
+        $sentOk = false;
+    }
+
+    rr_log_line(
+        $logFile,
+        $sentOk
+            ? "EMAIL SENT ({$emailType}) to={$notifyEmail} raceId={$raceId} folder={$folderName}"
+            : "EMAIL FAILED ({$emailType}) to={$notifyEmail} raceId={$raceId} folder={$folderName}"
+    );
+
+    return $sentOk;
+}
+
 function rrrev_build_revision_email_html(
     int $year,
     string $raceLabel,
@@ -257,11 +286,13 @@ function rrrev_build_revision_email_html(
     string $previousSnapshot,
     string $currentSnapshot,
     string $revisionMetaPath,
-    array $artifactFiles
+    array $artifactFiles,
+    bool $reviewRequired,
+    string $statusLine
 ): string {
     $html = '';
     $html .= '<div style="font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.45; color: #222;">';
-    $html .= '<p style="margin:0 0 16px 0;">A revision was detected for a previously completed race.</p>';
+    $html .= '<p style="margin:0 0 16px 0;">A revision check detected a changed scoring-table hash for a previously completed race.</p>';
 
     $html .= '<table style="border-collapse: collapse; margin: 0 0 18px 0;">';
     $rows = [
@@ -273,6 +304,7 @@ function rrrev_build_revision_email_html(
         'New hash' => $currentHash,
         'MRL impact' => $impactLine,
         'Visible rev' => $visibleLine,
+        'Review status' => $statusLine,
         'Changed MRL drivers' => (string)$changedMrlDrivers,
         'Changed all drivers' => (string)$changedAllDrivers,
         'Driver pool' => (string)$driverPoolCount,
@@ -302,8 +334,14 @@ function rrrev_build_revision_email_html(
         $html .= '</ul>';
     }
 
-    $html .= '<p style="margin: 0 0 6px 0;">A new snapshot has been saved and the race has been flagged as <strong>Under Review</strong>.</p>';
-    $html .= '<p style="margin: 0 0 16px 0;">Please check the race folder and review the change before accepting revised standings.</p>';
+    if ($reviewRequired) {
+        $html .= '<p style="margin: 0 0 6px 0;">A new snapshot has been saved and the race has been flagged as <strong>Under Review</strong>.</p>';
+        $html .= '<p style="margin: 0 0 16px 0;">Please check the race folder and review the change before accepting revised standings.</p>';
+    } else {
+        $html .= '<p style="margin: 0 0 6px 0;">A new snapshot has been saved for audit history, but this race was <strong>not</strong> flagged as Under Review.</p>';
+        $html .= '<p style="margin: 0 0 16px 0;">No visible Rev label is required unless a later review finds league-relevant scoring changed.</p>';
+    }
+
     $html .= '<p style="margin: 0; color: #666; font-size: 13px;">Run: ' . rrrev_html(rr_now_local_string()) . '<br>';
     $html .= 'Sig: ' . rrrev_html(RR_REVISION_MONITOR_SIGNATURE) . '</p>';
     $html .= '</div>';
@@ -480,11 +518,11 @@ foreach ($completedRaces as $race) {
         continue;
     }
 
-    // ---- REVISION DETECTED ----
+    // ---- REVISION / PAGE HASH CHANGE DETECTED ----
     $revised++;
 
-    rr_log_line($logFile, "REVISION DETECTED raceId={$raceId} folder={$folderName} storedHash={$storedHash} newHash={$currentHash}");
-    rrrev_out("  *** REVISION DETECTED: {$folderName} ***");
+    rr_log_line($logFile, "CHANGE DETECTED raceId={$raceId} folder={$folderName} storedHash={$storedHash} newHash={$currentHash}");
+    rrrev_out("  *** CHANGE DETECTED: {$folderName} ***");
 
     $previousSnapshotBase = '';
     $currentSnapshotBase = '';
@@ -513,17 +551,11 @@ foreach ($completedRaces as $race) {
         }
     }
 
-    // 2. Update stored hash
+    // 2. Update stored hash after saving the audit snapshot.
     rr_atomic_write($hashFilePath, $currentHash . "\n");
     rr_log_line($logFile, "HASH UPDATED folder={$folderName}");
 
-    // 3. Create under_review.flag
-    $flagPath = $raceFolder . '/under_review.flag';
-    rr_atomic_write($flagPath, rr_now_local_string() . "\n");
-    rr_log_line($logFile, "UNDER_REVIEW FLAG SET folder={$folderName}");
-    rrrev_out("  under_review.flag created.");
-
-    // 4. Classify MRL impact using the latest snapshot pair
+    // 3. Classify MRL impact using the latest snapshot pair.
     $classification = [
         'classified' => false,
         'impact' => false,
@@ -569,11 +601,57 @@ foreach ($completedRaces as $race) {
         rrrev_out("  Classification skipped.");
     }
 
-    // 5. Write revision metadata artifact
+    // 4. Decide review/notification handling after classification.
+    $classified = !empty($classification['classified']);
+    $mrlImpact = !empty($classification['impact']);
+    $changedMrlDrivers = (int)($classification['changedDriversCount'] ?? 0);
+    $changedAllDrivers = (int)($classification['changedAllDriversCount'] ?? 0);
+    $driverPoolCount = (int)($classification['driverPoolCount'] ?? 0);
+
+    $nonScoringChange = ($classified && $changedMrlDrivers === 0 && $changedAllDrivers === 0);
+    $allDriverOnlyChange = ($classified && !$mrlImpact && $changedAllDrivers > 0);
+    $classificationUnknown = !$classified;
+
+    $reviewRequired = $mrlImpact || $classificationUnknown;
+    $sendNormalRevisionEmail = $mrlImpact || $classificationUnknown;
+    $sendNoMrlImpactEmail = $allDriverOnlyChange;
+    $sendNoEmail = $nonScoringChange;
+
+    $status = 'detected_unclassified';
+    $statusLine = 'Classification unavailable - review required';
+
+    if ($mrlImpact) {
+        $status = 'pending_review';
+        $statusLine = 'Pending Review - MRL impact detected';
+    } elseif ($nonScoringChange) {
+        $status = 'detected_non_scoring_change';
+        $statusLine = 'No review required - no driver scoring changes';
+    } elseif ($allDriverOnlyChange) {
+        $status = 'detected_no_mrl_impact';
+        $statusLine = 'No review required - all-driver change only';
+    }
+
+    // 5. Create under_review.flag only when review is required.
+    $flagPath = $raceFolder . '/under_review.flag';
+    if ($reviewRequired) {
+        rr_atomic_write($flagPath, "");
+        rr_log_line($logFile, "UNDER_REVIEW FLAG SET folder={$folderName} reason={$status}");
+        rrrev_out("  under_review.flag created.");
+    } else {
+        if (is_file($flagPath)) {
+            @unlink($flagPath);
+            rr_log_line($logFile, "UNDER_REVIEW FLAG REMOVED folder={$folderName} reason={$status}");
+            rrrev_out("  under_review.flag removed/not required.");
+        } else {
+            rr_log_line($logFile, "UNDER_REVIEW FLAG NOT SET folder={$folderName} reason={$status}");
+            rrrev_out("  under_review.flag not required.");
+        }
+    }
+
+    // 6. Write revision metadata artifact.
     $existingMeta = rrrev_read_revision_meta($raceFolder);
     $detectedRevisionCount = (int)($existingMeta['detected_revision_count_total'] ?? 0) + 1;
     $visibleRevisionCount  = (int)($existingMeta['visible_revision_count'] ?? 0);
-    $mrlImpact = !empty($classification['impact']);
 
     if ($mrlImpact) {
         $visibleRevisionCount++;
@@ -589,9 +667,14 @@ foreach ($completedRaces as $race) {
         'race_name' => (string)$raceName,
         'race_folder' => (string)$folderName,
         'revision_type' => 'source',
-        'status' => $mrlImpact ? 'pending_review' : 'detected_no_mrl_impact',
-        'pending_review' => true,
+        'status' => $status,
+        'status_label' => $statusLine,
+        'pending_review' => $reviewRequired,
+        'under_review_flag' => $reviewRequired,
         'revision_detected' => true,
+        'non_scoring_change' => $nonScoringChange,
+        'all_driver_only_change' => $allDriverOnlyChange,
+        'classification_unknown' => $classificationUnknown,
         'mrl_impact' => $mrlImpact,
         'display_rev' => $mrlImpact,
         'detected_revision_count_total' => $detectedRevisionCount,
@@ -606,9 +689,9 @@ foreach ($completedRaces as $race) {
         'current_snapshot' => (string)($classification['currentSnapshot'] ?? $currentSnapshotBase),
         'stored_hash_before' => $storedHash,
         'stored_hash_after' => $currentHash,
-        'changed_drivers_count' => (int)($classification['changedDriversCount'] ?? 0),
-        'changed_all_drivers_count' => (int)($classification['changedAllDriversCount'] ?? 0),
-        'driver_pool_count' => (int)($classification['driverPoolCount'] ?? 0),
+        'changed_drivers_count' => $changedMrlDrivers,
+        'changed_all_drivers_count' => $changedAllDrivers,
+        'driver_pool_count' => $driverPoolCount,
         'classifier_message' => (string)($classification['message'] ?? ''),
         'artifact_files' => isset($classification['artifactFiles']) && is_array($classification['artifactFiles'])
             ? $classification['artifactFiles']
@@ -616,23 +699,15 @@ foreach ($completedRaces as $race) {
     ];
 
     $revisionMetaPath = rrrev_write_revision_meta($raceFolder, $revisionMeta);
-    rr_log_line($logFile, "REVISION META WRITTEN folder={$folderName} path={$revisionMetaPath}");
+    rr_log_line($logFile, "REVISION META WRITTEN folder={$folderName} path={$revisionMetaPath} status={$status} pending=" . ($reviewRequired ? 'YES' : 'NO'));
     rrrev_out("  revision_meta.json updated.");
+    rrrev_out("  Status: {$statusLine}");
 
-    // 6. Send email alert
+    // 7. Send email only when useful.
     $raceLabel = $raceName !== '' ? $raceName : $folderName;
     $shortCode = $raceCode !== '' ? ($raceCode . ' ') : '';
-
-    $subject = '[MRL] REVISION DETECTED - ' . $year . ' ' . trim($shortCode . $raceLabel);
-    if ($displayTag !== '') {
-        $subject .= ' (' . $displayTag . ')';
-    }
-
     $impactLine = $mrlImpact ? 'YES' : 'NO';
     $visibleLine = $displayTag !== '' ? $displayTag : 'none';
-    $changedMrlDrivers = (int)($classification['changedDriversCount'] ?? 0);
-    $changedAllDrivers = (int)($classification['changedAllDriversCount'] ?? 0);
-    $driverPoolCount = (int)($classification['driverPoolCount'] ?? 0);
 
     $message = rrrev_build_revision_email_html(
         (int)$year,
@@ -649,24 +724,30 @@ foreach ($completedRaces as $race) {
         (string)($revisionMeta['previous_snapshot'] ?? ''),
         (string)($revisionMeta['current_snapshot'] ?? ''),
         $revisionMetaPath,
-        isset($classification['artifactFiles']) && is_array($classification['artifactFiles']) ? $classification['artifactFiles'] : []
+        isset($classification['artifactFiles']) && is_array($classification['artifactFiles']) ? $classification['artifactFiles'] : [],
+        $reviewRequired,
+        $statusLine
     );
 
-    $sentOk = false;
-    try {
-        $sentOk = (bool)$user_home->send_mail($notifyEmail, $message, $subject);
-    } catch (Throwable $e) {
-        rr_log_line($logFile, "EMAIL EXCEPTION raceId={$raceId}: " . $e->getMessage());
-        $sentOk = false;
+    if ($sendNormalRevisionEmail) {
+        $subject = '[MRL] REVISION DETECTED - ' . $year . ' ' . trim($shortCode . $raceLabel);
+        if ($displayTag !== '') {
+            $subject .= ' (' . $displayTag . ')';
+        }
+
+        $sentOk = rrrev_send_email($user_home, $notifyEmail, $message, $subject, $logFile, (string)$raceId, (string)$folderName, 'REVISION');
+        rrrev_out("  Email: " . ($sentOk ? "SENT to {$notifyEmail}" : "FAILED (check log)"));
+    } elseif ($sendNoMrlImpactEmail) {
+        $subject = '[MRL] ESPN CHANGE DETECTED - NO MRL IMPACT - ' . $year . ' ' . trim($shortCode . $raceLabel);
+        $sentOk = rrrev_send_email($user_home, $notifyEmail, $message, $subject, $logFile, (string)$raceId, (string)$folderName, 'NO_MRL_IMPACT');
+        rrrev_out("  Email: " . ($sentOk ? "SENT no-MRL-impact notice to {$notifyEmail}" : "FAILED (check log)"));
+    } elseif ($sendNoEmail) {
+        rr_log_line($logFile, "EMAIL SKIPPED (NON_SCORING_CHANGE) raceId={$raceId} folder={$folderName}");
+        rrrev_out("  Email: SKIPPED (no scoring changes).");
+    } else {
+        rr_log_line($logFile, "EMAIL SKIPPED raceId={$raceId} folder={$folderName} status={$status}");
+        rrrev_out("  Email: SKIPPED.");
     }
-
-    rr_log_line(
-        $logFile,
-        $sentOk
-            ? "EMAIL SENT (REVISION) to={$notifyEmail} raceId={$raceId} folder={$folderName}"
-            : "EMAIL FAILED (REVISION) to={$notifyEmail} raceId={$raceId} folder={$folderName}"
-    );
-    rrrev_out("  Email: " . ($sentOk ? "SENT to {$notifyEmail}" : "FAILED (check log)"));
 
 } // end foreach race
 
