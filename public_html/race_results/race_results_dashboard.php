@@ -12,10 +12,19 @@ if (!headers_sent()) {
 /**
  * race_results_dashboard.php
  *
- * VERSION: v004
- * LAST MODIFIED: 5/18/2026 11:01:00 pm
+ * VERSION: v005
+ * LAST MODIFIED: 5/19/2026 3:26:43 am
  *
  * CHANGELOG:
+ *
+ * v005 (2026-05-19)
+ *   - NEW: Added collapsible Changed Driver Details table using classifier v006 summary data.
+ *   - NEW: Dashboard now displays Changed All, MRL-Listed, and Segment-Picked counts in the Revision Classification summary table.
+ *   - CHANGE: MRL Impact NO remains green/good and YES remains red/attention.
+ *   - CHANGE: Changed Driver Details open/closed state is preserved across auto-refresh.
+ *   - CHANGE: Dashboard score-change display now uses a web arrow (→) instead of ASCII ->.
+ *   - CHANGE: Changed Driver Details uses neutral YES/NO text for MRL-listed and segment-picked flags.
+ *   - CHANGE: Trusted source wording no longer hardcodes classifier v004.
  *
  * v004 (2026-05-18)
  *   - NEW: Revision Classification now uses the trusted classifier v004 summary files instead of independently scanning race folders.
@@ -255,6 +264,62 @@ function rr_dash_first_existing_bool(array $data, array $keys): bool
     return false;
 }
 
+
+function rr_dash_signed_delta(int $delta): string
+{
+    if ($delta > 0) return '+' . (string)$delta;
+    return (string)$delta;
+}
+
+function rr_dash_format_score_change(array $detail, string $field): string
+{
+    $old = isset($detail['old']) && is_array($detail['old']) ? $detail['old'] : [];
+    $new = isset($detail['new']) && is_array($detail['new']) ? $detail['new'] : [];
+    $delta = isset($detail['delta']) && is_array($detail['delta']) ? $detail['delta'] : [];
+
+    $oldValue = (int)($old[$field] ?? 0);
+    $newValue = (int)($new[$field] ?? 0);
+
+    if (array_key_exists($field, $delta)) {
+        $deltaValue = (int)$delta[$field];
+    } else {
+        $deltaValue = $newValue - $oldValue;
+    }
+
+    return (string)$oldValue . ' → ' . (string)$newValue . ' (' . rr_dash_signed_delta($deltaValue) . ')';
+}
+
+function rr_dash_normalize_changed_driver_detail(array $detail): array
+{
+    return [
+        'driver' => rr_dash_first_existing_string($detail, ['driver', 'driver_name', 'name'], ''),
+        'mrl_listed' => rr_dash_first_existing_bool($detail, ['mrl_listed', 'mrlListed', 'mrl_driver', 'mrlDriver']),
+        'segment_picked' => rr_dash_first_existing_bool($detail, ['segment_picked', 'segmentPicked', 'picked', 'segment_driver']),
+        'old' => isset($detail['old']) && is_array($detail['old']) ? $detail['old'] : [],
+        'new' => isset($detail['new']) && is_array($detail['new']) ? $detail['new'] : [],
+        'delta' => isset($detail['delta']) && is_array($detail['delta']) ? $detail['delta'] : [],
+    ];
+}
+
+function rr_dash_normalize_changed_driver_details(array $details): array
+{
+    $rows = [];
+
+    foreach ($details as $detail) {
+        if (!is_array($detail)) continue;
+        $row = rr_dash_normalize_changed_driver_detail($detail);
+        if ((string)$row['driver'] === '') continue;
+        $rows[] = $row;
+    }
+
+    return $rows;
+}
+
+function rr_dash_yes_no(bool $value): string
+{
+    return $value ? 'YES' : 'NO';
+}
+
 function rr_dash_normalize_classifier_row(array $row): array
 {
     $raceCode = rr_dash_first_existing_string($row, ['raceCode', 'race_code', 'race', 'race_code_display'], '');
@@ -287,8 +352,32 @@ function rr_dash_normalize_classifier_row(array $row): array
         'changed_all_drivers_count'
     ]);
 
+    $changedMrlListedDrivers = rr_dash_first_existing_int($row, [
+        'changedMrlListedDriversCount',
+        'changed_mrl_listed_drivers_count',
+        'changed_mrl_listed_drivers'
+    ]);
+
+    $changedSegmentPickedDrivers = rr_dash_first_existing_int($row, [
+        'changedSegmentPickedDriversCount',
+        'changed_segment_picked_drivers_count',
+        'changed_segment_picked_drivers',
+        'changedDriversCount',
+        'changed_drivers_count',
+        'changed_mrl_drivers',
+        'changed_mrl_drivers_count'
+    ]);
+
     if (!$allDriverImpact && $changedAllDrivers > 0) {
         $allDriverImpact = true;
+    }
+
+    $changedDriverDetails = [];
+    foreach (['changedDriverDetails', 'changed_driver_details', 'driver_changes', 'changed_drivers'] as $detailsKey) {
+        if (isset($row[$detailsKey]) && is_array($row[$detailsKey])) {
+            $changedDriverDetails = rr_dash_normalize_changed_driver_details($row[$detailsKey]);
+            break;
+        }
     }
 
     $statusLabel = rr_dash_first_existing_string($row, ['status_label', 'statusLabel'], '');
@@ -318,6 +407,9 @@ function rr_dash_normalize_classifier_row(array $row): array
         'all_driver_impact' => $allDriverImpact,
         'changed_mrl_drivers' => $changedMrlDrivers,
         'changed_all_drivers' => $changedAllDrivers,
+        'changed_mrl_listed_drivers' => $changedMrlListedDrivers,
+        'changed_segment_picked_drivers' => $changedSegmentPickedDrivers,
+        'changed_driver_details' => $changedDriverDetails,
         'display_tag' => rr_dash_first_existing_string($row, ['display_tag', 'displayTag'], ''),
         'pending_review' => $pendingReview,
         'status_label' => $statusLabel,
@@ -613,6 +705,10 @@ $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
         .badge.ok   { background: rgba(111,208,140,.15); color: var(--ok);   border: 1px solid rgba(111,208,140,.35); }
         .badge.warn { background: rgba(255,212,93,.15);  color: var(--warn); border: 1px solid rgba(255,212,93,.35); }
         .badge.bad  { background: rgba(239,107,107,.15); color: var(--bad);  border: 1px solid rgba(239,107,107,.35); }
+
+        .detail-toggle { cursor: pointer; width: fit-content; }
+        .detail-flag { font-weight: 700; color: var(--text); }
+        .detail-flag.muted-no { color: var(--muted); }
 
         .meta { color: var(--muted); font-size: 14px; }
 
@@ -923,7 +1019,7 @@ $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
 
                 <div class="summary-pills">
                     <span class="pill">Year: <?=h((string)$classSummary['year'])?></span>
-                    <span class="pill">Source: <?=!empty($classSummary['trusted_source']) ? 'Trusted v004 summary' : 'Missing trusted summary'?></span>
+                    <span class="pill">Source: <?=!empty($classSummary['trusted_source']) ? 'Trusted summary' : 'Missing trusted summary'?></span>
                     <span class="pill">Classified: <?=h((string)$classSummary['classified_count'])?></span>
                     <span class="pill">MRL Impact: <?=h((string)$classSummary['mrl_impact_count'])?></span>
                     <span class="pill">All-Driver Change Races: <?=h((string)$classSummary['all_driver_change_race_count'])?></span>
@@ -949,8 +1045,9 @@ $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
                         <tr>
                             <th>Race</th>
                             <th>MRL Impact</th>
-                            <th>Changed MRL</th>
                             <th>Changed All</th>
+                            <th>MRL-Listed</th>
+                            <th>Segment-Picked</th>
                             <th>Display</th>
                             <th>Status</th>
                             <th>Snapshots</th>
@@ -970,8 +1067,9 @@ $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
                         <tr>
                             <td><?=h((string)$row['race_code'])?> <?=h((string)$row['race_label'])?></td>
                             <td><span class="badge <?=h($impactBadge)?>"><?=!empty($row['mrl_impact']) ? 'YES' : 'NO'?></span></td>
-                            <td><?=h((string)$row['changed_mrl_drivers'])?></td>
                             <td><?=h((string)$row['changed_all_drivers'])?></td>
+                            <td><?=h((string)($row['changed_mrl_listed_drivers'] ?? 0))?></td>
+                            <td><?=h((string)($row['changed_segment_picked_drivers'] ?? $row['changed_mrl_drivers']))?></td>
                             <td><?=h($displayText)?></td>
                             <td><?=h($statusText)?></td>
                             <td><?=h($snapText)?></td>
@@ -979,6 +1077,64 @@ $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
                         <?php endforeach; ?>
                     </tbody>
                 </table>
+
+                <?php
+                    $changedDetailRows = [];
+                    foreach ($classSummary['rows'] as $detailSourceRow) {
+                        if (!is_array($detailSourceRow)) continue;
+                        $details = isset($detailSourceRow['changed_driver_details']) && is_array($detailSourceRow['changed_driver_details'])
+                            ? $detailSourceRow['changed_driver_details']
+                            : [];
+
+                        foreach ($details as $detailRow) {
+                            if (!is_array($detailRow)) continue;
+                            $changedDetailRows[] = [
+                                'race_code' => (string)($detailSourceRow['race_code'] ?? ''),
+                                'race_label' => (string)($detailSourceRow['race_label'] ?? ''),
+                                'detail' => $detailRow,
+                            ];
+                        }
+                    }
+                ?>
+
+                <?php if (!empty($changedDetailRows)): ?>
+                <details id="changed-driver-details" style="margin-top:14px;">
+                    <summary class="btn detail-toggle">Show Changed Driver Details</summary>
+                    <table class="dash-table" style="margin-top:12px;">
+                        <thead>
+                            <tr>
+                                <th>Race</th>
+                                <th>Driver</th>
+                                <th>MRL-Listed</th>
+                                <th>Segment-Picked</th>
+                                <th>PTS</th>
+                                <th>BONUS</th>
+                                <th>PENALTY</th>
+                                <th>NET</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($changedDetailRows as $changedDetailRow): ?>
+                            <?php
+                                $detail = isset($changedDetailRow['detail']) && is_array($changedDetailRow['detail']) ? $changedDetailRow['detail'] : [];
+                                $mrlListed = !empty($detail['mrl_listed']);
+                                $segmentPicked = !empty($detail['segment_picked']);
+                            ?>
+                            <tr>
+                                <td><?=h(trim((string)$changedDetailRow['race_code'] . ' ' . (string)$changedDetailRow['race_label']))?></td>
+                                <td><?=h((string)($detail['driver'] ?? ''))?></td>
+                                <td><span class="detail-flag <?=h($mrlListed ? '' : 'muted-no')?>"><?=h(rr_dash_yes_no($mrlListed))?></span></td>
+                                <td><span class="detail-flag <?=h($segmentPicked ? '' : 'muted-no')?>"><?=h(rr_dash_yes_no($segmentPicked))?></span></td>
+                                <td><?=h(rr_dash_format_score_change($detail, 'pts'))?></td>
+                                <td><?=h(rr_dash_format_score_change($detail, 'bonus'))?></td>
+                                <td><?=h(rr_dash_format_score_change($detail, 'penalty'))?></td>
+                                <td><?=h(rr_dash_format_score_change($detail, 'net'))?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </details>
+                <?php endif; ?>
                 <?php else: ?>
                 <div class="empty"><?=h((string)$classSummary['message'])?></div>
                 <?php endif; ?>
@@ -1010,6 +1166,25 @@ $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
     </div>
 
 </div>
+
+
+<script>
+(function () {
+    var detailsEl = document.getElementById('changed-driver-details');
+    if (!detailsEl || !window.localStorage) return;
+
+    var storageKey = 'mrlDashboardChangedDriverDetailsOpen';
+    var savedState = localStorage.getItem(storageKey);
+
+    if (savedState === '1') {
+        detailsEl.open = true;
+    }
+
+    detailsEl.addEventListener('toggle', function () {
+        localStorage.setItem(storageKey, detailsEl.open ? '1' : '0');
+    });
+})();
+</script>
 
 <?php if ($autoRefresh > 0): ?>
 <script>
