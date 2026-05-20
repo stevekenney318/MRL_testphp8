@@ -4,10 +4,17 @@ declare(strict_types=1);
 /**
  * race_results_revision_monitor.php
  *
- * VERSION: v006
- * LAST MODIFIED: 5/19/2026 12:26:34 am
+ * VERSION: v007
+ * LAST MODIFIED: 5/19/2026 6:53:40 pm
  *
  * CHANGELOG:
+ * v007 (5/19/2026)
+ *   - CHANGE: Revision monitor now prefers classifier v009 change/review fields when deciding whether a Rev or review is required.
+ *   - CHANGE: review_required drives under_review.flag creation/removal.
+ *   - CHANGE: revision_meta.json now stores change_detected, driver_scoring_change_detected, revision_required, review_required, change_status, and change_status_label.
+ *   - CHANGE: Browser/log output now includes changed all, MRL-listed, and segment-picked driver counts.
+ *   - CHANGE: Non-impact scoring-table changes are saved and logged without creating Pending Review or a normal revision email.
+ *
  * v006 (5/19/2026)
  *   - FIX: under_review.flag is no longer created before classification runs.
  *   - FIX: Hash/snapshot changes with no driver scoring changes are now treated as non-scoring changes, not Pending Review.
@@ -57,7 +64,7 @@ ini_set('log_errors', '1');
 ini_set('error_log', __DIR__ . '/_race_results_revision_monitor_php_errors.log');
 error_reporting(E_ALL);
 
-const RR_REVISION_MONITOR_SIGNATURE = 'RACE_RESULTS_REVISION_MONITOR v006';
+const RR_REVISION_MONITOR_SIGNATURE = 'RACE_RESULTS_REVISION_MONITOR v007';
 
 require_once __DIR__ . '/race_results_engine.php';
 
@@ -561,7 +568,16 @@ foreach ($completedRaces as $race) {
         'impact' => false,
         'changedDriversCount' => 0,
         'changedAllDriversCount' => 0,
+        'changedMrlListedDriversCount' => 0,
+        'changedSegmentPickedDriversCount' => 0,
         'driverPoolCount' => 0,
+        'mrlListedDriverPoolCount' => 0,
+        'change_detected' => true,
+        'driver_scoring_change_detected' => false,
+        'revision_required' => true,
+        'review_required' => true,
+        'change_status' => 'detected_unclassified',
+        'change_status_label' => 'Classification unavailable - review required',
         'message' => 'Classification not run.',
         'artifactFiles' => [],
         'comparison' => [],
@@ -577,18 +593,23 @@ foreach ($completedRaces as $race) {
                 "CLASSIFICATION raceCode={$raceCode} classified="
                 . (!empty($classification['classified']) ? 'YES' : 'NO')
                 . " impact=" . (!empty($classification['impact']) ? 'YES' : 'NO')
-                . " changedDrivers=" . (string)($classification['changedDriversCount'] ?? 0)
                 . " changedAllDrivers=" . (string)($classification['changedAllDriversCount'] ?? 0)
+                . " changedMRLListedDrivers=" . (string)($classification['changedMrlListedDriversCount'] ?? 0)
+                . " changedSegmentPickedDrivers=" . (string)($classification['changedSegmentPickedDriversCount'] ?? ($classification['changedDriversCount'] ?? 0))
+                . " revisionRequired=" . (!empty($classification['revision_required']) ? 'YES' : 'NO')
+                . " reviewRequired=" . (!empty($classification['review_required']) ? 'YES' : 'NO')
             );
             rrrev_out(
                 "  Classification: "
                 . (!empty($classification['classified']) ? 'YES' : 'NO')
                 . " / Impact: "
                 . (!empty($classification['impact']) ? 'YES' : 'NO')
-                . " / Changed MRL drivers: "
-                . (string)($classification['changedDriversCount'] ?? 0)
-                . " / Changed all drivers: "
+                . " / Changed All: "
                 . (string)($classification['changedAllDriversCount'] ?? 0)
+                . " / MRL-Listed: "
+                . (string)($classification['changedMrlListedDriversCount'] ?? 0)
+                . " / Segment-Picked: "
+                . (string)($classification['changedSegmentPickedDriversCount'] ?? ($classification['changedDriversCount'] ?? 0))
             );
         } catch (Throwable $e) {
             $classification['message'] = 'Classification exception: ' . $e->getMessage();
@@ -604,32 +625,65 @@ foreach ($completedRaces as $race) {
     // 4. Decide review/notification handling after classification.
     $classified = !empty($classification['classified']);
     $mrlImpact = !empty($classification['impact']);
-    $changedMrlDrivers = (int)($classification['changedDriversCount'] ?? 0);
+    $changedMrlDrivers = (int)($classification['changedDriversCount'] ?? 0); // legacy alias: segment-picked drivers
+    $changedSegmentPickedDrivers = (int)($classification['changedSegmentPickedDriversCount'] ?? $changedMrlDrivers);
+    $changedMrlListedDrivers = (int)($classification['changedMrlListedDriversCount'] ?? 0);
     $changedAllDrivers = (int)($classification['changedAllDriversCount'] ?? 0);
     $driverPoolCount = (int)($classification['driverPoolCount'] ?? 0);
+    $mrlListedDriverPoolCount = (int)($classification['mrlListedDriverPoolCount'] ?? 0);
 
-    $nonScoringChange = ($classified && $changedMrlDrivers === 0 && $changedAllDrivers === 0);
-    $allDriverOnlyChange = ($classified && !$mrlImpact && $changedAllDrivers > 0);
     $classificationUnknown = !$classified;
 
-    $reviewRequired = $mrlImpact || $classificationUnknown;
-    $sendNormalRevisionEmail = $mrlImpact || $classificationUnknown;
-    $sendNoMrlImpactEmail = $allDriverOnlyChange;
+    $driverScoringChangeDetected = array_key_exists('driver_scoring_change_detected', $classification)
+        ? !empty($classification['driver_scoring_change_detected'])
+        : ($changedAllDrivers > 0);
+
+    $revisionRequired = array_key_exists('revision_required', $classification)
+        ? !empty($classification['revision_required'])
+        : ($mrlImpact || $classificationUnknown);
+
+    $reviewRequired = array_key_exists('review_required', $classification)
+        ? !empty($classification['review_required'])
+        : ($mrlImpact || $classificationUnknown);
+
+    $status = (string)($classification['change_status'] ?? '');
+    $statusLine = (string)($classification['change_status_label'] ?? '');
+
+    if ($status === '' || $statusLine === '') {
+        if ($classificationUnknown) {
+            $status = 'detected_unclassified';
+            $statusLine = 'Classification unavailable - review required';
+        } elseif ($mrlImpact) {
+            $status = 'pending_review_mrl_impact';
+            $statusLine = 'Pending Review - MRL Impact';
+        } elseif (!$driverScoringChangeDetected) {
+            $status = 'detected_page_only_change';
+            $statusLine = 'Page/Table Hash Changed - No Driver Scoring Change';
+        } elseif ($changedMrlListedDrivers > 0 && $changedSegmentPickedDrivers === 0) {
+            $status = 'detected_mrl_listed_not_segment_picked';
+            $statusLine = 'MRL-Listed Driver Changed - No Segment Impact';
+        } elseif ($changedAllDrivers > 0 && $changedMrlListedDrivers === 0) {
+            $status = 'detected_non_mrl_driver_change';
+            $statusLine = 'Non-MRL Driver Change';
+        } else {
+            $status = 'detected_no_mrl_impact';
+            $statusLine = 'No review required - no MRL impact';
+        }
+    }
+
+    $nonScoringChange = ($classified && !$driverScoringChangeDetected);
+    $noReviewScoringChange = ($classified && $driverScoringChangeDetected && !$reviewRequired);
+
+    $sendNormalRevisionEmail = $reviewRequired;
+    $sendNoMrlImpactEmail = $noReviewScoringChange;
     $sendNoEmail = $nonScoringChange;
 
-    $status = 'detected_unclassified';
-    $statusLine = 'Classification unavailable - review required';
-
-    if ($mrlImpact) {
-        $status = 'pending_review';
-        $statusLine = 'Pending Review - MRL impact detected';
-    } elseif ($nonScoringChange) {
-        $status = 'detected_non_scoring_change';
-        $statusLine = 'No review required - no driver scoring changes';
-    } elseif ($allDriverOnlyChange) {
-        $status = 'detected_no_mrl_impact';
-        $statusLine = 'No review required - all-driver change only';
-    }
+    rrrev_out(
+        "  Decision: Revision Required: "
+        . ($revisionRequired ? 'YES' : 'NO')
+        . " / Review Required: "
+        . ($reviewRequired ? 'YES' : 'NO')
+    );
 
     // 5. Create under_review.flag only when review is required.
     $flagPath = $raceFolder . '/under_review.flag';
@@ -672,11 +726,17 @@ foreach ($completedRaces as $race) {
         'pending_review' => $reviewRequired,
         'under_review_flag' => $reviewRequired,
         'revision_detected' => true,
+        'change_detected' => true,
+        'driver_scoring_change_detected' => $driverScoringChangeDetected,
+        'revision_required' => $revisionRequired,
+        'review_required' => $reviewRequired,
+        'change_status' => $status,
+        'change_status_label' => $statusLine,
         'non_scoring_change' => $nonScoringChange,
-        'all_driver_only_change' => $allDriverOnlyChange,
+        'no_review_scoring_change' => $noReviewScoringChange,
         'classification_unknown' => $classificationUnknown,
         'mrl_impact' => $mrlImpact,
-        'display_rev' => $mrlImpact,
+        'display_rev' => $revisionRequired && $mrlImpact,
         'detected_revision_count_total' => $detectedRevisionCount,
         'visible_revision_count' => $visibleRevisionCount,
         'revision_letter' => $revisionLetter,
@@ -690,8 +750,11 @@ foreach ($completedRaces as $race) {
         'stored_hash_before' => $storedHash,
         'stored_hash_after' => $currentHash,
         'changed_drivers_count' => $changedMrlDrivers,
+        'changed_segment_picked_drivers_count' => $changedSegmentPickedDrivers,
+        'changed_mrl_listed_drivers_count' => $changedMrlListedDrivers,
         'changed_all_drivers_count' => $changedAllDrivers,
         'driver_pool_count' => $driverPoolCount,
+        'mrl_listed_driver_pool_count' => $mrlListedDriverPoolCount,
         'classifier_message' => (string)($classification['message'] ?? ''),
         'artifact_files' => isset($classification['artifactFiles']) && is_array($classification['artifactFiles'])
             ? $classification['artifactFiles']
