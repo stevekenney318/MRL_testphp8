@@ -4,10 +4,16 @@ declare(strict_types=1);
 /**
  * scheduler_dashboard.php
  *
- * VERSION: v002
- * LAST MODIFIED: 5/25/2026 1:26:55 pm
+ * VERSION: v003
+ * LAST MODIFIED: 5/25/2026 2:01:15 pm
  *
  * CHANGELOG:
+ * v003 (5/25/2026)
+ *   - CHANGE: Increased native dashboard sizing slightly from v002 while keeping it smaller than v001.
+ *   - CHANGE: Tasks heading now shows the task count.
+ *   - CHANGE: Last Scheduler Summary now labels checked/ran/skipped/errors as task counts.
+ *   - NEW: Added no-cache headers to reduce stale browser cache after dashboard updates.
+ *
  * v002 (5/25/2026)
  *   - CHANGE: Reduced native dashboard sizing to roughly 80% of prior visual scale.
  *   - CHANGE: Tightened page padding, card spacing, table cells, headings, pills, status badges, and monospaced log text so the dashboard fits better without browser zoom changes.
@@ -21,7 +27,13 @@ declare(strict_types=1);
 
 date_default_timezone_set('America/New_York');
 
-const SCHEDULER_DASHBOARD_VERSION = 'v002';
+if (!headers_sent()) {
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    header('Pragma: no-cache');
+    header('Expires: 0');
+}
+
+const SCHEDULER_DASHBOARD_VERSION = 'v003';
 
 $baseDir = __DIR__;
 $schedulerDir = $baseDir . '/_scheduler';
@@ -285,6 +297,7 @@ $dryRun = !empty($schedule['dry_run']);
 $year = isset($schedule['year']) ? (string)$schedule['year'] : '';
 
 $tasks = isset($schedule['tasks']) && is_array($schedule['tasks']) ? $schedule['tasks'] : [];
+$taskCount = count($tasks);
 $stateTasks = isset($state['tasks']) && is_array($state['tasks']) ? $state['tasks'] : [];
 
 $fileRows = [
@@ -320,49 +333,49 @@ $fileRows = [
 
     body {
         margin: 0;
-        padding: 16px;
+        padding: 18px;
         background: var(--bg);
         color: var(--text);
         font-family: Arial, Helvetica, sans-serif;
-        font-size: 14px;
+        font-size: 15px;
     }
 
     h1, h2, h3 {
         color: var(--gold);
-        margin: 0 0 10px 0;
+        margin: 0 0 12px 0;
     }
 
     h1 {
-        font-size: 29px;
+        font-size: 32px;
         line-height: 1.15;
     }
 
     h2 {
-        font-size: 22px;
+        font-size: 25px;
         line-height: 1.15;
     }
 
     h3 {
-        font-size: 17px;
+        font-size: 19px;
         line-height: 1.15;
     }
 
     .topline {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
-        margin-bottom: 12px;
+        gap: 9px;
+        margin-bottom: 14px;
     }
 
     .pill {
         display: inline-flex;
         align-items: center;
-        gap: 5px;
+        gap: 6px;
         border: 1px solid #5a5142;
         border-radius: 999px;
-        padding: 6px 10px;
+        padding: 7px 12px;
         background: #252525;
-        font-size: 13px;
+        font-size: 14px;
         line-height: 1.2;
     }
 
@@ -390,7 +403,7 @@ $fileRows = [
     .grid {
         display: grid;
         grid-template-columns: 1fr;
-        gap: 14px;
+        gap: 16px;
     }
 
     @media (min-width: 1100px) {
@@ -402,21 +415,21 @@ $fileRows = [
     .card {
         border: 1px solid #5a5142;
         background: linear-gradient(180deg, #222, #1e1e1e);
-        border-radius: 14px;
-        padding: 14px;
-        box-shadow: 0 8px 22px rgba(0,0,0,0.25);
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: 0 9px 25px rgba(0,0,0,0.25);
     }
 
     table {
         width: 100%;
         border-collapse: collapse;
         background: var(--panel);
-        border-radius: 10px;
+        border-radius: 11px;
         overflow: hidden;
     }
 
     th, td {
-        padding: 7px 8px;
+        padding: 8px 10px;
         border-bottom: 1px solid #333;
         text-align: left;
         vertical-align: top;
@@ -426,11 +439,11 @@ $fileRows = [
     th {
         color: var(--gold);
         background: var(--panel2);
-        font-size: 13px;
+        font-size: 14px;
     }
 
     td {
-        font-size: 13px;
+        font-size: 14px;
     }
 
     tr:last-child td {
@@ -440,9 +453,9 @@ $fileRows = [
     .status {
         font-weight: 700;
         border-radius: 999px;
-        padding: 4px 8px;
+        padding: 4px 9px;
         display: inline-block;
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.15;
     }
 
@@ -468,13 +481,13 @@ $fileRows = [
         font-family: Consolas, Monaco, "Courier New", monospace;
         white-space: pre-wrap;
         word-break: break-word;
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.35;
     }
 
     .small {
         color: var(--muted);
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.25;
     }
 
@@ -494,7 +507,7 @@ $fileRows = [
     .footer {
         color: #999;
         margin-top: 12px;
-        font-size: 11px;
+        font-size: 12px;
         text-align: center;
     }
 </style>
@@ -518,7 +531,7 @@ $fileRows = [
 
 <div class="grid">
     <div class="card">
-        <h2>Tasks</h2>
+        <h2>Tasks (<?php echo (int)$taskCount; ?>)</h2>
 
         <?php if (empty($tasks)): ?>
             <p class="msg">No tasks found in schedule.json.</p>
@@ -656,7 +669,8 @@ $fileRows = [
                         $summary = isset($state['last_scheduler_summary']) && is_array($state['last_scheduler_summary'])
                             ? $state['last_scheduler_summary']
                             : [];
-                        echo 'ran=' . sd_html($summary['ran'] ?? '')
+                        echo 'TASKS: checked=' . sd_html($summary['checked'] ?? '')
+                            . ' ran=' . sd_html($summary['ran'] ?? '')
                             . ' skipped=' . sd_html($summary['skipped'] ?? '')
                             . ' errors=' . sd_html($summary['errors'] ?? '');
                         ?>

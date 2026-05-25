@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * cron_master_scheduler.php
  *
- * VERSION: v001
- * LAST MODIFIED: 5/25/2026 12:31:55 pm
+ * VERSION: v002
+ * LAST MODIFIED: 5/25/2026 2:01:15 pm
  *
  * DESCRIPTION:
  * Basic JSON-driven master scheduler for MRL race-results automation.
@@ -25,6 +25,10 @@ declare(strict_types=1);
  *        -> race_results_classify_revisions.php when revisions are detected
  *
  * CHANGELOG:
+ * v002 (5/25/2026)
+ * - CHANGE: Scheduler DONE log now labels task counters clearly with TASKS checked/ran/skipped/errors.
+ * - CHANGE: Scheduler state summary now stores checked task count.
+ *
  * v001 (5/25/2026)
  * - NEW: Initial JSON-driven master scheduler.
  * - NEW: Uses relative paths from __DIR__ so the same file works on live and testphp8.
@@ -39,8 +43,8 @@ declare(strict_types=1);
 
 date_default_timezone_set('America/New_York');
 
-const CMS_VERSION = 'v001';
-const CMS_SIGNATURE = 'CRON_MASTER_SCHEDULER v001';
+const CMS_VERSION = 'v002';
+const CMS_SIGNATURE = 'CRON_MASTER_SCHEDULER v002';
 
 $baseDir = __DIR__;
 $schedulerDir = $baseDir . '/_scheduler';
@@ -111,11 +115,13 @@ $year = $yearOverride > 0 ? $yearOverride : $defaultYear;
 $globalDryRun = !empty($schedule['dry_run']);
 $tasks = isset($schedule['tasks']) && is_array($schedule['tasks']) ? $schedule['tasks'] : [];
 
+$checkedCount = 0;
 $ranCount = 0;
 $skippedCount = 0;
 $errorCount = 0;
 
 foreach ($tasks as $taskName => $task) {
+    $checkedCount++;
     if (!is_array($task)) {
         $skippedCount++;
         cms_log($logFile, "TASK SKIP {$taskName} invalid config");
@@ -229,19 +235,21 @@ foreach ($tasks as $taskName => $task) {
 
 $state['last_scheduler_complete_at'] = cms_now_string();
 $state['last_scheduler_summary'] = [
+    'checked' => $checkedCount,
     'ran' => $ranCount,
     'skipped' => $skippedCount,
     'errors' => $errorCount,
 ];
 
 cms_write_file_atomic($stateFile, cms_json_pretty($state) . "\n");
-cms_log($logFile, CMS_SIGNATURE . " DONE ran={$ranCount} skipped={$skippedCount} errors={$errorCount} token={$runToken}");
+cms_log($logFile, CMS_SIGNATURE . " DONE ; TASKS checked={$checkedCount} ran={$ranCount} skipped={$skippedCount} errors={$errorCount} token={$runToken}");
 
 cms_out('---');
 cms_out("Run complete: " . cms_now_string());
+cms_out("Tasks checked: {$checkedCount}");
 cms_out("Tasks ran: {$ranCount}");
 cms_out("Tasks skipped: {$skippedCount}");
-cms_out("Errors: {$errorCount}");
+cms_out("Task errors: {$errorCount}");
 
 exit(0);
 
