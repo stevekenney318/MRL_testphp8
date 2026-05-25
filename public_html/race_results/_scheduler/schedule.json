@@ -1,0 +1,58 @@
+{
+  "enabled": true,
+  "timezone": "America/New_York",
+  "year": 2026,
+  "dry_run": false,
+  "notes": [
+    "Place this file at race_results/_scheduler/schedule.json.",
+    "Scripts are relative to the folder containing cron_master_scheduler.php.",
+    "One Hostinger cron can call cron_master_scheduler.php every minute."
+  ],
+  "tasks": {
+    "race_results_monitor": {
+      "enabled": true,
+      "type": "interval",
+      "script": "race_results_monitor.php",
+      "args": [
+        "{{year}}"
+      ],
+      "interval_minutes": 60,
+      "lock_minutes": 10,
+      "timeout_seconds": 300,
+      "windows": {
+        "sunday_race_day": {
+          "enabled": true,
+          "days": [
+            7
+          ],
+          "start": "12:00",
+          "end": "23:59",
+          "interval_minutes": 5
+        },
+        "sunday_race_finish_watch": {
+          "enabled": false,
+          "days": [
+            7
+          ],
+          "start": "19:00",
+          "end": "23:00",
+          "interval_minutes": 1
+        }
+      }
+    },
+    "race_results_revision_monitor": {
+      "enabled": true,
+      "type": "daily_times",
+      "script": "race_results_revision_monitor.php",
+      "args": [
+        "{{year}}"
+      ],
+      "times": [
+        "00:00",
+        "12:00"
+      ],
+      "lock_minutes": 30,
+      "timeout_seconds": 600
+    }
+  }
+}
