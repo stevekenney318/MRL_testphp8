@@ -4,10 +4,15 @@ declare(strict_types=1);
 /**
  * scheduler_dashboard.php
  *
- * VERSION: v003
- * LAST MODIFIED: 5/25/2026 2:01:15 pm
+ * VERSION: v004
+ * LAST MODIFIED: 5/25/2026 5:21:34 pm
  *
  * CHANGELOG:
+ * v004 (5/25/2026)
+ *   - NEW: Added export buttons for quick troubleshooting/sharing.
+ *   - NEW: Supports export=summary, bundle, schedule, state, heartbeat, and log.
+ *   - NOTE: Exports are generated from the same _scheduler folder that the dashboard reads.
+ *
  * v003 (5/25/2026)
  *   - CHANGE: Increased native dashboard sizing slightly from v002 while keeping it smaller than v001.
  *   - CHANGE: Tasks heading now shows the task count.
@@ -33,7 +38,7 @@ if (!headers_sent()) {
     header('Expires: 0');
 }
 
-const SCHEDULER_DASHBOARD_VERSION = 'v003';
+const SCHEDULER_DASHBOARD_VERSION = 'v004';
 
 $baseDir = __DIR__;
 $schedulerDir = $baseDir . '/_scheduler';
@@ -67,6 +72,26 @@ function sd_read_json(string $path): array
 
     $data = json_decode($text, true);
     return is_array($data) ? $data : [];
+}
+
+function sd_download_text(string $filename, string $content, string $mime = 'text/plain'): void
+{
+    if (!headers_sent()) {
+        header('Content-Type: ' . $mime . '; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . str_replace('"', '', $filename) . '"');
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+    }
+
+    echo $content;
+    exit;
+}
+
+function sd_export_safe_name(string $value): string
+{
+    $value = preg_replace('/[^A-Za-z0-9_.-]+/', '_', $value);
+    return trim((string)$value, '_');
 }
 
 function sd_file_status(string $path): array
@@ -307,6 +332,137 @@ $fileRows = [
     'Log' => $logPath,
 ];
 
+$export = isset($_GET['export']) ? strtolower(trim((string)$_GET['export'])) : '';
+$exportStamp = $now->format('Ymd_His');
+$exportBaseName = 'mrl_scheduler_' . sd_export_safe_name($year !== '' ? $year : 'unknown') . '_' . $exportStamp;
+
+if ($export !== '') {
+    if ($export === 'schedule') {
+        sd_download_text($exportBaseName . '_schedule.json', sd_read_text($schedulePath), 'application/json');
+    }
+
+    if ($export === 'state') {
+        sd_download_text($exportBaseName . '_state.json', sd_read_text($statePath), 'application/json');
+    }
+
+    if ($export === 'heartbeat') {
+        sd_download_text($exportBaseName . '_heartbeat.txt', sd_read_text($heartbeatPath), 'text/plain');
+    }
+
+    if ($export === 'log') {
+        sd_download_text($exportBaseName . '_log.txt', sd_read_text($logPath), 'text/plain');
+    }
+
+    if ($export === 'bundle') {
+        $bundle = [
+            'generated_at' => $now->format('Y-m-d H:i:s'),
+            'dashboard_version' => SCHEDULER_DASHBOARD_VERSION,
+            'base_dir' => $baseDir,
+            'scheduler_dir' => $schedulerDir,
+            'scheduler_enabled' => $schedulerEnabled,
+            'dry_run' => $dryRun,
+            'year' => $year,
+            'timezone' => $timezoneName,
+            'schedule' => $schedule,
+            'state' => $state,
+            'heartbeat' => trim($heartbeat),
+            'recent_log_lines' => $logLines,
+            'files' => [],
+        ];
+
+        foreach ($fileRows as $label => $path) {
+            $bundle['files'][$label] = sd_file_status($path);
+        }
+
+        sd_download_text(
+            $exportBaseName . '_bundle.json',
+            json_encode($bundle, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL,
+            'application/json'
+        );
+    }
+
+    if ($export === 'summary') {
+        $lines = [];
+        $lines[] = 'MRL Scheduler Dashboard Export';
+        $lines[] = 'Generated: ' . $now->format('Y-m-d g:i:s A');
+        $lines[] = 'Dashboard: ' . SCHEDULER_DASHBOARD_VERSION;
+        $lines[] = 'Base Dir: ' . $baseDir;
+        $lines[] = 'Scheduler Dir: ' . $schedulerDir;
+        $lines[] = 'Scheduler: ' . ($schedulerEnabled ? 'enabled' : 'disabled');
+        $lines[] = 'Mode: ' . ($dryRun ? 'dry run' : 'active');
+        $lines[] = 'Year: ' . ($year !== '' ? $year : 'not set');
+        $lines[] = 'Timezone: ' . $timezoneName;
+        $lines[] = '';
+        $lines[] = 'TASKS';
+
+        if (empty($tasks)) {
+            $lines[] = '- No tasks found in schedule.json.';
+        } else {
+            foreach ($tasks as $taskName => $task) {
+                if (!is_array($task)) {
+                    continue;
+                }
+
+                $taskState = isset($stateTasks[$taskName]) && is_array($stateTasks[$taskName]) ? $stateTasks[$taskName] : [];
+                $type = isset($task['type']) ? (string)$task['type'] : 'interval';
+                $calc = ($type === 'daily_times')
+                    ? sd_daily_task_status($task, $taskState, $now, $tz)
+                    : sd_interval_task_status($task, $taskState, $now, $tz);
+
+                $lines[] = '- ' . (string)$taskName;
+                $lines[] = '  script: ' . (string)($task['script'] ?? '');
+                $lines[] = '  enabled: ' . ((!isset($task['enabled']) || !empty($task['enabled'])) ? 'YES' : 'NO');
+                $lines[] = '  schedule: ' . (string)$calc['schedule_text'];
+                $lines[] = '  due_now: ' . (string)$calc['due_text'];
+                $lines[] = '  next_run: ' . (string)$calc['next_run'];
+                $lines[] = '  last_attempt: ' . (string)$calc['last_attempt'];
+                $lines[] = '  last_completed: ' . (string)$calc['last_completed'];
+                $lines[] = '  last_status: ' . (string)($taskState['last_status'] ?? '');
+                $lines[] = '  last_exit_code: ' . (array_key_exists('last_exit_code', $taskState) ? (string)$taskState['last_exit_code'] : '');
+                $lines[] = '  last_message: ' . (string)($taskState['last_message'] ?? '');
+            }
+        }
+
+        $lines[] = '';
+        $lines[] = 'SCHEDULER FILES';
+        foreach ($fileRows as $label => $path) {
+            $fileStatus = sd_file_status($path);
+            $lines[] = '- ' . $label . ': ' . ($fileStatus['present'] ? 'Present' : 'Missing')
+                . ' | modified=' . (string)$fileStatus['modified']
+                . ' | size=' . (string)$fileStatus['size'];
+        }
+
+        $lines[] = '';
+        $lines[] = 'HEARTBEAT';
+        $lines[] = trim($heartbeat) !== '' ? trim($heartbeat) : '(none)';
+
+        $lines[] = '';
+        $lines[] = 'LAST SCHEDULER SUMMARY';
+        $summary = isset($state['last_scheduler_summary']) && is_array($state['last_scheduler_summary'])
+            ? $state['last_scheduler_summary']
+            : [];
+        $lines[] = 'Last Run: ' . (string)($state['last_scheduler_run_at'] ?? '');
+        $lines[] = 'Last Completed: ' . (string)($state['last_scheduler_complete_at'] ?? '');
+        $lines[] = 'SAPI: ' . (string)($state['last_scheduler_run_sapi'] ?? '');
+        $lines[] = 'TASKS: checked=' . (string)($summary['checked'] ?? '')
+            . ' ran=' . (string)($summary['ran'] ?? '')
+            . ' skipped=' . (string)($summary['skipped'] ?? '')
+            . ' errors=' . (string)($summary['errors'] ?? '');
+
+        $lines[] = '';
+        $lines[] = 'RECENT LOG LINES';
+        if (empty($logLines)) {
+            $lines[] = '(none)';
+        } else {
+            foreach ($logLines as $line) {
+                $lines[] = (string)$line;
+            }
+        }
+
+        sd_download_text($exportBaseName . '_summary.txt', implode(PHP_EOL, $lines) . PHP_EOL, 'text/plain');
+    }
+}
+
 ?><!DOCTYPE html>
 <html lang="en">
 <head>
@@ -504,6 +660,30 @@ $fileRows = [
         color: var(--muted);
     }
 
+    .exportbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 0 0 16px 0;
+    }
+
+    .exportbar a {
+        display: inline-block;
+        border: 1px solid #5a5142;
+        border-radius: 999px;
+        background: #252525;
+        color: var(--blue);
+        padding: 7px 11px;
+        font-size: 13px;
+        line-height: 1.15;
+        text-decoration: none;
+    }
+
+    .exportbar a:hover {
+        background: #303030;
+        text-decoration: none;
+    }
+
     .footer {
         color: #999;
         margin-top: 12px;
@@ -527,6 +707,15 @@ $fileRows = [
     <span class="pill">Timezone: <?php echo sd_html($timezoneName); ?></span>
     <span class="pill">Now: <?php echo sd_html($now->format('Y-m-d g:i:s A')); ?></span>
     <span class="pill">Dashboard: <?php echo sd_html(SCHEDULER_DASHBOARD_VERSION); ?></span>
+</div>
+
+<div class="exportbar">
+    <a href="?export=summary">Export Summary TXT</a>
+    <a href="?export=bundle">Export Bundle JSON</a>
+    <a href="?export=state">State JSON</a>
+    <a href="?export=schedule">Schedule JSON</a>
+    <a href="?export=log">Log TXT</a>
+    <a href="?export=heartbeat">Heartbeat TXT</a>
 </div>
 
 <div class="grid">

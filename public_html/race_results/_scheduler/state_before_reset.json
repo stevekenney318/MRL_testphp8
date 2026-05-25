@@ -1,0 +1,36 @@
+{
+    "signature": "CRON_MASTER_SCHEDULER v003",
+    "version": "v003",
+    "created_at": "2026-05-25 13:05:01",
+    "tasks": {
+        "race_results_monitor": {
+            "last_attempt_at": "2026-05-25 16:22:01",
+            "last_due_reason": "interval 60 minutes elapsed",
+            "last_interval_minutes": 60,
+            "last_command_script": "race_results_monitor.php",
+            "last_run_token": "29f88874b40b9ccc",
+            "last_exit_code": 0,
+            "last_output_tail": "",
+            "last_completed_at": "2026-05-25 16:22:01",
+            "last_status": "not_due",
+            "last_message": "not due; 44/60 minutes elapsed",
+            "last_status_at": "2026-05-25 17:06:01"
+        },
+        "race_results_revision_monitor": {
+            "last_status": "not_due",
+            "last_message": "not at scheduled daily time; now 17:06",
+            "last_status_at": "2026-05-25 17:06:01"
+        }
+    },
+    "last_scheduler_run_at": "2026-05-25 17:06:01",
+    "last_scheduler_run_sapi": "cli",
+    "last_scheduler_run_token": "9eefc91fa133594c",
+    "base_dir": "/home/u809830586/domains/manliusracingleague.com/public_html/testphp8/race_results",
+    "last_scheduler_complete_at": "2026-05-25 17:06:01",
+    "last_scheduler_summary": {
+        "checked": 2,
+        "ran": 0,
+        "skipped": 2,
+        "errors": 0
+    }
+}
