@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * cron_master_scheduler.php
  *
- * VERSION: v006
- * LAST MODIFIED: 5/25/2026 7:06:53 pm
+ * VERSION: v007
+ * LAST MODIFIED: 5/28/2026 5:50:43 pm
  *
  * DESCRIPTION:
  * Basic JSON-driven master scheduler for MRL race-results automation.
@@ -25,6 +25,15 @@ declare(strict_types=1);
  *        -> race_results_classify_revisions.php when revisions are detected
  *
  * CHANGELOG:
+ * v007 (5/28/2026)
+ * - NEW: Added manual force-run flags: run_now_monitor.flag, run_now_revision.flag, run_now_all.flag.
+ * - NOTE: Existing run_now.flag is kept as a legacy shortcut for the regular monitor.
+ * - CHANGE: Monitor tasks now default to running through the local site URL instead of PHP child exec.
+ * - PURPOSE: Uses the proven LiteSpeed/browser execution path while keeping scheduler timing local.
+ * - NEW: URL is derived automatically from __DIR__; no hardcoded live/testphp8 full paths are needed.
+ * - NEW: Supports optional task run_method values: auto, url, php.
+ * - NEW: Stores last_run_method and last_url in scheduler state for easier debugging.
+ *
  * v006 (5/25/2026)
  * - CHANGE: Child task runner now defaults to /usr/bin/php instead of PHP_BINARY.
  * - NEW: Optional schedule.json php_binary setting can override the child PHP executable.
@@ -66,8 +75,8 @@ declare(strict_types=1);
 
 date_default_timezone_set('America/New_York');
 
-const CMS_VERSION = 'v006';
-const CMS_SIGNATURE = 'CRON_MASTER_SCHEDULER v006';
+const CMS_VERSION = 'v007';
+const CMS_SIGNATURE = 'CRON_MASTER_SCHEDULER v007';
 
 $baseDir = __DIR__;
 $schedulerDir = $baseDir . '/_scheduler';
@@ -76,7 +85,10 @@ $stateFile = $schedulerDir . '/state.json';
 $heartbeatFile = $schedulerDir . '/heartbeat.txt';
 $logFile = $schedulerDir . '/log.txt';
 $locksDir = $schedulerDir . '/locks';
-$runNowFlagFile = $schedulerDir . '/run_now.flag';
+$runNowFlagFile = $schedulerDir . '/run_now.flag'; // Legacy: force regular monitor.
+$runNowMonitorFlagFile = $schedulerDir . '/run_now_monitor.flag';
+$runNowRevisionFlagFile = $schedulerDir . '/run_now_revision.flag';
+$runNowAllFlagFile = $schedulerDir . '/run_now_all.flag';
 
 cms_ensure_dir($schedulerDir);
 cms_ensure_dir($locksDir);
@@ -143,6 +155,9 @@ if ($previousSchedulerRunTs !== false && $previousSchedulerRunTs > 0) {
 }
 
 $forceRunFlagDetected = is_file($runNowFlagFile);
+$forceRunMonitorFlagDetected = is_file($runNowMonitorFlagFile);
+$forceRunRevisionFlagDetected = is_file($runNowRevisionFlagFile);
+$forceRunAllFlagDetected = is_file($runNowAllFlagFile);
 
 if ($stateWasMissing) {
     $state = [
@@ -163,12 +178,20 @@ $state['resume_gap_minutes'] = $resumeGapMinutes;
 $state['scheduler_resume_detected'] = $schedulerResumeDetected;
 $state['scheduler_resume_reason'] = $schedulerResumeReason;
 $state['force_run_flag_detected'] = $forceRunFlagDetected;
+$state['force_run_flags'] = [
+    'run_now.flag' => $forceRunFlagDetected,
+    'run_now_monitor.flag' => $forceRunMonitorFlagDetected,
+    'run_now_revision.flag' => $forceRunRevisionFlagDetected,
+    'run_now_all.flag' => $forceRunAllFlagDetected,
+];
 
 $defaultYear = (int)($schedule['year'] ?? $schedule['default_year'] ?? date('Y'));
 $year = $yearOverride > 0 ? $yearOverride : $defaultYear;
 $globalDryRun = !empty($schedule['dry_run']);
 $childPhpBinary = cms_choose_child_php_binary((string)($schedule['php_binary'] ?? '/usr/bin/php'));
+$publicBaseUrl = cms_public_base_url($baseDir, $schedule);
 $state['child_php_binary'] = $childPhpBinary;
+$state['public_base_url'] = $publicBaseUrl;
 $tasks = isset($schedule['tasks']) && is_array($schedule['tasks']) ? $schedule['tasks'] : [];
 
 $checkedCount = 0;
@@ -201,7 +224,15 @@ foreach ($tasks as $taskName => $task) {
         continue;
     }
 
-    $dueInfo = cms_task_due($taskName, $task, $state, $now, $schedulerResumeDetected, $schedulerResumeReason, $forceRunFlagDetected);
+    $taskForceFlagDetected = cms_task_force_flag_detected(
+        $taskName,
+        $forceRunFlagDetected,
+        $forceRunMonitorFlagDetected,
+        $forceRunRevisionFlagDetected,
+        $forceRunAllFlagDetected
+    );
+
+    $dueInfo = cms_task_due($taskName, $task, $state, $now, $schedulerResumeDetected, $schedulerResumeReason, $taskForceFlagDetected);
     if (empty($dueInfo['due'])) {
         $skippedCount++;
         cms_set_task_check_status($state, $taskName, 'not_due', (string)$dueInfo['reason']);
@@ -250,8 +281,13 @@ foreach ($tasks as $taskName => $task) {
     $state['tasks'][$taskName]['last_actual_attempt_at'] = $attemptAt;
     $state['tasks'][$taskName]['last_due_reason'] = (string)$dueInfo['reason'];
     $state['tasks'][$taskName]['last_interval_minutes'] = isset($dueInfo['interval_minutes']) ? (int)$dueInfo['interval_minutes'] : null;
+    $runMethod = cms_task_run_method($taskName, $task);
+    $taskUrl = cms_task_url($publicBaseUrl, $script, $args);
+
     $state['tasks'][$taskName]['last_command_script'] = $script;
     $state['tasks'][$taskName]['last_command_cwd'] = $baseDir;
+    $state['tasks'][$taskName]['last_run_method'] = $runMethod;
+    $state['tasks'][$taskName]['last_url'] = $runMethod === 'url' ? $taskUrl : '';
     $state['tasks'][$taskName]['last_run_token'] = $runToken;
 
     cms_write_file_atomic($stateFile, cms_json_pretty($state) . "\n");
@@ -266,10 +302,14 @@ foreach ($tasks as $taskName => $task) {
         continue;
     }
 
-    cms_log($logFile, "TASK RUN {$taskName} script={$script} reason=" . (string)$dueInfo['reason']);
+    cms_log($logFile, "TASK RUN {$taskName} method={$runMethod} script={$script} reason=" . (string)$dueInfo['reason']);
     cms_out("RUN {$taskName}: " . (string)$dueInfo['reason']);
 
-    $result = cms_run_php_script($scriptPath, $args, (int)($task['timeout_seconds'] ?? 300), $baseDir, $childPhpBinary);
+    if ($runMethod === 'url') {
+        $result = cms_run_url($taskUrl, (int)($task['timeout_seconds'] ?? 300));
+    } else {
+        $result = cms_run_php_script($scriptPath, $args, (int)($task['timeout_seconds'] ?? 300), $baseDir, $childPhpBinary);
+    }
     $state['tasks'][$taskName]['last_exit_code'] = $result['exit_code'];
     $state['tasks'][$taskName]['last_output_tail'] = $result['output_tail'];
     $state['tasks'][$taskName]['last_command'] = $result['command'];
@@ -302,10 +342,10 @@ foreach ($tasks as $taskName => $task) {
     cms_release_lock($lockHandle, $lockPath);
 }
 
-if ($forceRunFlagDetected && is_file($runNowFlagFile)) {
-    @unlink($runNowFlagFile);
-    cms_log($logFile, 'FORCE RUN FLAG consumed and removed: ' . $runNowFlagFile);
-}
+cms_consume_force_flag($logFile, $runNowFlagFile, 'run_now.flag');
+cms_consume_force_flag($logFile, $runNowMonitorFlagFile, 'run_now_monitor.flag');
+cms_consume_force_flag($logFile, $runNowRevisionFlagFile, 'run_now_revision.flag');
+cms_consume_force_flag($logFile, $runNowAllFlagFile, 'run_now_all.flag');
 
 $state['last_scheduler_complete_at'] = cms_now_string();
 $state['last_scheduler_summary'] = [
@@ -315,6 +355,9 @@ $state['last_scheduler_summary'] = [
     'errors' => $errorCount,
     'resume_detected' => $schedulerResumeDetected,
     'force_run_flag_detected' => $forceRunFlagDetected,
+    'force_run_monitor_flag_detected' => $forceRunMonitorFlagDetected,
+    'force_run_revision_flag_detected' => $forceRunRevisionFlagDetected,
+    'force_run_all_flag_detected' => $forceRunAllFlagDetected,
 ];
 
 cms_write_file_atomic($stateFile, cms_json_pretty($state) . "\n");
@@ -446,12 +489,40 @@ function cms_set_task_check_status(array &$state, string $taskName, string $stat
     $state['tasks'][$taskName]['last_check_message'] = $message;
 }
 
+function cms_consume_force_flag(string $logFile, string $flagFile, string $label): void
+{
+    if (is_file($flagFile)) {
+        @unlink($flagFile);
+        cms_log($logFile, 'FORCE RUN FLAG consumed and removed: ' . $label . ' path=' . $flagFile);
+    }
+}
+
+function cms_task_force_flag_detected(
+    string $taskName,
+    bool $legacyRunNow,
+    bool $monitorRunNow,
+    bool $revisionRunNow,
+    bool $allRunNow
+): bool {
+    if ($allRunNow) return true;
+
+    if ($taskName === 'race_results_monitor') {
+        return $legacyRunNow || $monitorRunNow;
+    }
+
+    if ($taskName === 'race_results_revision_monitor') {
+        return $revisionRunNow;
+    }
+
+    return false;
+}
+
 function cms_task_due(string $taskName, array $task, array $state, int $now, bool $schedulerResumeDetected, string $schedulerResumeReason, bool $forceRunFlagDetected): array
 {
     $type = (string)($task['type'] ?? 'interval');
 
     if ($type === 'daily_times') {
-        return cms_daily_time_task_due($taskName, $task, $state, $now);
+        return cms_daily_time_task_due($taskName, $task, $state, $now, $forceRunFlagDetected);
     }
 
     return cms_interval_task_due($taskName, $task, $state, $now, $schedulerResumeDetected, $schedulerResumeReason, $forceRunFlagDetected);
@@ -524,11 +595,15 @@ function cms_interval_task_due(string $taskName, array $task, array $state, int 
     ];
 }
 
-function cms_daily_time_task_due(string $taskName, array $task, array $state, int $now): array
+function cms_daily_time_task_due(string $taskName, array $task, array $state, int $now, bool $forceRunFlagDetected): array
 {
     $times = isset($task['times']) && is_array($task['times']) ? $task['times'] : [];
     $currentHm = date('H:i', $now);
     $today = date('Y-m-d', $now);
+
+    if ($forceRunFlagDetected) {
+        return ['due' => true, 'reason' => 'manual force-run flag'];
+    }
 
     foreach ($times as $time) {
         $time = trim((string)$time);
@@ -630,6 +705,140 @@ function cms_release_lock($handle, string $lockPath): void
         @fclose($handle);
     }
     @unlink($lockPath);
+}
+
+function cms_task_run_method(string $taskName, array $task): string
+{
+    $method = strtolower(trim((string)($task['run_method'] ?? 'auto')));
+
+    if ($method === 'php' || $method === 'exec') {
+        return 'php';
+    }
+
+    if ($method === 'url' || $method === 'http' || $method === 'https') {
+        return 'url';
+    }
+
+    if ($taskName === 'race_results_monitor' || $taskName === 'race_results_revision_monitor') {
+        return 'url';
+    }
+
+    return 'php';
+}
+
+function cms_public_base_url(string $baseDir, array $schedule): string
+{
+    $configured = trim((string)($schedule['public_base_url'] ?? ''));
+    if ($configured !== '') {
+        return rtrim($configured, '/');
+    }
+
+    $normalized = str_replace('\\', '/', $baseDir);
+
+    if (preg_match('~/public_html/testphp8/race_results/?$~', $normalized)) {
+        return 'https://testphp8.manliusracingleague.com/race_results';
+    }
+
+    if (preg_match('~/public_html/race_results/?$~', $normalized)) {
+        return 'https://manliusracingleague.com/race_results';
+    }
+
+    $host = '';
+    if (!empty($_SERVER['HTTP_HOST'])) {
+        $host = (string)$_SERVER['HTTP_HOST'];
+    }
+
+    if ($host !== '') {
+        return 'https://' . $host . '/race_results';
+    }
+
+    return 'https://manliusracingleague.com/race_results';
+}
+
+function cms_task_url(string $publicBaseUrl, string $script, array $args): string
+{
+    $url = rtrim($publicBaseUrl, '/') . '/' . rawurlencode($script);
+
+    $query = [];
+    if (isset($args[0]) && preg_match('/^\d{4}$/', (string)$args[0])) {
+        $query['year'] = (string)$args[0];
+    }
+
+    if (!empty($query)) {
+        $url .= '?' . http_build_query($query);
+    }
+
+    return $url;
+}
+
+function cms_run_url(string $url, int $timeoutSeconds): array
+{
+    $outputText = '';
+    $exitCode = 0;
+    $httpCode = 0;
+    $error = '';
+
+    if (function_exists('curl_init')) {
+        $ch = curl_init($url);
+        if ($ch !== false) {
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, min(max($timeoutSeconds, 5), 30));
+            curl_setopt($ch, CURLOPT_TIMEOUT, max($timeoutSeconds, 10));
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'MRL Cron Master Scheduler ' . CMS_VERSION);
+            $response = curl_exec($ch);
+            if ($response === false) {
+                $error = (string)curl_error($ch);
+                $exitCode = 1;
+            } else {
+                $outputText = (string)$response;
+                $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                if ($httpCode < 200 || $httpCode >= 400) {
+                    $exitCode = 1;
+                    $error = 'HTTP ' . (string)$httpCode;
+                }
+            }
+            curl_close($ch);
+        } else {
+            $exitCode = 1;
+            $error = 'curl_init failed';
+        }
+    } else {
+        $context = stream_context_create([
+            'http' => [
+                'timeout' => max($timeoutSeconds, 10),
+                'header' => "User-Agent: MRL Cron Master Scheduler " . CMS_VERSION . "\r\n",
+            ],
+        ]);
+        $response = @file_get_contents($url, false, $context);
+        if ($response === false) {
+            $exitCode = 1;
+            $error = 'file_get_contents failed';
+        } else {
+            $outputText = (string)$response;
+            $httpCode = 200;
+        }
+    }
+
+    $plain = trim(strip_tags($outputText));
+    $plain = html_entity_decode($plain, ENT_QUOTES, 'UTF-8');
+    $tailLines = preg_split('/\R/', $plain);
+    if (!is_array($tailLines)) {
+        $tailLines = [$plain];
+    }
+    $tail = implode("\n", array_slice($tailLines, -25));
+
+    if ($error !== '') {
+        $tail = trim($tail . "\n" . $error);
+    }
+
+    return [
+        'command' => $url,
+        'url' => $url,
+        'http_code' => $httpCode,
+        'exit_code' => (int)$exitCode,
+        'output_tail' => $tail,
+    ];
 }
 
 function cms_choose_child_php_binary(string $configured): string
