@@ -4,10 +4,16 @@ declare(strict_types=1);
 /**
  * race_results_monitor.php
  *
- * VERSION: v129
- * LAST MODIFIED: 5/3/2026 11:02:27 pm
+ * VERSION: v130
+ * LAST MODIFIED: 5/25/2026 7:36:33 pm
  *
  * CHANGELOG:
+ *
+ * v130 (5/25/2026)
+ *   - NEW: Added an immediate preflight heartbeat/log write before helper includes and USER initialization.
+ *   - PURPOSE: Makes scheduler-launched runs visible even if the monitor exits before normal main startup.
+ *   - CHANGE: Monitor signature updated to RACE_RESULTS_MONITOR v130.
+ *   - NOTE: Final-result detection/scoring behavior is unchanged.
  *
  * v129 (5/3/2026)
  *   - FIX: RD detection now evaluates only completed segment races with saved snapshot data, preventing future/unrun races from creating false RD eligibility.
@@ -45,7 +51,47 @@ ini_set('log_errors', '1');
 ini_set('error_log', __DIR__ . '/_race_results_monitor_php_errors.log');
 error_reporting(E_ALL);
 
-const RR_MONITOR_SIGNATURE = 'RACE_RESULTS_MONITOR v129';
+const RR_MONITOR_SIGNATURE = 'RACE_RESULTS_MONITOR v130';
+
+// ------------------------- PREFLIGHT HEARTBEAT -------------------------
+// This intentionally happens before helper includes and USER initialization.
+// If a dependency exits early, this still proves the monitor script was entered.
+$__rr_preflight_year = 2026;
+if (PHP_SAPI === 'cli' && isset($argv) && is_array($argv) && count($argv) >= 2) {
+    $__rr_cli_year = (int)$argv[1];
+    if ($__rr_cli_year >= 2000 && $__rr_cli_year <= 2100) {
+        $__rr_preflight_year = $__rr_cli_year;
+    }
+}
+
+$__rr_preflight_token = '';
+try {
+    $__rr_preflight_token = bin2hex(random_bytes(8));
+} catch (Throwable $e) {
+    $__rr_preflight_token = substr(str_replace('.', '', uniqid('', true)), 0, 16);
+}
+
+$__rr_preflight_sha = is_file(__FILE__) ? hash_file('sha256', __FILE__) : '';
+$__rr_preflight_now = date('Y-m-d H:i:s');
+$__rr_preflight_hb = __DIR__ . '/_race_results_monitor_heartbeat.txt';
+$__rr_preflight_log = __DIR__ . '/_race_results_monitor.log';
+
+$__rr_preflight_line = $__rr_preflight_now
+    . "  token={$__rr_preflight_token}"
+    . "  sig=" . RR_MONITOR_SIGNATURE
+    . "  year={$__rr_preflight_year}"
+    . "  sapi=" . PHP_SAPI
+    . "  stage=preflight"
+    . "  sha={$__rr_preflight_sha}";
+
+@file_put_contents($__rr_preflight_hb, $__rr_preflight_line . "\n", LOCK_EX);
+@file_put_contents(
+    $__rr_preflight_log,
+    '[' . $__rr_preflight_now . '] ' . RR_MONITOR_SIGNATURE
+    . " PREFLIGHT year={$__rr_preflight_year} sapi=" . PHP_SAPI
+    . " sha={$__rr_preflight_sha} token={$__rr_preflight_token}\n",
+    FILE_APPEND | LOCK_EX
+);
 
 require_once __DIR__ . '/race_results_engine.php';
 require_once __DIR__ . '/race_results_snapshot_helper.php';

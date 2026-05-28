@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * cron_master_scheduler.php
  *
- * VERSION: v005
- * LAST MODIFIED: 5/25/2026 6:37:39 pm
+ * VERSION: v006
+ * LAST MODIFIED: 5/25/2026 7:06:53 pm
  *
  * DESCRIPTION:
  * Basic JSON-driven master scheduler for MRL race-results automation.
@@ -25,6 +25,11 @@ declare(strict_types=1);
  *        -> race_results_classify_revisions.php when revisions are detected
  *
  * CHANGELOG:
+ * v006 (5/25/2026)
+ * - CHANGE: Child task runner now defaults to /usr/bin/php instead of PHP_BINARY.
+ * - NEW: Optional schedule.json php_binary setting can override the child PHP executable.
+ * - PURPOSE: Match the known-working Hostinger cron command behavior more closely.
+ *
  * v005 (5/25/2026)
  * - FIX: Child PHP scripts now run from the scheduler base directory using cd before php execution.
  * - NEW: Captures command working directory in task state for easier debugging.
@@ -61,8 +66,8 @@ declare(strict_types=1);
 
 date_default_timezone_set('America/New_York');
 
-const CMS_VERSION = 'v005';
-const CMS_SIGNATURE = 'CRON_MASTER_SCHEDULER v005';
+const CMS_VERSION = 'v006';
+const CMS_SIGNATURE = 'CRON_MASTER_SCHEDULER v006';
 
 $baseDir = __DIR__;
 $schedulerDir = $baseDir . '/_scheduler';
@@ -162,6 +167,8 @@ $state['force_run_flag_detected'] = $forceRunFlagDetected;
 $defaultYear = (int)($schedule['year'] ?? $schedule['default_year'] ?? date('Y'));
 $year = $yearOverride > 0 ? $yearOverride : $defaultYear;
 $globalDryRun = !empty($schedule['dry_run']);
+$childPhpBinary = cms_choose_child_php_binary((string)($schedule['php_binary'] ?? '/usr/bin/php'));
+$state['child_php_binary'] = $childPhpBinary;
 $tasks = isset($schedule['tasks']) && is_array($schedule['tasks']) ? $schedule['tasks'] : [];
 
 $checkedCount = 0;
@@ -262,7 +269,7 @@ foreach ($tasks as $taskName => $task) {
     cms_log($logFile, "TASK RUN {$taskName} script={$script} reason=" . (string)$dueInfo['reason']);
     cms_out("RUN {$taskName}: " . (string)$dueInfo['reason']);
 
-    $result = cms_run_php_script($scriptPath, $args, (int)($task['timeout_seconds'] ?? 300), $baseDir);
+    $result = cms_run_php_script($scriptPath, $args, (int)($task['timeout_seconds'] ?? 300), $baseDir, $childPhpBinary);
     $state['tasks'][$taskName]['last_exit_code'] = $result['exit_code'];
     $state['tasks'][$taskName]['last_output_tail'] = $result['output_tail'];
     $state['tasks'][$taskName]['last_command'] = $result['command'];
@@ -625,10 +632,28 @@ function cms_release_lock($handle, string $lockPath): void
     @unlink($lockPath);
 }
 
-function cms_run_php_script(string $scriptPath, array $args, int $timeoutSeconds, string $workingDir): array
+function cms_choose_child_php_binary(string $configured): string
 {
-    $php = PHP_BINARY;
-    if ($php === '' || !is_file($php)) {
+    $configured = trim($configured);
+    if ($configured !== '' && is_file($configured)) {
+        return $configured;
+    }
+
+    if (is_file('/usr/bin/php')) {
+        return '/usr/bin/php';
+    }
+
+    if (PHP_BINARY !== '' && is_file(PHP_BINARY)) {
+        return PHP_BINARY;
+    }
+
+    return '/usr/bin/php';
+}
+
+function cms_run_php_script(string $scriptPath, array $args, int $timeoutSeconds, string $workingDir, string $phpBinary): array
+{
+    $php = $phpBinary !== '' ? $phpBinary : '/usr/bin/php';
+    if (!is_file($php)) {
         $php = '/usr/bin/php';
     }
 
