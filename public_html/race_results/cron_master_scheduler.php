@@ -5,7 +5,7 @@ declare(strict_types=1);
  * cron_master_scheduler.php
  *
  * VERSION: v007
- * LAST MODIFIED: 5/28/2026 5:50:43 pm
+ * LAST MODIFIED: 5/29/2026 3:43:59 pm
  *
  * DESCRIPTION:
  * Basic JSON-driven master scheduler for MRL race-results automation.
@@ -26,6 +26,9 @@ declare(strict_types=1);
  *
  * CHANGELOG:
  * v007 (5/28/2026)
+ * - NEW: Added cache-busting scheduler query values to URL task calls.
+ * - NEW: Heartbeat verification now retries once briefly before warning.
+ * - PURPOSE: Improves reliability for short interval URL/LiteSpeed monitor runs.
  * - NEW: Added manual force-run flags: run_now_monitor.flag, run_now_revision.flag, run_now_all.flag.
  * - NOTE: Existing run_now.flag is kept as a legacy shortcut for the regular monitor.
  * - CHANGE: Monitor tasks now default to running through the local site URL instead of PHP child exec.
@@ -282,7 +285,7 @@ foreach ($tasks as $taskName => $task) {
     $state['tasks'][$taskName]['last_due_reason'] = (string)$dueInfo['reason'];
     $state['tasks'][$taskName]['last_interval_minutes'] = isset($dueInfo['interval_minutes']) ? (int)$dueInfo['interval_minutes'] : null;
     $runMethod = cms_task_run_method($taskName, $task);
-    $taskUrl = cms_task_url($publicBaseUrl, $script, $args);
+    $taskUrl = cms_task_url($publicBaseUrl, $script, $args, $runToken);
 
     $state['tasks'][$taskName]['last_command_script'] = $script;
     $state['tasks'][$taskName]['last_command_cwd'] = $baseDir;
@@ -755,7 +758,7 @@ function cms_public_base_url(string $baseDir, array $schedule): string
     return 'https://manliusracingleague.com/race_results';
 }
 
-function cms_task_url(string $publicBaseUrl, string $script, array $args): string
+function cms_task_url(string $publicBaseUrl, string $script, array $args, string $runToken): string
 {
     $url = rtrim($publicBaseUrl, '/') . '/' . rawurlencode($script);
 
@@ -763,6 +766,11 @@ function cms_task_url(string $publicBaseUrl, string $script, array $args): strin
     if (isset($args[0]) && preg_match('/^\d{4}$/', (string)$args[0])) {
         $query['year'] = (string)$args[0];
     }
+
+    // Cache-busting values make every scheduled URL call unique.
+    // This helps prevent LiteSpeed/browser-level cached output from being reused.
+    $query['sched_token'] = $runToken;
+    $query['sched_ts'] = date('Ymd_His');
 
     if (!empty($query)) {
         $url .= '?' . http_build_query($query);
@@ -786,6 +794,10 @@ function cms_run_url(string $url, int $timeoutSeconds): array
             curl_setopt($ch, CURLOPT_TIMEOUT, max($timeoutSeconds, 10));
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
             curl_setopt($ch, CURLOPT_USERAGENT, 'MRL Cron Master Scheduler ' . CMS_VERSION);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Cache-Control: no-cache',
+                'Pragma: no-cache',
+            ]);
             $response = curl_exec($ch);
             if ($response === false) {
                 $error = (string)curl_error($ch);
@@ -807,7 +819,9 @@ function cms_run_url(string $url, int $timeoutSeconds): array
         $context = stream_context_create([
             'http' => [
                 'timeout' => max($timeoutSeconds, 10),
-                'header' => "User-Agent: MRL Cron Master Scheduler " . CMS_VERSION . "\r\n",
+                'header' => "User-Agent: MRL Cron Master Scheduler " . CMS_VERSION . "\r\n"
+                    . "Cache-Control: no-cache\r\n"
+                    . "Pragma: no-cache\r\n",
             ],
         ]);
         $response = @file_get_contents($url, false, $context);
@@ -943,14 +957,33 @@ function cms_verify_task_outputs(string $taskName, array $task, string $baseDir,
         ];
     }
 
+    // Short interval URL/LiteSpeed runs can return before the filesystem timestamp is visible.
+    // Retry once before warning.
+    usleep(1500000); // 1.5 seconds
+    clearstatcache(true, $path);
+    $retryMtime = (int)@filemtime($path);
+
+    if ($retryMtime >= ($attemptTs - 5)) {
+        return [
+            'ok' => true,
+            'required' => true,
+            'heartbeat_file' => $heartbeatFile,
+            'heartbeat_path' => $path,
+            'heartbeat_modified_at' => date('Y-m-d H:i:s', $retryMtime),
+            'message' => 'Heartbeat updated after retry.',
+            'verification_retry_used' => true,
+        ];
+    }
+
     return [
         'ok' => false,
         'required' => true,
         'heartbeat_file' => $heartbeatFile,
         'heartbeat_path' => $path,
-        'heartbeat_modified_at' => date('Y-m-d H:i:s', $mtime),
+        'heartbeat_modified_at' => date('Y-m-d H:i:s', $retryMtime > 0 ? $retryMtime : $mtime),
         'attempt_at' => $attemptAt,
         'message' => 'Heartbeat did not update after task run.',
+        'verification_retry_used' => true,
     ];
 }
 
