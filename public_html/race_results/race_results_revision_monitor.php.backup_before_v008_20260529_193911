@@ -4,14 +4,10 @@ declare(strict_types=1);
 /**
  * race_results_revision_monitor.php
  *
- * VERSION: v008
- * LAST MODIFIED: 5/29/2026 7:34:39 pm
+ * VERSION: v007
+ * LAST MODIFIED: 5/19/2026 6:53:40 pm
  *
  * CHANGELOG:
- * v008 (5/29/2026)
- *   - NEW: Always refreshes the full-year classification summary after each revision-monitor scan.
- *   - PURPOSE: Keeps _race_results_classification_summary.json and _race_results_classification_last_run.json current without manually opening the classifier report.
- *
  * v007 (5/19/2026)
  *   - CHANGE: Revision monitor now prefers classifier v009 change/review fields when deciding whether a Rev or review is required.
  *   - CHANGE: review_required drives under_review.flag creation/removal.
@@ -68,7 +64,7 @@ ini_set('log_errors', '1');
 ini_set('error_log', __DIR__ . '/_race_results_revision_monitor_php_errors.log');
 error_reporting(E_ALL);
 
-const RR_REVISION_MONITOR_SIGNATURE = 'RACE_RESULTS_REVISION_MONITOR v008';
+const RR_REVISION_MONITOR_SIGNATURE = 'RACE_RESULTS_REVISION_MONITOR v007';
 
 require_once __DIR__ . '/race_results_engine.php';
 
@@ -120,67 +116,6 @@ function rrrev_out(string $line): void
 {
     if (PHP_SAPI === 'cli') return;
     echo htmlspecialchars($line, ENT_QUOTES, 'UTF-8') . "<br>\n";
-}
-
-function rrrev_refresh_classification_after_scan(int $year, string $logFile): array
-{
-    global $dbo;
-
-    $result = [
-        'ok' => false,
-        'message' => '',
-        'classified_count' => 0,
-        'mrl_impact_count' => 0,
-        'all_driver_change_race_count' => 0,
-        'summary_files' => [],
-    ];
-
-    if (!function_exists('rrcr_run')) {
-        $result['message'] = 'Classifier function rrcr_run() is not available.';
-        rr_log_line($logFile, 'CLASSIFICATION REFRESH SKIPPED: ' . $result['message']);
-        return $result;
-    }
-
-    if (!isset($dbo) || !($dbo instanceof PDO)) {
-        $result['message'] = 'PDO handle $dbo is not available.';
-        rr_log_line($logFile, 'CLASSIFICATION REFRESH SKIPPED: ' . $result['message']);
-        return $result;
-    }
-
-    $options = [
-        'year' => (string)$year,
-        'race_code' => '',
-        'verbose' => false,
-        'write_artifacts' => true,
-        'base_dir' => __DIR__,
-    ];
-
-    try {
-        $classificationResults = rrcr_run($options, $dbo);
-
-        $result['ok'] = true;
-        $result['message'] = 'Classification refresh complete.';
-        $result['classified_count'] = (int)($classificationResults['classifiedCount'] ?? 0);
-        $result['mrl_impact_count'] = (int)($classificationResults['impactCount'] ?? 0);
-        $result['all_driver_change_race_count'] = (int)($classificationResults['allDriverImpactCount'] ?? 0);
-        $result['summary_files'] = isset($classificationResults['summaryFiles']) && is_array($classificationResults['summaryFiles'])
-            ? $classificationResults['summaryFiles']
-            : [];
-
-        rr_log_line(
-            $logFile,
-            'CLASSIFICATION REFRESH COMPLETE'
-            . ' classified=' . (string)$result['classified_count']
-            . ' mrlImpact=' . (string)$result['mrl_impact_count']
-            . ' allDriverChanges=' . (string)$result['all_driver_change_race_count']
-        );
-
-        return $result;
-    } catch (Throwable $e) {
-        $result['message'] = 'Classification refresh exception: ' . $e->getMessage();
-        rr_log_line($logFile, 'CLASSIFICATION REFRESH EXCEPTION: ' . $e->getMessage());
-        return $result;
-    }
 }
 
 // ------------------------- YEAR INDEX HELPERS -------------------------
@@ -878,20 +813,6 @@ foreach ($completedRaces as $race) {
     }
 
 } // end foreach race
-
-// ------------------------- CLASSIFICATION REFRESH AFTER SCAN -------------------------
-$classificationRefresh = rrrev_refresh_classification_after_scan((int)$year, $logFile);
-
-if (!empty($classificationRefresh['ok'])) {
-    rrrev_out(
-        'Classification refresh: OK'
-        . ' / Classified: ' . (string)($classificationRefresh['classified_count'] ?? 0)
-        . ' / MRL Impact: ' . (string)($classificationRefresh['mrl_impact_count'] ?? 0)
-        . ' / All-Driver Changes: ' . (string)($classificationRefresh['all_driver_change_race_count'] ?? 0)
-    );
-} else {
-    rrrev_out('Classification refresh: skipped/failed - ' . (string)($classificationRefresh['message'] ?? 'unknown reason'));
-}
 
 // ------------------------- SUMMARY -------------------------
 rrrev_out("---");

@@ -20,15 +20,6 @@
       "lock_minutes": 10,
       "timeout_seconds": 300,
       "windows": {
-        "test_dashboard_watch": {
-          "enabled": true,
-          "days": [
-            5
-          ],
-          "start": "19:53",
-          "end": "19:55",
-          "interval_minutes": 1
-        },
         "race_day": {
           "enabled": true,
           "days": [
@@ -85,8 +76,7 @@
       ],
       "times": [
         "00:00",
-        "12:00",
-        "19:56"
+        "12:00"
       ],
       "lock_minutes": 30,
       "timeout_seconds": 600
