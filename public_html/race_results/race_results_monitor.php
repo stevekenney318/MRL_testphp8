@@ -4,10 +4,21 @@ declare(strict_types=1);
 /**
  * race_results_monitor.php
  *
- * VERSION: v130
- * LAST MODIFIED: 5/25/2026 7:36:33 pm
+ * VERSION: v132
+ * LAST MODIFIED: 5/31/2026 11:51:10 pm
  *
  * CHANGELOG:
+ *
+ * v132 (5/31/2026)
+ *   - FIX: Live race status extraction now targets the Race Results leader row and captures lap progress from that row.
+ *   - CHANGE: Keeps dashboard display to race name plus lap status only; leader name is not displayed.
+ *   - NOTE: Final-result detection/scoring/snapshot behavior is unchanged.
+ *
+ * v131 (5/31/2026)
+ *   - NEW: Extracts live in-progress race status from ESPN race page text.
+ *   - NEW: Stores dashboard-ready current_race_status in _race_results_monitor_state.json.
+ *   - NEW: Displays lap progress only, such as "Lap 173 of 300", without displaying leader name.
+ *   - NOTE: Final-result detection/scoring/snapshot behavior is unchanged.
  *
  * v130 (5/25/2026)
  *   - NEW: Added an immediate preflight heartbeat/log write before helper includes and USER initialization.
@@ -51,7 +62,7 @@ ini_set('log_errors', '1');
 ini_set('error_log', __DIR__ . '/_race_results_monitor_php_errors.log');
 error_reporting(E_ALL);
 
-const RR_MONITOR_SIGNATURE = 'RACE_RESULTS_MONITOR v130';
+const RR_MONITOR_SIGNATURE = 'RACE_RESULTS_MONITOR v132';
 
 // ------------------------- PREFLIGHT HEARTBEAT -------------------------
 // This intentionally happens before helper includes and USER initialization.
@@ -935,6 +946,167 @@ function rr_monitor_parse_int_cell(string $s): ?int
     return (int)$s;
 }
 
+function rr_monitor_extract_lap_status_from_text(string $text): array
+{
+    $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    $text = preg_replace('/\s+/', ' ', $text);
+    $text = trim((string)$text);
+
+    $out = [
+        'found' => false,
+        'lap_current' => null,
+        'lap_total' => null,
+        'status' => '',
+    ];
+
+    if ($text === '') {
+        return $out;
+    }
+
+    if (preg_match('/\b(?:leads\s+on\s+)?lap\s+(\d+)\s+of\s+(\d+)\b/i', $text, $m)) {
+        $current = (int)$m[1];
+        $total = (int)$m[2];
+
+        if ($current > 0 && $total > 0) {
+            $out['found'] = true;
+            $out['lap_current'] = $current;
+            $out['lap_total'] = $total;
+            $out['status'] = 'Lap ' . $current . ' of ' . $total;
+        }
+    }
+
+    return $out;
+}
+
+function rr_monitor_extract_live_race_status(string $html, int $year, string $raceUrl, string $raceId, string $raceName, bool $isFinal, string $reason): array
+{
+    $shortName = rr_monitor_short_race_label($raceName);
+    $shortName = str_replace('_', ' ', $shortName);
+    $shortName = trim($shortName);
+    if ($shortName === '') {
+        $shortName = 'Race';
+    }
+
+    $out = [
+        'checked_at' => date('c'),
+        'year' => $year,
+        'race_url' => $raceUrl,
+        'race_id' => $raceId,
+        'race_name' => $shortName,
+        'full_race_name' => $raceName,
+        'status' => '',
+        'lap_current' => null,
+        'lap_total' => null,
+        'lap_status_found' => false,
+        'is_final' => $isFinal,
+        'final_reason' => $reason,
+        'parse_method' => '',
+        'tables_found' => 0,
+        'race_result_rows_checked' => 0,
+        'source' => RR_MONITOR_SIGNATURE,
+    ];
+
+    libxml_use_internal_errors(true);
+    $dom = new DOMDocument();
+    $loaded = $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html, LIBXML_NOWARNING | LIBXML_NOERROR);
+    libxml_clear_errors();
+
+    if ($loaded) {
+        $xp = new DOMXPath($dom);
+        $tables = $xp->query('//table');
+        $out['tables_found'] = $tables ? (int)$tables->length : 0;
+
+        if ($tables && $tables->length > 0) {
+            for ($t = 0; $t < $tables->length; $t++) {
+                $tbl = $tables->item($t);
+                if (!$tbl instanceof DOMElement) {
+                    continue;
+                }
+
+                $rows = $xp->query('.//tr', $tbl);
+                if (!$rows || $rows->length === 0) {
+                    continue;
+                }
+
+                $looksLikeRaceResults = false;
+                $headerIndex = -1;
+
+                for ($r = 0; $r < $rows->length; $r++) {
+                    $row = $rows->item($r);
+                    if (!$row instanceof DOMElement) {
+                        continue;
+                    }
+
+                    $cells = $xp->query('./th|./td', $row);
+                    if (!$cells || $cells->length < 2) {
+                        continue;
+                    }
+
+                    $headerText = strtoupper(preg_replace('/\s+/', ' ', trim((string)$row->textContent)));
+                    if (strpos($headerText, 'POS') !== false && strpos($headerText, 'DRIVER') !== false) {
+                        $looksLikeRaceResults = true;
+                        $headerIndex = $r;
+                        break;
+                    }
+                }
+
+                if (!$looksLikeRaceResults) {
+                    continue;
+                }
+
+                for ($r = $headerIndex + 1; $r < $rows->length; $r++) {
+                    $row = $rows->item($r);
+                    if (!$row instanceof DOMElement) {
+                        continue;
+                    }
+
+                    $tds = $xp->query('./td', $row);
+                    if (!$tds || $tds->length < 2) {
+                        continue;
+                    }
+
+                    $posText = trim((string)$tds->item(0)->textContent);
+                    $posDigits = preg_replace('/\D+/', '', $posText);
+                    if ($posDigits === '' || !preg_match('/^\d+$/', $posDigits)) {
+                        continue;
+                    }
+
+                    $out['race_result_rows_checked']++;
+                    $rowText = (string)$row->textContent;
+                    $lap = rr_monitor_extract_lap_status_from_text($rowText);
+
+                    if ($lap['found']) {
+                        $out['status'] = (string)$lap['status'];
+                        $out['lap_current'] = $lap['lap_current'];
+                        $out['lap_total'] = $lap['lap_total'];
+                        $out['lap_status_found'] = true;
+                        $out['parse_method'] = 'race_results_row';
+                        return $out;
+                    }
+
+                    // The live lap marker should appear on the leader/position-1 row.
+                    // If it is not there, stop after the first real race-results row and use fallback below.
+                    break;
+                }
+            }
+        }
+    }
+
+    $plain = html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    $plain = preg_replace('/\s+/', ' ', $plain);
+    $lap = rr_monitor_extract_lap_status_from_text((string)$plain);
+
+    if ($lap['found']) {
+        $out['status'] = (string)$lap['status'];
+        $out['lap_current'] = $lap['lap_current'];
+        $out['lap_total'] = $lap['lap_total'];
+        $out['lap_status_found'] = true;
+        $out['parse_method'] = 'page_text_fallback';
+    }
+
+    return $out;
+}
+
 function rr_monitor_led_check(string $html): array
 {
     $out = [
@@ -1182,6 +1354,8 @@ if ($isFinal && !$ledReady) {
     $isFinal = false;
     $reason = 'Scoring table has non-zero PTS, but LED column is still all zero.';
 }
+
+$yearState['current_race_status'] = rr_monitor_extract_live_race_status($html2, $year, $latestUrl, $raceId, $raceName, $isFinal, $reason);
 
 $yearState['final_check'] = [
     'is_final' => $isFinal,

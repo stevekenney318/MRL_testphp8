@@ -4,10 +4,15 @@ declare(strict_types=1);
 /**
  * race_results_dashboard.php
  *
- * VERSION: v009
- * LAST MODIFIED: 5/31/2026 11:04:57 pm
+ * VERSION: v010
+ * LAST MODIFIED: 5/31/2026 11:26:26 pm
  *
  * CHANGELOG:
+ * v010 (5/31/2026)
+ *   - CHANGE: Monitor Current Race Status now reads current_race_status from monitor state JSON.
+ *   - CHANGE: Removed dashboard-side ESPN fetch for current race status.
+ *   - NOTE: race_results_monitor.php v131 is expected to populate the stored status.
+ *
  * v009 (5/31/2026)
  *   - NEW: Monitor tab now shows a first-pass Current Race Status card.
  *   - NEW: Extracts latest ESPN race URL from monitor log/state, fetches page title, and displays simplified current race name.
@@ -45,7 +50,7 @@ if (!headers_sent()) {
     header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
 }
 
-const RACE_RESULTS_DASHBOARD_VERSION = 'v009';
+const RACE_RESULTS_DASHBOARD_VERSION = 'v010';
 
 
 // -----------------------------------------------------------------------------
@@ -728,6 +733,69 @@ function rr_dash_load_json_file(string $path): array
     return is_array($decoded) ? $decoded : [];
 }
 
+function rr_dash_monitor_year_state(string $stateRaw, int $year): array
+{
+    if ($stateRaw === '') return [];
+
+    $decoded = json_decode($stateRaw, true);
+    if (!is_array($decoded)) return [];
+
+    $yKey = (string)$year;
+    if (isset($decoded['byYear']) && is_array($decoded['byYear'])
+        && isset($decoded['byYear'][$yKey]) && is_array($decoded['byYear'][$yKey])
+    ) {
+        return $decoded['byYear'][$yKey];
+    }
+
+    return $decoded;
+}
+
+function rr_dash_monitor_status_from_state(array $yearState): array
+{
+    $statusRow = (isset($yearState['current_race_status']) && is_array($yearState['current_race_status']))
+        ? $yearState['current_race_status']
+        : [];
+
+    $url = '';
+    foreach (['race_url', 'url', 'latest_url'] as $key) {
+        if (isset($statusRow[$key]) && is_string($statusRow[$key]) && $statusRow[$key] !== '') {
+            $url = $statusRow[$key];
+            break;
+        }
+    }
+
+    if ($url === '' && isset($yearState['latest_url']) && is_string($yearState['latest_url'])) {
+        $url = (string)$yearState['latest_url'];
+    }
+
+    $raceName = '';
+    foreach (['race_name', 'display_race_name', 'short_race_name'] as $key) {
+        if (isset($statusRow[$key]) && is_string($statusRow[$key]) && trim($statusRow[$key]) !== '') {
+            $raceName = trim((string)$statusRow[$key]);
+            break;
+        }
+    }
+
+    $status = '';
+    if (isset($statusRow['status']) && is_string($statusRow['status'])) {
+        $status = trim((string)$statusRow['status']);
+    }
+
+    $checkedAt = '';
+    if (isset($statusRow['checked_at']) && is_string($statusRow['checked_at'])) {
+        $checkedAt = rr_dash_display_datetime((string)$statusRow['checked_at']);
+    }
+
+    return [
+        'url' => $url,
+        'race_name' => $raceName,
+        'status' => $status,
+        'checked_at' => $checkedAt,
+        'found' => ($raceName !== '' || $status !== ''),
+        'fetched' => !empty($statusRow),
+    ];
+}
+
 function rr_dash_extract_latest_monitor_url(string $logText, string $lastLine, string $stateRaw): string
 {
     $candidates = [];
@@ -1144,19 +1212,13 @@ $logExists       = rr_dash_file_exists($logFile);
 $rdStatusCode = rr_dash_json_value($rdStatusRaw, 'status');
 $rdStatusMessage = rr_dash_json_value($rdStatusRaw, 'message');
 
-$monitorStatusUrl = '';
-$monitorCurrentRaceStatus = [
-    'url' => '',
-    'race_name' => '',
-    'status' => '',
-    'found' => false,
-    'fetched' => false,
-];
+$monitorYearState = rr_dash_monitor_year_state($stateRaw, (int)$year);
+$monitorCurrentRaceStatus = rr_dash_monitor_status_from_state($monitorYearState);
+$monitorStatusUrl = (string)($monitorCurrentRaceStatus['url'] ?? '');
 
-$monitorStatusUrl = rr_dash_extract_latest_monitor_url(rr_dash_tail_lines($logFile, 80), $lastLogLine, $stateRaw);
-if ($monitorStatusUrl !== '') {
-    $monitorStatusHtml = rr_dash_fetch_url($monitorStatusUrl);
-    $monitorCurrentRaceStatus = rr_dash_monitor_current_race_status($monitorStatusUrl, $monitorStatusHtml);
+if ($monitorStatusUrl === '') {
+    $monitorStatusUrl = rr_dash_extract_latest_monitor_url(rr_dash_tail_lines($logFile, 80), $lastLogLine, $stateRaw);
+    $monitorCurrentRaceStatus['url'] = $monitorStatusUrl;
 }
 
 // -----------------------------------------------------------------------------
@@ -1934,6 +1996,9 @@ function rr_combined_tab_url(string $selfUrl, string $tab, int $tailLines, int $
             <?php else: ?>
                 <span class="pill warn"><strong>Status:</strong> lap status not found yet</span>
             <?php endif; ?>
+            <?php if (!empty($monitorCurrentRaceStatus['checked_at'])): ?>
+                <span class="pill"><strong>Checked:</strong> <?php echo h((string)$monitorCurrentRaceStatus['checked_at']); ?></span>
+            <?php endif; ?>
             <?php if ((string)$monitorCurrentRaceStatus['url'] !== ''): ?>
                 <a class="btn" href="<?php echo h((string)$monitorCurrentRaceStatus['url']); ?>" target="_blank" rel="noopener">Open race page</a>
             <?php endif; ?>
@@ -1944,7 +2009,7 @@ function rr_combined_tab_url(string $selfUrl, string $tab, int $tailLines, int $
             <a class="btn" href="<?php echo h($monitorStatusUrl); ?>" target="_blank" rel="noopener">Open race page</a>
         </div>
     <?php else: ?>
-        <div class="empty">No current ESPN race URL found in the monitor log/state yet.</div>
+        <div class="empty">No stored current race status found yet. It should appear after race_results_monitor.php v131 runs.</div>
     <?php endif; ?>
 </div>
 
