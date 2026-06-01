@@ -1,7 +1,43 @@
 <?php
 declare(strict_types=1);
 
-// HARD disable caching everywhere
+/**
+ * race_results_dashboard.php
+ *
+ * VERSION: v009
+ * LAST MODIFIED: 5/31/2026 11:04:57 pm
+ *
+ * CHANGELOG:
+ * v009 (5/31/2026)
+ *   - NEW: Monitor tab now shows a first-pass Current Race Status card.
+ *   - NEW: Extracts latest ESPN race URL from monitor log/state, fetches page title, and displays simplified current race name.
+ *   - NEW: Extracts in-progress lap text such as "leads on lap X of Y" and displays only "Lap X of Y".
+ *   - NOTE: This is display-only status; final scoring/snapshot logic is unchanged.
+ *
+ * v008 (5/30/2026)
+ *   - CHANGE: Tightened dashboard header spacing and reduced tab/control height.
+ *   - CHANGE: Standardized scheduler/monitor/revision status rows so raw files open in browser.
+ *   - NEW: Added next-run countdown rows in monitor/revision status sections.
+ *   - CHANGE: Removed top-level scheduler export buttons from normal view.
+ *   - CHANGE: Scheduler bundle JSON now opens inline as raw text instead of forcing download.
+ *
+ * v007 (5/30/2026)
+ *   - CHANGE: Reduced top-page clutter by moving tabs above the status/control panel.
+ *   - CHANGE: Replaced log-line and auto-refresh button groups with dropdown controls.
+ *   - NEW: Added Next Run info to Monitor and Revision tabs.
+ *   - CHANGE: Uses friendlier AM/PM-style display for dashboard dates/times where practical.
+ *   - CHANGE: Removed normal-view manual classifier report links and moved classifier script info to diagnostics.
+ *
+ * v006 (5/30/2026)
+ *   - NEW: First-pass merged dashboard using scheduler_dashboard.php styling.
+ *   - NEW: Adds top-level tabs: Scheduler, Monitor, and Revision.
+ *   - NEW: Preserves scheduler dashboard content and race-results monitor/revision dashboard content in one page.
+ *   - NOTE: No manual run buttons or Guide tab yet; this build is intended as a layout proof.
+ *
+ * v005 (5/19/2026)
+ *   - Previous race-results-only dashboard baseline.
+ */
+
 if (!headers_sent()) {
     header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0');
     header('Cache-Control: post-check=0, pre-check=0', false);
@@ -9,52 +45,519 @@ if (!headers_sent()) {
     header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
 }
 
-/**
- * race_results_dashboard.php
- *
- * VERSION: v005
- * LAST MODIFIED: 5/19/2026 3:26:43 am
- *
- * CHANGELOG:
- *
- * v005 (2026-05-19)
- *   - NEW: Added collapsible Changed Driver Details table using classifier v006 summary data.
- *   - NEW: Dashboard now displays Changed All, MRL-Listed, and Segment-Picked counts in the Revision Classification summary table.
- *   - CHANGE: MRL Impact NO remains green/good and YES remains red/attention.
- *   - CHANGE: Changed Driver Details open/closed state is preserved across auto-refresh.
- *   - CHANGE: Dashboard score-change display now uses a web arrow (→) instead of ASCII ->.
- *   - CHANGE: Changed Driver Details uses neutral YES/NO text for MRL-listed and segment-picked flags.
- *   - CHANGE: Trusted source wording no longer hardcodes classifier v004.
- *
- * v004 (2026-05-18)
- *   - NEW: Revision Classification now uses the trusted classifier v004 summary files instead of independently scanning race folders.
- *   - NEW: Added _race_results_classification_summary.json and _race_results_classification_last_run.json to Revision Monitor File Status.
- *   - NEW: Added trusted classifier signature/version/generated/SAPI/source-file details to the Revision Classification card.
- *   - NEW: Added Classification Last Run JSON display card for quick troubleshooting.
- *   - CHANGE: Dashboard no longer mixes stale revision_meta.json, mrl_impact_summary.json, all_driver_impact_summary.json, and under_review.flag artifacts to build classification totals.
- *   - CHANGE: Revision Classification rows now normalize v004 classifier fields, including status_label, pending_review, display_tag, changed MRL drivers, and changed all drivers.
- *   - CHANGE: If the trusted classifier summary is missing, dashboard now clearly asks to run race_results_classify_revisions.php?year=YYYY instead of inventing a folder-artifact summary.
- *
- * v003 (2026-05-03)
- *   - NEW: Revision Monitor tab now includes a Revision Classification summary using existing revision metadata/classifier artifacts.
- *   - NEW: Added classifier report status and direct link to race_results_classify_revisions.php?year=YYYY.
- *   - NEW: Live Monitor tab now includes RD Status JSON in the File Status section.
- *   - NEW: Added RD Status JSON display card so the dashboard can show the latest RD check result even when no teams are eligible.
- *   - CHANGE: Dashboard now reads _race_results_rd_status.json written by race_results_monitor.php v129.
- *
- * v002 (2026-04-15)
- *   - NEW: Tabbed layout — Live Monitor tab and Revision Monitor tab.
- *   - Tab switching is pure JS/CSS (no page reload).
- *   - Revision Monitor tab shows its own heartbeat, log tail, and file status.
- *   - Active tab highlighted in gold; inactive tab dimmed per mockup.
- *   - All timestamps NY time (America/New_York).
- *
- * v1.00.00.04 (2026-03-08)
- *   - Original single-monitor dashboard.
- *   - Shows heartbeat, monitor state JSON, last log line, log tail.
- *   - Mobile-friendly, auto-refresh, adjustable log line count.
- */
+const RACE_RESULTS_DASHBOARD_VERSION = 'v009';
 
+
+// -----------------------------------------------------------------------------
+// Scheduler dashboard data/functions
+// -----------------------------------------------------------------------------
+date_default_timezone_set('America/New_York');
+
+if (!headers_sent()) {
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    header('Pragma: no-cache');
+    header('Expires: 0');
+}
+
+const SCHEDULER_DASHBOARD_VERSION = 'v006';
+
+$baseDir = __DIR__;
+$schedulerDir = $baseDir . '/_scheduler';
+
+$schedulePath  = $schedulerDir . '/schedule.json';
+$statePath     = $schedulerDir . '/state.json';
+$heartbeatPath = $schedulerDir . '/heartbeat.txt';
+$logPath       = $schedulerDir . '/log.txt';
+
+function sd_html($value): string
+{
+    return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
+}
+
+function sd_read_text(string $path): string
+{
+    if (!is_file($path)) {
+        return '';
+    }
+
+    $text = @file_get_contents($path);
+    return is_string($text) ? $text : '';
+}
+
+function sd_read_json(string $path): array
+{
+    $text = sd_read_text($path);
+    if ($text === '') {
+        return [];
+    }
+
+    $data = json_decode($text, true);
+    return is_array($data) ? $data : [];
+}
+
+function sd_download_text(string $filename, string $content, string $mime = 'text/plain'): void
+{
+    if (!headers_sent()) {
+        header('Content-Type: ' . $mime . '; charset=utf-8');
+        header('Content-Disposition: inline; filename="' . str_replace('"', '', $filename) . '"');
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+    }
+
+    echo $content;
+    exit;
+}
+
+function sd_export_safe_name(string $value): string
+{
+    $value = preg_replace('/[^A-Za-z0-9_.-]+/', '_', $value);
+    return trim((string)$value, '_');
+}
+
+function sd_file_status(string $path): array
+{
+    if (!is_file($path)) {
+        return [
+            'present' => false,
+            'modified' => '',
+            'size' => '',
+        ];
+    }
+
+    $mtime = @filemtime($path);
+    $size = @filesize($path);
+
+    return [
+        'present' => true,
+        'modified' => $mtime ? rr_dash_display_timestamp((int)$mtime) : '',
+        'size' => $size !== false ? sd_format_bytes((int)$size) : '',
+    ];
+}
+
+function sd_format_bytes(int $bytes): string
+{
+    if ($bytes < 1024) {
+        return $bytes . ' B';
+    }
+
+    if ($bytes < 1048576) {
+        return round($bytes / 1024, 1) . ' KB';
+    }
+
+    return round($bytes / 1048576, 2) . ' MB';
+}
+
+function sd_tail_lines(string $text, int $limit): array
+{
+    $text = trim($text);
+    if ($text === '') {
+        return [];
+    }
+
+    $lines = preg_split('/\R/', $text);
+    if (!is_array($lines)) {
+        return [];
+    }
+
+    $lines = array_values(array_filter($lines, function ($line) {
+        return trim((string)$line) !== '';
+    }));
+
+    return array_slice($lines, -1 * $limit);
+}
+
+function sd_parse_dt(?string $value, DateTimeZone $tz): ?DateTimeImmutable
+{
+    $value = trim((string)$value);
+    if ($value === '') {
+        return null;
+    }
+
+    try {
+        return new DateTimeImmutable($value, $tz);
+    } catch (Exception $e) {
+        return null;
+    }
+}
+
+function rr_dash_display_datetime($value): string
+{
+    $value = trim((string)$value);
+    if ($value === '') {
+        return '';
+    }
+
+    if (strtolower($value) === 'now') {
+        return 'now';
+    }
+
+    try {
+        $dt = new DateTimeImmutable($value, new DateTimeZone('America/New_York'));
+        return $dt->format('n/j/Y g:i:s a');
+    } catch (Exception $e) {
+        return $value;
+    }
+}
+
+function rr_dash_display_timestamp($timestamp): string
+{
+    if ($timestamp === false || $timestamp === null || (int)$timestamp <= 0) {
+        return '';
+    }
+
+    return date('n/j/Y g:i:s a', (int)$timestamp);
+}
+
+function rr_dash_next_run_epoch(string $value, DateTimeZone $tz): string
+{
+    $value = trim($value);
+    if ($value === '' || strtolower($value) === 'now') {
+        return '';
+    }
+
+    try {
+        $dt = new DateTimeImmutable($value, $tz);
+        return (string)$dt->getTimestamp();
+    } catch (Exception $e) {
+        return '';
+    }
+}
+
+function sd_time_in_window(DateTimeImmutable $now, string $start, string $end): bool
+{
+    $cur = $now->format('H:i');
+    $start = trim($start);
+    $end = trim($end);
+
+    if ($start === '' || $end === '') {
+        return false;
+    }
+
+    if ($start <= $end) {
+        return ($cur >= $start && $cur <= $end);
+    }
+
+    // Overnight window, such as 22:00 -> 02:00.
+    return ($cur >= $start || $cur <= $end);
+}
+
+function sd_effective_interval(array $task, DateTimeImmutable $now): array
+{
+    $default = isset($task['interval_minutes']) ? (int)$task['interval_minutes'] : 60;
+    $reason = 'default interval';
+
+    if (isset($task['windows']) && is_array($task['windows'])) {
+        $today = (int)$now->format('N'); // 1=Mon, 7=Sun
+
+        foreach ($task['windows'] as $name => $window) {
+            if (!is_array($window)) {
+                continue;
+            }
+
+            if (isset($window['enabled']) && !$window['enabled']) {
+                continue;
+            }
+
+            $days = isset($window['days']) && is_array($window['days']) ? $window['days'] : [];
+            $dayMatch = empty($days) || in_array($today, array_map('intval', $days), true);
+
+            if (!$dayMatch) {
+                continue;
+            }
+
+            $start = isset($window['start']) ? (string)$window['start'] : '';
+            $end = isset($window['end']) ? (string)$window['end'] : '';
+
+            if (!sd_time_in_window($now, $start, $end)) {
+                continue;
+            }
+
+            $interval = isset($window['interval_minutes']) ? (int)$window['interval_minutes'] : $default;
+
+            return [
+                'minutes' => max(1, $interval),
+                'reason' => 'window: ' . (string)$name,
+            ];
+        }
+    }
+
+    return [
+        'minutes' => max(1, $default),
+        'reason' => $reason,
+    ];
+}
+
+function sd_interval_task_status(array $task, array $taskState, DateTimeImmutable $now, DateTimeZone $tz): array
+{
+    $effective = sd_effective_interval($task, $now);
+    $interval = (int)$effective['minutes'];
+
+    $lastAttempt = sd_parse_dt($taskState['last_attempt_at'] ?? '', $tz);
+    $lastCompleted = sd_parse_dt($taskState['last_completed_at'] ?? '', $tz);
+
+    if ($lastAttempt === null) {
+        return [
+            'due' => true,
+            'due_text' => 'DUE',
+            'next_run' => 'now',
+            'schedule_text' => 'every ' . $interval . ' min (' . $effective['reason'] . ')',
+            'last_attempt' => '',
+            'last_completed' => $lastCompleted ? $lastCompleted->format('Y-m-d g:i:s A') : '',
+        ];
+    }
+
+    $next = $lastAttempt->modify('+' . $interval . ' minutes');
+    $due = ($now >= $next);
+
+    return [
+        'due' => $due,
+        'due_text' => $due ? 'DUE' : 'not due',
+        'next_run' => $due ? 'now' : $next->format('Y-m-d g:i:s A'),
+        'schedule_text' => 'every ' . $interval . ' min (' . $effective['reason'] . ')',
+        'last_attempt' => $lastAttempt->format('Y-m-d g:i:s A'),
+        'last_completed' => $lastCompleted ? $lastCompleted->format('Y-m-d g:i:s A') : '',
+    ];
+}
+
+function sd_daily_task_status(array $task, array $taskState, DateTimeImmutable $now, DateTimeZone $tz): array
+{
+    $times = isset($task['times']) && is_array($task['times']) ? $task['times'] : [];
+    $times = array_values(array_filter(array_map('strval', $times), function ($value) {
+        return trim($value) !== '';
+    }));
+    sort($times, SORT_STRING);
+
+    $nextRun = '';
+    $today = $now->format('Y-m-d');
+
+    foreach ($times as $time) {
+        $candidate = sd_parse_dt($today . ' ' . $time . ':00', $tz);
+        if ($candidate !== null && $candidate >= $now) {
+            $nextRun = $candidate->format('Y-m-d g:i:s A');
+            break;
+        }
+    }
+
+    if ($nextRun === '' && !empty($times)) {
+        $tomorrow = $now->modify('+1 day')->format('Y-m-d');
+        $candidate = sd_parse_dt($tomorrow . ' ' . $times[0] . ':00', $tz);
+        if ($candidate !== null) {
+            $nextRun = $candidate->format('Y-m-d g:i:s A');
+        }
+    }
+
+    $curTime = $now->format('H:i');
+    $due = in_array($curTime, $times, true);
+
+    $lastAttempt = sd_parse_dt($taskState['last_attempt_at'] ?? '', $tz);
+    $lastCompleted = sd_parse_dt($taskState['last_completed_at'] ?? '', $tz);
+
+    return [
+        'due' => $due,
+        'due_text' => $due ? 'DUE' : 'not due',
+        'next_run' => $due ? 'now' : $nextRun,
+        'schedule_text' => 'daily at ' . implode(', ', $times),
+        'last_attempt' => $lastAttempt ? $lastAttempt->format('Y-m-d g:i:s A') : '',
+        'last_completed' => $lastCompleted ? $lastCompleted->format('Y-m-d g:i:s A') : '',
+    ];
+}
+
+$schedule = sd_read_json($schedulePath);
+$state = sd_read_json($statePath);
+$heartbeat = sd_read_text($heartbeatPath);
+$logText = sd_read_text($logPath);
+$logLines = sd_tail_lines($logText, 25);
+
+$timezoneName = isset($schedule['timezone']) && (string)$schedule['timezone'] !== ''
+    ? (string)$schedule['timezone']
+    : 'America/New_York';
+
+try {
+    $tz = new DateTimeZone($timezoneName);
+} catch (Exception $e) {
+    $tz = new DateTimeZone('America/New_York');
+    $timezoneName = 'America/New_York';
+}
+
+$now = new DateTimeImmutable('now', $tz);
+$schedulerEnabled = !empty($schedule['enabled']);
+$dryRun = !empty($schedule['dry_run']);
+$year = isset($schedule['year']) ? (string)$schedule['year'] : '';
+
+$tasks = isset($schedule['tasks']) && is_array($schedule['tasks']) ? $schedule['tasks'] : [];
+$taskCount = count($tasks);
+$stateTasks = isset($state['tasks']) && is_array($state['tasks']) ? $state['tasks'] : [];
+
+$fileRows = [
+    'Schedule' => $schedulePath,
+    'State' => $statePath,
+    'Heartbeat' => $heartbeatPath,
+    'Log' => $logPath,
+];
+
+$taskStatusRows = [];
+foreach ($tasks as $taskNameForStatus => $taskForStatus) {
+    if (!is_array($taskForStatus)) {
+        continue;
+    }
+
+    $taskStateForStatus = isset($stateTasks[$taskNameForStatus]) && is_array($stateTasks[$taskNameForStatus]) ? $stateTasks[$taskNameForStatus] : [];
+    $typeForStatus = isset($taskForStatus['type']) ? (string)$taskForStatus['type'] : 'interval';
+    $taskStatusRows[$taskNameForStatus] = ($typeForStatus === 'daily_times')
+        ? sd_daily_task_status($taskForStatus, $taskStateForStatus, $now, $tz)
+        : sd_interval_task_status($taskForStatus, $taskStateForStatus, $now, $tz);
+}
+
+$monitorNextRunRaw = isset($taskStatusRows['race_results_monitor']['next_run'])
+    ? (string)$taskStatusRows['race_results_monitor']['next_run']
+    : '';
+$revisionNextRunRaw = isset($taskStatusRows['race_results_revision_monitor']['next_run'])
+    ? (string)$taskStatusRows['race_results_revision_monitor']['next_run']
+    : '';
+
+$monitorNextRun = $monitorNextRunRaw !== '' ? rr_dash_display_datetime($monitorNextRunRaw) : '';
+$revisionNextRun = $revisionNextRunRaw !== '' ? rr_dash_display_datetime($revisionNextRunRaw) : '';
+
+$monitorNextRunEpoch = rr_dash_next_run_epoch($monitorNextRunRaw, $tz);
+$revisionNextRunEpoch = rr_dash_next_run_epoch($revisionNextRunRaw, $tz);
+
+$export = isset($_GET['export']) ? strtolower(trim((string)$_GET['export'])) : '';
+$exportStamp = $now->format('Ymd_His');
+$exportBaseName = 'mrl_scheduler_' . sd_export_safe_name($year !== '' ? $year : 'unknown') . '_' . $exportStamp;
+
+if ($export !== '') {
+    if ($export === 'schedule') {
+        sd_download_text($exportBaseName . '_schedule.json', sd_read_text($schedulePath), 'application/json');
+    }
+
+    if ($export === 'state') {
+        sd_download_text($exportBaseName . '_state.json', sd_read_text($statePath), 'application/json');
+    }
+
+    if ($export === 'heartbeat') {
+        sd_download_text($exportBaseName . '_heartbeat.txt', sd_read_text($heartbeatPath), 'text/plain');
+    }
+
+    if ($export === 'log') {
+        sd_download_text($exportBaseName . '_log.txt', sd_read_text($logPath), 'text/plain');
+    }
+
+    if ($export === 'bundle') {
+        $bundle = [
+            'generated_at' => $now->format('Y-m-d H:i:s'),
+            'dashboard_version' => SCHEDULER_DASHBOARD_VERSION,
+            'base_dir' => $baseDir,
+            'scheduler_dir' => $schedulerDir,
+            'scheduler_enabled' => $schedulerEnabled,
+            'dry_run' => $dryRun,
+            'year' => $year,
+            'timezone' => $timezoneName,
+            'schedule' => $schedule,
+            'state' => $state,
+            'heartbeat' => trim($heartbeat),
+            'recent_log_lines' => $logLines,
+            'files' => [],
+        ];
+
+        foreach ($fileRows as $label => $path) {
+            $bundle['files'][$label] = sd_file_status($path);
+        }
+
+        sd_download_text(
+            $exportBaseName . '_bundle.json',
+            json_encode($bundle, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL,
+            'application/json'
+        );
+    }
+
+    if ($export === 'summary') {
+        $lines = [];
+        $lines[] = 'MRL Scheduler Dashboard Export';
+        $lines[] = 'Generated: ' . $now->format('Y-m-d g:i:s A');
+        $lines[] = 'Dashboard: ' . SCHEDULER_DASHBOARD_VERSION;
+        $lines[] = 'Base Dir: ' . $baseDir;
+        $lines[] = 'Scheduler Dir: ' . $schedulerDir;
+        $lines[] = 'Scheduler: ' . ($schedulerEnabled ? 'enabled' : 'disabled');
+        $lines[] = 'Mode: ' . ($dryRun ? 'dry run' : 'active');
+        $lines[] = 'Year: ' . ($year !== '' ? $year : 'not set');
+        $lines[] = 'Timezone: ' . $timezoneName;
+        $lines[] = '';
+        $lines[] = 'TASKS';
+
+        if (empty($tasks)) {
+            $lines[] = '- No tasks found in schedule.json.';
+        } else {
+            foreach ($tasks as $taskName => $task) {
+                if (!is_array($task)) {
+                    continue;
+                }
+
+                $taskState = isset($stateTasks[$taskName]) && is_array($stateTasks[$taskName]) ? $stateTasks[$taskName] : [];
+                $type = isset($task['type']) ? (string)$task['type'] : 'interval';
+                $calc = ($type === 'daily_times')
+                    ? sd_daily_task_status($task, $taskState, $now, $tz)
+                    : sd_interval_task_status($task, $taskState, $now, $tz);
+
+                $lines[] = '- ' . (string)$taskName;
+                $lines[] = '  script: ' . (string)($task['script'] ?? '');
+                $lines[] = '  enabled: ' . ((!isset($task['enabled']) || !empty($task['enabled'])) ? 'YES' : 'NO');
+                $lines[] = '  schedule: ' . (string)$calc['schedule_text'];
+                $lines[] = '  due_now: ' . (string)$calc['due_text'];
+                $lines[] = '  next_run: ' . (string)$calc['next_run'];
+                $lines[] = '  last_attempt: ' . (string)$calc['last_attempt'];
+                $lines[] = '  last_completed: ' . (string)$calc['last_completed'];
+                $lines[] = '  last_status: ' . (string)($taskState['last_status'] ?? '');
+                $lines[] = '  last_exit_code: ' . (array_key_exists('last_exit_code', $taskState) ? (string)$taskState['last_exit_code'] : '');
+                $lines[] = '  last_message: ' . (string)($taskState['last_message'] ?? '');
+            }
+        }
+
+        $lines[] = '';
+        $lines[] = 'SCHEDULER FILES';
+        foreach ($fileRows as $label => $path) {
+            $fileStatus = sd_file_status($path);
+            $lines[] = '- ' . $label . ': ' . ($fileStatus['present'] ? 'Present' : 'Missing')
+                . ' | modified=' . (string)$fileStatus['modified']
+                . ' | size=' . (string)$fileStatus['size'];
+        }
+
+        $lines[] = '';
+        $lines[] = 'HEARTBEAT';
+        $lines[] = trim($heartbeat) !== '' ? trim($heartbeat) : '(none)';
+
+        $lines[] = '';
+        $lines[] = 'LAST SCHEDULER SUMMARY';
+        $summary = isset($state['last_scheduler_summary']) && is_array($state['last_scheduler_summary'])
+            ? $state['last_scheduler_summary']
+            : [];
+        $lines[] = 'Last Run: ' . (string)($state['last_scheduler_run_at'] ?? '');
+        $lines[] = 'Last Completed: ' . (string)($state['last_scheduler_complete_at'] ?? '');
+        $lines[] = 'SAPI: ' . (string)($state['last_scheduler_run_sapi'] ?? '');
+        $lines[] = 'TASKS: checked=' . (string)($summary['checked'] ?? '')
+            . ' ran=' . (string)($summary['ran'] ?? '')
+            . ' skipped=' . (string)($summary['skipped'] ?? '')
+            . ' errors=' . (string)($summary['errors'] ?? '');
+
+        $lines[] = '';
+        $lines[] = 'RECENT LOG LINES';
+        if (empty($logLines)) {
+            $lines[] = '(none)';
+        } else {
+            foreach ($logLines as $line) {
+                $lines[] = (string)$line;
+            }
+        }
+
+        sd_download_text($exportBaseName . '_summary.txt', implode(PHP_EOL, $lines) . PHP_EOL, 'text/plain');
+    }
+}
+
+
+
+// -----------------------------------------------------------------------------
+// Race results monitor/revision dashboard data/functions
+// -----------------------------------------------------------------------------
 ini_set('display_errors', '0');
 ini_set('log_errors', '1');
 error_reporting(E_ALL);
@@ -120,7 +623,7 @@ function rr_dash_file_mtime_string(string $path): string
     if (!is_file($path)) return 'Missing';
     $ts = @filemtime($path);
     if ($ts === false) return 'Unknown';
-    return date('Y-m-d g:i:s A', $ts);
+    return rr_dash_display_timestamp((int)$ts);
 }
 
 function rr_dash_file_size_string(string $path): string
@@ -223,6 +726,135 @@ function rr_dash_load_json_file(string $path): array
     if ($raw === false || $raw === '') return [];
     $decoded = json_decode($raw, true);
     return is_array($decoded) ? $decoded : [];
+}
+
+function rr_dash_extract_latest_monitor_url(string $logText, string $lastLine, string $stateRaw): string
+{
+    $candidates = [];
+
+    $state = json_decode($stateRaw, true);
+    if (is_array($state)) {
+        foreach (['latest_url', 'last_url', 'url', 'race_url', 'last_race_url'] as $key) {
+            if (isset($state[$key]) && is_string($state[$key]) && strpos($state[$key], 'espn.com/racing/raceresults') !== false) {
+                $candidates[] = $state[$key];
+            }
+        }
+    }
+
+    $combined = trim($logText . "\n" . $lastLine);
+    if ($combined !== '' && preg_match_all('~https://www\.espn\.com/racing/raceresults/[^\s]+~i', $combined, $matches)) {
+        foreach ($matches[0] as $url) {
+            $candidates[] = rtrim($url, '.,;\')"]}');
+        }
+    }
+
+    if (empty($candidates)) {
+        return '';
+    }
+
+    return (string)end($candidates);
+}
+
+function rr_dash_fetch_url(string $url): string
+{
+    if ($url === '' || !preg_match('~^https://www\.espn\.com/racing/raceresults/~i', $url)) {
+        return '';
+    }
+
+    $context = stream_context_create([
+        'http' => [
+            'method' => 'GET',
+            'timeout' => 4,
+            'header' => "User-Agent: Mozilla/5.0 (MRL Dashboard)\r\nAccept: text/html,application/xhtml+xml\r\n",
+        ],
+        'ssl' => [
+            'verify_peer' => true,
+            'verify_peer_name' => true,
+        ],
+    ]);
+
+    $raw = @file_get_contents($url, false, $context);
+    return is_string($raw) ? $raw : '';
+}
+
+function rr_dash_clean_html_text(string $value): string
+{
+    $value = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    $value = strip_tags($value);
+    $value = preg_replace('/\s+/', ' ', $value);
+    return trim((string)$value);
+}
+
+function rr_dash_simplify_race_name(string $title): string
+{
+    $title = rr_dash_clean_html_text($title);
+    if ($title === '') {
+        return '';
+    }
+
+    $title = preg_replace('/\s*[-|].*$/', '', $title);
+    $title = preg_replace('/^\d{4}\s+/', '', $title);
+    $title = preg_replace('/\s+Results$/i', '', (string)$title);
+    $title = preg_replace('/\s+Race Results$/i', '', (string)$title);
+    $title = trim((string)$title);
+
+    if (preg_match('/\bat\s+(.+)$/i', $title, $m)) {
+        return trim($m[1]);
+    }
+
+    return $title;
+}
+
+function rr_dash_extract_race_title_from_html(string $html): string
+{
+    if ($html === '') {
+        return '';
+    }
+
+    if (preg_match('~<h1[^>]*>(.*?)</h1>~is', $html, $m)) {
+        $title = rr_dash_clean_html_text($m[1]);
+        if ($title !== '') {
+            return $title;
+        }
+    }
+
+    if (preg_match('~<title[^>]*>(.*?)</title>~is', $html, $m)) {
+        $title = rr_dash_clean_html_text($m[1]);
+        if ($title !== '') {
+            return $title;
+        }
+    }
+
+    return '';
+}
+
+function rr_dash_extract_lap_status_from_html(string $html): string
+{
+    if ($html === '') {
+        return '';
+    }
+
+    $text = rr_dash_clean_html_text($html);
+    if (preg_match('/leads\s+on\s+lap\s+(\d+)\s+of\s+(\d+)/i', $text, $m)) {
+        return 'Lap ' . (string)((int)$m[1]) . ' of ' . (string)((int)$m[2]);
+    }
+
+    return '';
+}
+
+function rr_dash_monitor_current_race_status(string $url, string $html): array
+{
+    $title = rr_dash_extract_race_title_from_html($html);
+    $raceName = rr_dash_simplify_race_name($title);
+    $status = rr_dash_extract_lap_status_from_html($html);
+
+    return [
+        'url' => $url,
+        'race_name' => $raceName,
+        'status' => $status,
+        'found' => ($raceName !== '' || $status !== ''),
+        'fetched' => ($html !== ''),
+    ];
 }
 
 function rr_dash_first_existing_int(array $data, array $keys): int
@@ -512,6 +1144,21 @@ $logExists       = rr_dash_file_exists($logFile);
 $rdStatusCode = rr_dash_json_value($rdStatusRaw, 'status');
 $rdStatusMessage = rr_dash_json_value($rdStatusRaw, 'message');
 
+$monitorStatusUrl = '';
+$monitorCurrentRaceStatus = [
+    'url' => '',
+    'race_name' => '',
+    'status' => '',
+    'found' => false,
+    'fetched' => false,
+];
+
+$monitorStatusUrl = rr_dash_extract_latest_monitor_url(rr_dash_tail_lines($logFile, 80), $lastLogLine, $stateRaw);
+if ($monitorStatusUrl !== '') {
+    $monitorStatusHtml = rr_dash_fetch_url($monitorStatusUrl);
+    $monitorCurrentRaceStatus = rr_dash_monitor_current_race_status($monitorStatusUrl, $monitorStatusHtml);
+}
+
 // -----------------------------------------------------------------------------
 // Read data — Revision Monitor
 // -----------------------------------------------------------------------------
@@ -529,644 +1176,1108 @@ $classSummaryExists = rr_dash_file_exists($classSummaryFile);
 $classLastRunExists = rr_dash_file_exists($classLastRunFile);
 $classSummary       = rr_dash_trusted_revision_classification_summary($classSummaryFile, $classLastRunFile, $classYear);
 
-$pageGenerated = date('Y-m-d g:i:s A');
+$pageGenerated = date('n/j/Y g:i:s a');
 $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
-?>
-<!doctype html>
+
+
+// -----------------------------------------------------------------------------
+// Combined dashboard tab selection
+// -----------------------------------------------------------------------------
+$mainTab = isset($_GET['tab']) ? (string)$_GET['tab'] : 'scheduler';
+if (!in_array($mainTab, ['scheduler', 'monitor', 'revision'], true)) {
+    $mainTab = 'scheduler';
+}
+
+function rr_combined_tab_url(string $selfUrl, string $tab, int $tailLines, int $autoRefresh, int $classYear): string
+{
+    return $selfUrl . '?' . http_build_query([
+        'tab' => $tab,
+        'lines' => $tailLines,
+        'refresh' => $autoRefresh,
+        'year' => $classYear,
+    ]);
+}
+
+?><!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <title>MRL Race Results Dashboard</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        :root {
-            --bg:      #171717;
-            --panel:   #222222;
-            --panel2:  #262626;
-            --text:    #f2f2f2;
-            --muted:   #c9c9c9;
-            --accent:  #d8ba86;
-            --accent2: #b99352;
-            --line:    rgba(216,186,134,.25);
-            --ok:      #6fd08c;
-            --warn:    #ffd45d;
-            --bad:     #ef6b6b;
-            --link:    #8cc8ff;
-            --shadow:  0 10px 28px rgba(0,0,0,.28);
-            --mono:    Consolas, Menlo, Monaco, "Courier New", monospace;
-            --sans:    Arial, Helvetica, sans-serif;
+<meta charset="UTF-8">
+<title>MRL Race Results Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+    :root {
+        --bg: #151515;
+        --panel: #232323;
+        --panel2: #1b1b1b;
+        --line: #3a3328;
+        --text: #f1f1f1;
+        --muted: #c9c9c9;
+        --gold: #f2c98e;
+        --blue: #9fd0ff;
+        --green: #55d77d;
+        --green-bg: #263f30;
+        --red: #ff7474;
+        --red-bg: #4a2727;
+        --yellow: #ffd76e;
+        --yellow-bg: #493d20;
+        --shadow: 0 9px 25px rgba(0,0,0,0.25);
+        --mono: Consolas, Monaco, "Courier New", monospace;
+        --sans: Arial, Helvetica, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+        margin: 0;
+        padding: 18px;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--sans);
+        font-size: 15px;
+    }
+
+    h1, h2, h3 {
+        color: var(--gold);
+        margin: 0 0 12px 0;
+    }
+
+    h1 {
+        font-size: 32px;
+        line-height: 1.15;
+    }
+
+    h2 {
+        font-size: 25px;
+        line-height: 1.15;
+    }
+
+    h3 {
+        font-size: 19px;
+        line-height: 1.15;
+    }
+
+    .topline {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 9px;
+        margin-bottom: 14px;
+    }
+
+    .pill, .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid #5a5142;
+        border-radius: 999px;
+        padding: 7px 12px;
+        background: #252525;
+        color: var(--text);
+        font-size: 14px;
+        line-height: 1.2;
+        text-decoration: none;
+    }
+
+    .pill.good {
+        color: var(--green);
+        background: var(--green-bg);
+        border-color: #477a59;
+        font-weight: 700;
+    }
+
+    .pill.bad {
+        color: var(--red);
+        background: var(--red-bg);
+        border-color: #7a4b4b;
+        font-weight: 700;
+    }
+
+    .pill.warn {
+        color: var(--yellow);
+        background: var(--yellow-bg);
+        border-color: #7c6736;
+        font-weight: 700;
+    }
+
+    .btn:hover, .pill.linklike:hover {
+        background: #303030;
+        text-decoration: none;
+    }
+
+    .tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 0 0 16px 0;
+    }
+
+    .tab {
+        display: inline-block;
+        border: 1px solid #5a5142;
+        border-radius: 14px;
+        background: #252525;
+        color: var(--muted);
+        padding: 11px 18px;
+        font-size: 18px;
+        font-weight: 700;
+        line-height: 1.15;
+        text-decoration: none;
+    }
+
+    .tab.active {
+        color: var(--gold);
+        border-color: var(--gold);
+        background: rgba(242,201,142,0.08);
+    }
+
+    .tab:hover {
+        color: var(--gold);
+        text-decoration: none;
+        border-color: var(--gold);
+    }
+
+    .toolbar, .exportbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 0 0 16px 0;
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    @media (min-width: 1100px) {
+        .grid.two {
+            grid-template-columns: 1fr 1fr;
         }
 
-        * { box-sizing: border-box; }
-
-        body {
-            margin: 0;
-            background:
-                radial-gradient(circle at top right, rgba(216,186,134,.10), transparent 35%),
-                radial-gradient(circle at top left,  rgba(255,255,255,.04), transparent 25%),
-                var(--bg);
-            color: var(--text);
-            font-family: var(--sans);
-            line-height: 1.45;
+        .race-grid {
+            grid-template-columns: 1fr 1fr;
         }
 
-        .wrap {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 18px;
+        .full {
+            grid-column: 1 / -1;
         }
+    }
 
-        .header {
-            background: linear-gradient(180deg, #1f1f1f, #1b1b1b);
-            border: 1px solid var(--line);
-            border-radius: 14px;
-            box-shadow: var(--shadow);
-            padding: 18px 20px;
-            margin-bottom: 16px;
-        }
+    .card {
+        border: 1px solid #5a5142;
+        background: linear-gradient(180deg, #222, #1e1e1e);
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: var(--shadow);
+    }
 
-        .tab-bar {
-            display: flex;
-            gap: 14px;
-            flex-wrap: wrap;
-            margin-bottom: 14px;
-        }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--panel);
+        border-radius: 11px;
+        overflow: hidden;
+    }
 
-        .tab-btn {
-            display: inline-block;
-            text-decoration: none;
-            font-size: 28px;
-            font-weight: 700;
-            letter-spacing: .3px;
-            padding: 10px 22px;
-            border-radius: 12px;
-            border: 2px solid transparent;
-            transition: border-color .15s, color .15s, background .15s;
-            cursor: pointer;
-        }
+    th, td {
+        padding: 8px 10px;
+        border-bottom: 1px solid #333;
+        text-align: left;
+        vertical-align: top;
+        line-height: 1.25;
+    }
 
-        .tab-btn.active {
-            color: var(--accent);
-            border-color: var(--accent);
-            background: rgba(216,186,134,.07);
-        }
+    th {
+        color: var(--gold);
+        background: var(--panel2);
+        font-size: 14px;
+    }
 
-        .tab-btn.inactive {
-            color: #666666;
-            border-color: #3a3a3a;
-            background: transparent;
-        }
+    td {
+        font-size: 14px;
+    }
 
-        .tab-btn.inactive:hover {
-            color: #999999;
-            border-color: #555555;
-        }
+    tr:last-child td {
+        border-bottom: none;
+    }
 
-        .subtitle {
-            margin: 0 0 0 4px;
-            color: var(--muted);
-            font-size: 15px;
-        }
+    .status, .badge {
+        font-weight: 700;
+        border-radius: 999px;
+        padding: 4px 9px;
+        display: inline-block;
+        font-size: 13px;
+        line-height: 1.15;
+    }
 
-        .toolbar {
-            margin-top: 14px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            align-items: center;
-        }
+    .status.good, .badge.ok {
+        color: var(--green);
+        background: var(--green-bg);
+        border: 1px solid #477a59;
+    }
 
-        .btn, .pill {
-            display: inline-block;
-            text-decoration: none;
-            color: var(--text);
-            background: #2b2b2b;
-            border: 1px solid var(--line);
-            border-radius: 999px;
-            padding: 8px 12px;
-            font-size: 13px;
-        }
+    .status.bad, .badge.bad {
+        color: var(--red);
+        background: var(--red-bg);
+        border: 1px solid #7a4b4b;
+    }
 
-        .btn:hover { background: #333333; }
+    .status.warn, .badge.warn {
+        color: var(--yellow);
+        background: var(--yellow-bg);
+        border: 1px solid #7c6736;
+    }
 
-        .grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 16px;
-        }
+    .mono, pre {
+        font-family: var(--mono);
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: 13px;
+        line-height: 1.35;
+    }
 
-        @media (min-width: 980px) {
-            .grid { grid-template-columns: 1fr 1fr; }
-            .full { grid-column: 1 / -1; }
-        }
+    pre, .last-line {
+        margin: 0;
+        background: rgba(0,0,0,0.25);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 10px;
+        padding: 14px;
+        color: #f0f0f0;
+        overflow-x: auto;
+    }
 
-        .card {
-            background: linear-gradient(180deg, var(--panel), var(--panel2));
-            border: 1px solid var(--line);
-            border-radius: 14px;
-            box-shadow: var(--shadow);
-            padding: 16px;
-        }
+    .last-line {
+        font-family: var(--mono);
+        font-size: 14px;
+        word-break: break-word;
+    }
 
-        .card h2 {
-            margin: 0 0 12px 0;
-            color: var(--accent);
-            font-size: 28px;
-        }
+    .small, .meta {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.25;
+    }
 
-        .status-list { display: grid; gap: 10px; }
+    a {
+        color: var(--blue);
+        text-decoration: none;
+    }
 
-        .status-row {
-            display: grid;
-            grid-template-columns: 150px 100px 1fr;
-            gap: 10px;
-            align-items: center;
-            padding: 10px 12px;
-            background: rgba(255,255,255,.03);
-            border: 1px solid rgba(255,255,255,.05);
-            border-radius: 10px;
-        }
+    a:hover {
+        text-decoration: underline;
+    }
 
-        @media (max-width: 720px) {
-            .status-row { grid-template-columns: 1fr; }
-        }
+    .msg, .empty {
+        color: var(--muted);
+    }
 
-        .label { font-weight: 700; color: var(--text); }
+    .empty {
+        font-style: italic;
+    }
 
-        .badge {
-            display: inline-block;
-            border-radius: 999px;
-            padding: 4px 10px;
-            font-size: 12px;
-            font-weight: 700;
-            width: fit-content;
-        }
+    .status-list {
+        display: grid;
+        gap: 10px;
+    }
 
-        .badge.ok   { background: rgba(111,208,140,.15); color: var(--ok);   border: 1px solid rgba(111,208,140,.35); }
-        .badge.warn { background: rgba(255,212,93,.15);  color: var(--warn); border: 1px solid rgba(255,212,93,.35); }
-        .badge.bad  { background: rgba(239,107,107,.15); color: var(--bad);  border: 1px solid rgba(239,107,107,.35); }
+    .status-row {
+        display: grid;
+        grid-template-columns: 150px 100px 1fr;
+        gap: 10px;
+        align-items: center;
+        padding: 10px 12px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 10px;
+    }
 
-        .detail-toggle { cursor: pointer; width: fit-content; }
-        .detail-flag { font-weight: 700; color: var(--text); }
-        .detail-flag.muted-no { color: var(--muted); }
+    @media (max-width: 720px) {
+        .status-row { grid-template-columns: 1fr; }
+    }
 
-        .meta { color: var(--muted); font-size: 14px; }
+    .label {
+        font-weight: 700;
+        color: var(--text);
+    }
 
-        pre {
-            margin: 0;
-            white-space: pre-wrap;
-            word-break: break-word;
-            font-family: var(--mono);
-            font-size: 13px;
-            background: rgba(0,0,0,.22);
-            border: 1px solid rgba(255,255,255,.06);
-            border-radius: 10px;
-            padding: 14px;
-            color: #f0f0f0;
-            overflow-x: auto;
-        }
+    .summary-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 14px;
+    }
 
-        .empty { color: var(--muted); font-style: italic; }
+    table.dash-table tr:nth-child(even) td {
+        background: rgba(255,255,255,0.025);
+    }
 
-        .footer {
-            margin-top: 16px;
-            color: var(--muted);
-            font-size: 13px;
-            text-align: center;
-        }
+    .detail-toggle {
+        cursor: pointer;
+        width: fit-content;
+    }
 
-        a.inline-link { color: var(--link); text-decoration: none; }
-        a.inline-link:hover { text-decoration: underline; }
+    .detail-flag {
+        font-weight: 700;
+        color: var(--text);
+    }
 
-        .last-line {
-            font-family: var(--mono);
-            font-size: 14px;
-            background: rgba(0,0,0,.22);
-            border: 1px solid rgba(255,255,255,.06);
-            border-radius: 10px;
-            padding: 14px;
-            color: #f0f0f0;
-            word-break: break-word;
-        }
+    .detail-flag.muted-no {
+        color: var(--muted);
+    }
 
-        .summary-pills {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 14px;
-        }
+    .footer {
+        color: #999;
+        margin-top: 12px;
+        font-size: 12px;
+        text-align: center;
+    }
 
-        table.dash-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 14px;
-            overflow: hidden;
-            border-radius: 10px;
-        }
+    .dashboard-top {
+        display: flex;
+        justify-content: center;
+        margin: 0 0 8px 0;
+    }
 
-        table.dash-table th,
-        table.dash-table td {
-            text-align: left;
-            padding: 8px 10px;
-            border-bottom: 1px solid rgba(255,255,255,.06);
-            vertical-align: top;
-        }
+    .control-panel {
+        border: 2px solid rgba(201,201,201,0.35);
+        border-radius: 14px;
+        padding: 10px 12px;
+        margin: 0 0 12px 0;
+        background: rgba(255,255,255,0.015);
+    }
 
-        table.dash-table th {
-            color: var(--accent);
-            background: rgba(0,0,0,.22);
-            font-weight: 700;
-        }
+    .control-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        margin-top: 8px;
+    }
 
-        table.dash-table tr:nth-child(even) td {
-            background: rgba(255,255,255,.025);
-        }
+    .control-select {
+        border: 1px solid #5a5142;
+        border-radius: 999px;
+        padding: 7px 32px 7px 12px;
+        background: #252525;
+        color: var(--text);
+        font-size: 14px;
+        line-height: 1.2;
+        min-height: 34px;
+    }
 
-        .tab-panel { display: none; }
-        .tab-panel.active { display: block; }
-    </style>
+    .info-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin: 0 0 16px 0;
+    }
+
+    .info-strip .pill {
+        border-radius: 12px;
+    }
+
+    .diagnostic-row {
+        margin-top: 14px;
+        display: grid;
+        grid-template-columns: 150px 120px 1fr;
+        gap: 10px;
+        align-items: center;
+        padding: 10px 12px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 10px;
+    }
+
+    @media (max-width: 720px) {
+        .diagnostic-row { grid-template-columns: 1fr; }
+    }
+
+
+    /* v008 compact unified dashboard refinements */
+    body {
+        padding: 10px 18px;
+    }
+
+    .dashboard-top {
+        margin: 0 0 6px 0;
+    }
+
+    .tabs {
+        gap: 8px;
+        margin: 0;
+        justify-content: center;
+    }
+
+    .tab {
+        padding: 8px 18px;
+        font-size: 17px;
+        border-radius: 12px;
+    }
+
+    .control-panel {
+        padding: 8px 10px;
+        margin: 0 0 10px 0;
+        border-width: 1px;
+    }
+
+    .topline {
+        gap: 7px;
+        margin-bottom: 6px;
+    }
+
+    .control-row {
+        gap: 7px;
+        margin-top: 6px;
+    }
+
+    .pill, .btn {
+        padding: 6px 11px;
+        font-size: 14px;
+    }
+
+    .control-select {
+        padding: 6px 30px 6px 12px;
+        min-height: 32px;
+        min-width: 92px;
+    }
+
+    .card {
+        padding: 14px;
+    }
+
+    .card.status-card {
+        padding: 12px;
+    }
+
+    .status-list {
+        gap: 8px;
+    }
+
+    .status-row {
+        grid-template-columns: 150px 120px 1fr;
+        padding: 9px 11px;
+    }
+
+    .next-run-row {
+        margin-bottom: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .countdown-pill {
+        font-size: 18px;
+        color: var(--muted);
+    }
+
+    .section-spacer {
+        margin-top: 16px;
+    }
+
+    .raw-link-row {
+        margin-top: 10px;
+    }
+
+
+    .race-progress-card {
+        margin-bottom: 16px;
+    }
+
+    .race-progress-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .race-progress-row .pill strong {
+        color: var(--gold);
+    }
+
+</style>
 </head>
 <body>
-<div class="wrap">
 
-    <div class="header">
-        <div class="tab-bar">
-            <a class="tab-btn <?= $activeTab === 'live' ? 'active' : 'inactive' ?>"
-               href="<?=h(rr_dash_build_url($selfUrl, ['tab'=>'live', 'lines'=>$tailLines, 'refresh'=>$autoRefresh]))?>"
-               id="tab-live-link">Race Results Dashboard</a>
-            <a class="tab-btn <?= $activeTab === 'revision' ? 'active' : 'inactive' ?>"
-               href="<?=h(rr_dash_build_url($selfUrl, ['tab'=>'revision', 'lines'=>$tailLines, 'refresh'=>$autoRefresh]))?>"
-               id="tab-revision-link">Race Results Revision Dashboard</a>
-        </div>
+<div class="dashboard-top">
+    <div class="tabs">
+        <a class="tab <?php echo $mainTab === 'scheduler' ? 'active' : ''; ?>" href="<?php echo h(rr_combined_tab_url($selfUrl, 'scheduler', $tailLines, $autoRefresh, $classYear)); ?>">Scheduler</a>
+        <a class="tab <?php echo $mainTab === 'monitor' ? 'active' : ''; ?>" href="<?php echo h(rr_combined_tab_url($selfUrl, 'monitor', $tailLines, $autoRefresh, $classYear)); ?>">Monitor</a>
+        <a class="tab <?php echo $mainTab === 'revision' ? 'active' : ''; ?>" href="<?php echo h(rr_combined_tab_url($selfUrl, 'revision', $tailLines, $autoRefresh, $classYear)); ?>">Revision</a>
+    </div>
+</div>
 
-        <p class="subtitle">
-            <?= $activeTab === 'live'
-                ? 'Quick view for heartbeat, monitor state, RD status, and recent log activity'
-                : 'Quick view for revision monitor heartbeat, classifier summary, and recent revision log activity' ?>
-        </p>
-
-        <div class="toolbar">
-            <span class="pill">Page Generated: <?=h($pageGenerated)?></span>
-            <span class="pill">Log Lines: <?=h((string)$tailLines)?></span>
-            <span class="pill">Auto Refresh: <?= $autoRefresh > 0 ? h((string)$autoRefresh).'s' : 'Off' ?></span>
-            <?php if ($autoRefresh > 0): ?>
-            <span class="pill">Next Refresh: <span id="countdown"><?=h((string)$autoRefresh)?></span>s</span>
-            <?php endif; ?>
-
-            <a class="btn" href="<?=h(rr_dash_build_url($selfUrl, ['tab'=>$activeTab,'lines'=>2,   'refresh'=>$autoRefresh]))?>">2 log lines</a>
-            <a class="btn" href="<?=h(rr_dash_build_url($selfUrl, ['tab'=>$activeTab,'lines'=>4,   'refresh'=>$autoRefresh]))?>">4 log lines</a>
-            <a class="btn" href="<?=h(rr_dash_build_url($selfUrl, ['tab'=>$activeTab,'lines'=>10,  'refresh'=>$autoRefresh]))?>">10 log lines</a>
-            <a class="btn" href="<?=h(rr_dash_build_url($selfUrl, ['tab'=>$activeTab,'lines'=>25,  'refresh'=>$autoRefresh]))?>">25 log lines</a>
-            <a class="btn" href="<?=h(rr_dash_build_url($selfUrl, ['tab'=>$activeTab,'lines'=>50,  'refresh'=>$autoRefresh]))?>">50 log lines</a>
-            <a class="btn" href="<?=h(rr_dash_build_url($selfUrl, ['tab'=>$activeTab,'lines'=>100, 'refresh'=>$autoRefresh]))?>">100 log lines</a>
-
-            <a class="btn" href="<?=h(rr_dash_build_url($selfUrl, ['tab'=>$activeTab,'lines'=>$tailLines,'refresh'=>0]))?>">Refresh Off</a>
-            <a class="btn" href="<?=h(rr_dash_build_url($selfUrl, ['tab'=>$activeTab,'lines'=>$tailLines,'refresh'=>15]))?>">15s</a>
-            <a class="btn" href="<?=h(rr_dash_build_url($selfUrl, ['tab'=>$activeTab,'lines'=>$tailLines,'refresh'=>30]))?>">30s</a>
-            <a class="btn" href="<?=h(rr_dash_build_url($selfUrl, ['tab'=>$activeTab,'lines'=>$tailLines,'refresh'=>60]))?>">1 min</a>
-            <a class="btn" href="<?=h(rr_dash_build_url($selfUrl, ['tab'=>$activeTab,'lines'=>$tailLines,'refresh'=>120]))?>">2 min</a>
-            <a class="btn" href="<?=h(rr_dash_build_url($selfUrl, ['tab'=>$activeTab,'lines'=>$tailLines,'refresh'=>300]))?>">5 min</a>
-            <a class="btn" href="<?=h(rr_dash_build_url($selfUrl, ['tab'=>$activeTab,'lines'=>$tailLines,'refresh'=>$autoRefresh]))?>">Reload Now</a>
-        </div>
+<div class="control-panel">
+    <div class="topline">
+        <span class="pill <?php echo $schedulerEnabled ? 'good' : 'bad'; ?>">
+            Scheduler: <?php echo $schedulerEnabled ? 'enabled' : 'disabled'; ?>
+        </span>
+        <span class="pill <?php echo $dryRun ? 'warn' : 'good'; ?>">
+            Mode: <?php echo $dryRun ? 'dry run' : 'active'; ?>
+        </span>
+        <span class="pill">Year: <?php echo sd_html($year !== '' ? $year : (string)$classYear); ?></span>
+        <span class="pill">Timezone: <?php echo sd_html($timezoneName); ?></span>
+        <span class="pill">Now: <?php echo sd_html($now->format('n/j/Y g:i:s a')); ?></span>
+        <span class="pill">Dashboard: <?php echo sd_html(RACE_RESULTS_DASHBOARD_VERSION); ?></span>
     </div>
 
-    <div class="tab-panel <?= $activeTab === 'live' ? 'active' : '' ?>" id="panel-live">
+    <div class="control-row">
+        <span class="pill">Page Generated: <?php echo h($pageGenerated); ?></span>
 
-        <div class="card" style="margin-bottom:16px;">
-            <h2>Last Log Line</h2>
-            <?php if ($lastLogLine !== ''): ?>
-            <div class="last-line"><?=h($lastLogLine)?></div>
-            <?php else: ?>
-            <div class="empty">Monitor log file is missing or empty.</div>
-            <?php endif; ?>
-        </div>
+        <label class="pill" for="linesSelect">Log Lines</label>
+        <select id="linesSelect" class="control-select" onchange="if (this.value) window.location.href=this.value;">
+            <?php foreach ([2, 4, 10, 25, 50, 100] as $lineOption): ?>
+                <option value="<?php echo h(rr_combined_tab_url($selfUrl, $mainTab, $lineOption, $autoRefresh, $classYear)); ?>" <?php echo $tailLines === $lineOption ? 'selected' : ''; ?>><?php echo h((string)$lineOption); ?></option>
+            <?php endforeach; ?>
+        </select>
 
-        <div class="grid">
+        <label class="pill" for="refreshSelect">Refresh</label>
+        <select id="refreshSelect" class="control-select" onchange="if (this.value) window.location.href=this.value;">
+            <?php $refreshOptions = [0 => 'Off', 15 => '15s', 30 => '30s', 60 => '1 min', 120 => '2 min', 300 => '5 min']; ?>
+            <?php foreach ($refreshOptions as $refreshValue => $refreshLabel): ?>
+                <option value="<?php echo h(rr_combined_tab_url($selfUrl, $mainTab, $tailLines, (int)$refreshValue, $classYear)); ?>" <?php echo $autoRefresh === (int)$refreshValue ? 'selected' : ''; ?>><?php echo h($refreshLabel); ?></option>
+            <?php endforeach; ?>
+        </select>
 
-            <div class="card">
-                <h2>File Status</h2>
-                <div class="status-list">
+        <?php if ($autoRefresh > 0): ?>
+            <span class="pill">Next Refresh: <span id="countdown"><?php echo h((string)$autoRefresh); ?></span>s</span>
+        <?php endif; ?>
 
+        <a class="btn" href="<?php echo h(rr_combined_tab_url($selfUrl, $mainTab, $tailLines, $autoRefresh, $classYear)); ?>">Reload Now</a>
+    </div>
+</div>
+
+<?php if ($mainTab === 'scheduler'): ?>
+
+<div class="grid">
+    <div class="card">
+        <h2>Tasks (<?php echo (int)$taskCount; ?>)</h2>
+
+        <?php if (empty($tasks)): ?>
+            <p class="msg">No tasks found in schedule.json.</p>
+        <?php else: ?>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Task</th>
+                        <th>Enabled</th>
+                        <th>Schedule</th>
+                        <th>Due Now</th>
+                        <th>Next Run</th>
+                        <th>Last Attempt</th>
+                        <th>Last Completed</th>
+                        <th>Last Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php foreach ($tasks as $taskName => $task): ?>
+                    <?php
+                    if (!is_array($task)) {
+                        continue;
+                    }
+
+                    $taskState = isset($stateTasks[$taskName]) && is_array($stateTasks[$taskName]) ? $stateTasks[$taskName] : [];
+                    $type = isset($task['type']) ? (string)$task['type'] : 'interval';
+
+                    if ($type === 'daily_times') {
+                        $calc = sd_daily_task_status($task, $taskState, $now, $tz);
+                    } else {
+                        $calc = sd_interval_task_status($task, $taskState, $now, $tz);
+                    }
+
+                    $enabled = !isset($task['enabled']) || !empty($task['enabled']);
+                    $lastStatus = isset($taskState['last_status']) ? (string)$taskState['last_status'] : '';
+                    $lastMessage = isset($taskState['last_message']) ? (string)$taskState['last_message'] : '';
+                    $exitCode = array_key_exists('last_exit_code', $taskState) ? (string)$taskState['last_exit_code'] : '';
+
+                    $dueClass = $calc['due'] ? 'warn' : 'good';
+                    $enabledClass = $enabled ? 'good' : 'bad';
+                    ?>
+                    <tr>
+                        <td>
+                            <strong><?php echo sd_html($taskName); ?></strong><br>
+                            <span class="small"><?php echo sd_html($task['script'] ?? ''); ?></span>
+                        </td>
+                        <td><span class="status <?php echo $enabledClass; ?>"><?php echo $enabled ? 'YES' : 'NO'; ?></span></td>
+                        <td><?php echo sd_html($calc['schedule_text']); ?></td>
+                        <td><span class="status <?php echo $dueClass; ?>"><?php echo sd_html($calc['due_text']); ?></span></td>
+                        <td><?php echo sd_html(rr_dash_display_datetime((string)$calc['next_run'])); ?></td>
+                        <td><?php echo sd_html(rr_dash_display_datetime((string)$calc['last_attempt'])); ?></td>
+                        <td><?php echo sd_html(rr_dash_display_datetime((string)$calc['last_completed'])); ?></td>
+                        <td>
+                            <?php echo sd_html($lastStatus !== '' ? $lastStatus : ''); ?>
+                            <?php if ($exitCode !== ''): ?>
+                                <br><span class="small">exit: <?php echo sd_html($exitCode); ?></span>
+                            <?php endif; ?>
+                            <?php if ($lastMessage !== ''): ?>
+                                <br><span class="small"><?php echo sd_html($lastMessage); ?></span>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
+    </div>
+
+    <div class="grid two">
+        <div class="card status-card">
+            <div class="status-list">
+                <?php foreach ($fileRows as $label => $path): ?>
+                    <?php $status = sd_file_status($path); ?>
                     <div class="status-row">
-                        <div class="label">Heartbeat</div>
-                        <div class="badge <?=h(rr_dash_status_class($heartbeatExists))?>"><?=h(rr_dash_status_label($heartbeatExists))?></div>
-                        <div class="meta">
-                            Modified: <?=h(rr_dash_file_mtime_string($heartbeatFile))?> |
-                            Size: <?=h(rr_dash_file_size_string($heartbeatFile))?> |
-                            <a class="inline-link" href="_race_results_monitor_heartbeat.txt" target="_blank" rel="noopener">Open raw file</a>
+                        <div class="label"><?php echo sd_html($label); ?></div>
+                        <div>
+                            <span class="status <?php echo $status['present'] ? 'good' : 'bad'; ?>">
+                                <?php echo $status['present'] ? 'Present' : 'Missing'; ?>
+                            </span>
                         </div>
-                    </div>
-
-                    <div class="status-row">
-                        <div class="label">State JSON</div>
-                        <div class="badge <?=h(rr_dash_status_class($stateExists))?>"><?=h(rr_dash_status_label($stateExists))?></div>
                         <div class="meta">
-                            Modified: <?=h(rr_dash_file_mtime_string($stateFile))?> |
-                            Size: <?=h(rr_dash_file_size_string($stateFile))?> |
-                            <a class="inline-link" href="_race_results_monitor_state.json" target="_blank" rel="noopener">Open raw file</a>
-                        </div>
-                    </div>
-
-                    <div class="status-row">
-                        <div class="label">RD Status</div>
-                        <div class="badge <?=h(rr_dash_status_class($rdStatusExists))?>"><?=h(rr_dash_status_label($rdStatusExists))?></div>
-                        <div class="meta">
-                            Modified: <?=h(rr_dash_file_mtime_string($rdStatusFile))?> |
-                            Size: <?=h(rr_dash_file_size_string($rdStatusFile))?> |
-                            <a class="inline-link" href="_race_results_rd_status.json" target="_blank" rel="noopener">Open raw file</a>
-                            <?php if ($rdStatusCode !== ''): ?>
-                                | Status: <?=h($rdStatusCode)?>
+                            Modified: <?php echo sd_html($status['modified']); ?> |
+                            Size: <?php echo sd_html($status['size']); ?>
+                            <?php if ($status['present']): ?>
+                                | <a class="inline-link" href="<?php echo sd_html('_scheduler/' . basename($path)); ?>" target="_blank" rel="noopener">Open raw file</a>
                             <?php endif; ?>
                         </div>
                     </div>
+                <?php endforeach; ?>
 
-                    <div class="status-row">
-                        <div class="label">Monitor Log</div>
-                        <div class="badge <?=h(rr_dash_status_class($logExists))?>"><?=h(rr_dash_status_label($logExists))?></div>
-                        <div class="meta">
-                            Modified: <?=h(rr_dash_file_mtime_string($logFile))?> |
-                            Size: <?=h(rr_dash_file_size_string($logFile))?> |
-                            <a class="inline-link" href="_race_results_monitor.log" target="_blank" rel="noopener">Open raw file</a>
-                        </div>
+                <div class="status-row">
+                    <div class="label">Bundle JSON</div>
+                    <div><span class="status good">Available</span></div>
+                    <div class="meta">
+                        Generated on demand |
+                        <a class="inline-link" href="?tab=scheduler&export=bundle" target="_blank" rel="noopener">Open raw view</a>
                     </div>
-
                 </div>
             </div>
-
-            <div class="card">
-                <h2>Heartbeat</h2>
-                <?php if ($heartbeatRaw !== ''): ?>
-                <pre><?=h(trim($heartbeatRaw))?></pre>
-                <?php else: ?>
-                <div class="empty">Heartbeat file is missing or empty.</div>
-                <?php endif; ?>
-            </div>
-
-            <div class="card full">
-                <h2>RD Status JSON</h2>
-                <?php if ($rdStatusPretty !== ''): ?>
-                <?php if ($rdStatusMessage !== ''): ?>
-                <div class="last-line" style="margin-bottom:12px;"><?=h($rdStatusMessage)?></div>
-                <?php endif; ?>
-                <pre><?=h($rdStatusPretty)?></pre>
-                <?php else: ?>
-                <div class="empty">RD status JSON file is missing or empty. It will appear after the monitor runs an RD check.</div>
-                <?php endif; ?>
-            </div>
-
-            <div class="card full">
-                <h2>Monitor State JSON</h2>
-                <?php if ($statePretty !== ''): ?>
-                <pre><?=h($statePretty)?></pre>
-                <?php else: ?>
-                <div class="empty">State JSON file is missing or empty.</div>
-                <?php endif; ?>
-            </div>
-
-            <div class="card full">
-                <h2>Last <?=h((string)$tailLines)?> Log Lines</h2>
-                <?php if ($logTailRaw !== ''): ?>
-                <pre><?=h(trim($logTailRaw))?></pre>
-                <?php else: ?>
-                <div class="empty">Monitor log file is missing or empty.</div>
-                <?php endif; ?>
-            </div>
-
         </div>
-    </div>
 
-    <div class="tab-panel <?= $activeTab === 'revision' ? 'active' : '' ?>" id="panel-revision">
-
-        <div class="card" style="margin-bottom:16px;">
-            <h2>Last Log Line</h2>
-            <?php if ($revLastLogLine !== ''): ?>
-            <div class="last-line"><?=h($revLastLogLine)?></div>
+        <div class="card">
+            <h2>Heartbeat</h2>
+            <?php if (trim($heartbeat) === ''): ?>
+                <p class="msg">No heartbeat found yet.</p>
             <?php else: ?>
-            <div class="empty">Revision monitor log file is missing or empty.</div>
+                <div class="mono"><?php echo sd_html(trim($heartbeat)); ?></div>
             <?php endif; ?>
         </div>
+    </div>
 
-        <div class="grid">
-
-            <div class="card">
-                <h2>File Status</h2>
-                <div class="status-list">
-
-                    <div class="status-row">
-                        <div class="label">Heartbeat</div>
-                        <div class="badge <?=h(rr_dash_status_class($revHeartbeatExists))?>"><?=h(rr_dash_status_label($revHeartbeatExists))?></div>
-                        <div class="meta">
-                            Modified: <?=h(rr_dash_file_mtime_string($revHeartbeatFile))?> |
-                            Size: <?=h(rr_dash_file_size_string($revHeartbeatFile))?> |
-                            <a class="inline-link" href="_race_results_revision_monitor_heartbeat.txt" target="_blank" rel="noopener">Open raw file</a>
-                        </div>
-                    </div>
-
-                    <div class="status-row">
-                        <div class="label">Revision Log</div>
-                        <div class="badge <?=h(rr_dash_status_class($revLogExists))?>"><?=h(rr_dash_status_label($revLogExists))?></div>
-                        <div class="meta">
-                            Modified: <?=h(rr_dash_file_mtime_string($revLogFile))?> |
-                            Size: <?=h(rr_dash_file_size_string($revLogFile))?> |
-                            <a class="inline-link" href="_race_results_revision_monitor.log" target="_blank" rel="noopener">Open raw file</a>
-                        </div>
-                    </div>
-
-                    <div class="status-row">
-                        <div class="label">Classifier</div>
-                        <div class="badge <?=h(rr_dash_status_class($classifierExists))?>"><?=h(rr_dash_status_label($classifierExists))?></div>
-                        <div class="meta">
-                            Modified: <?=h(rr_dash_file_mtime_string($classifierFile))?> |
-                            Size: <?=h(rr_dash_file_size_string($classifierFile))?> |
-                            <a class="inline-link" href="race_results_classify_revisions.php?year=<?=h((string)$classYear)?>" target="_blank" rel="noopener">Open full classification report</a>
-                        </div>
-                    </div>
-
-                    <div class="status-row">
-                        <div class="label">Class Summary</div>
-                        <div class="badge <?=h(rr_dash_status_class($classSummaryExists))?>"><?=h(rr_dash_status_label($classSummaryExists))?></div>
-                        <div class="meta">
-                            Modified: <?=h(rr_dash_file_mtime_string($classSummaryFile))?> |
-                            Size: <?=h(rr_dash_file_size_string($classSummaryFile))?> |
-                            <a class="inline-link" href="_race_results_classification_summary.json" target="_blank" rel="noopener">Open raw file</a>
-                        </div>
-                    </div>
-
-                    <div class="status-row">
-                        <div class="label">Class Last Run</div>
-                        <div class="badge <?=h(rr_dash_status_class($classLastRunExists))?>"><?=h(rr_dash_status_label($classLastRunExists))?></div>
-                        <div class="meta">
-                            Modified: <?=h(rr_dash_file_mtime_string($classLastRunFile))?> |
-                            Size: <?=h(rr_dash_file_size_string($classLastRunFile))?> |
-                            <a class="inline-link" href="_race_results_classification_last_run.json" target="_blank" rel="noopener">Open raw file</a>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-
-            <div class="card">
-                <h2>Heartbeat</h2>
-                <?php if ($revHeartbeatRaw !== ''): ?>
-                <pre><?=h(trim($revHeartbeatRaw))?></pre>
-                <?php else: ?>
-                <div class="empty">Revision monitor heartbeat file is missing or empty.</div>
-                <?php endif; ?>
-            </div>
-
-            <div class="card full">
-                <h2>Revision Classification</h2>
-
-                <div class="summary-pills">
-                    <span class="pill">Year: <?=h((string)$classSummary['year'])?></span>
-                    <span class="pill">Source: <?=!empty($classSummary['trusted_source']) ? 'Trusted summary' : 'Missing trusted summary'?></span>
-                    <span class="pill">Classified: <?=h((string)$classSummary['classified_count'])?></span>
-                    <span class="pill">MRL Impact: <?=h((string)$classSummary['mrl_impact_count'])?></span>
-                    <span class="pill">All-Driver Change Races: <?=h((string)$classSummary['all_driver_change_race_count'])?></span>
-                    <?php if ((string)$classSummary['signature'] !== ''): ?>
-                    <span class="pill">Signature: <?=h((string)$classSummary['signature'])?></span>
-                    <?php endif; ?>
-                    <?php if ((string)$classSummary['generated_at'] !== ''): ?>
-                    <span class="pill">Generated: <?=h((string)$classSummary['generated_at'])?></span>
-                    <?php endif; ?>
-                    <?php if ((string)$classSummary['sapi'] !== ''): ?>
-                    <span class="pill">SAPI: <?=h((string)$classSummary['sapi'])?></span>
-                    <?php endif; ?>
-                    <a class="btn" href="race_results_classify_revisions.php?year=<?=h((string)$classYear)?>" target="_blank" rel="noopener">Open Full Classification Report</a>
-                </div>
-
-                <?php if ((string)$classSummary['message'] !== ''): ?>
-                <div class="last-line" style="margin-bottom:12px;"><?=h((string)$classSummary['message'])?></div>
-                <?php endif; ?>
-
-                <?php if (!empty($classSummary['rows']) && is_array($classSummary['rows'])): ?>
-                <table class="dash-table">
-                    <thead>
-                        <tr>
-                            <th>Race</th>
-                            <th>MRL Impact</th>
-                            <th>Changed All</th>
-                            <th>MRL-Listed</th>
-                            <th>Segment-Picked</th>
-                            <th>Display</th>
-                            <th>Status</th>
-                            <th>Snapshots</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($classSummary['rows'] as $row): ?>
+    <div class="card">
+        <h2>Last Scheduler Summary</h2>
+        <table>
+            <tbody>
+                <tr>
+                    <th>Last Run</th>
+                    <td><?php echo sd_html($state['last_scheduler_run_at'] ?? ''); ?></td>
+                </tr>
+                <tr>
+                    <th>Last Completed</th>
+                    <td><?php echo sd_html($state['last_scheduler_complete_at'] ?? ''); ?></td>
+                </tr>
+                <tr>
+                    <th>SAPI</th>
+                    <td><?php echo sd_html($state['last_scheduler_run_sapi'] ?? ''); ?></td>
+                </tr>
+                <tr>
+                    <th>Summary</th>
+                    <td>
                         <?php
-                            $impactBadge = !empty($row['mrl_impact']) ? 'bad' : 'ok';
-                            $displayText = (string)($row['display_tag'] ?? '');
-                            if ($displayText === '') $displayText = '—';
-                            $statusText = (string)($row['status_label'] ?? '');
-                            if ($statusText === '') $statusText = !empty($row['classified']) ? 'Classified' : 'Not classified';
-                            $snapText = trim((string)($row['previous_snapshot'] ?? '') . ' → ' . (string)($row['current_snapshot'] ?? ''));
-                            if ($snapText === '→') $snapText = '—';
-                        ?>
-                        <tr>
-                            <td><?=h((string)$row['race_code'])?> <?=h((string)$row['race_label'])?></td>
-                            <td><span class="badge <?=h($impactBadge)?>"><?=!empty($row['mrl_impact']) ? 'YES' : 'NO'?></span></td>
-                            <td><?=h((string)$row['changed_all_drivers'])?></td>
-                            <td><?=h((string)($row['changed_mrl_listed_drivers'] ?? 0))?></td>
-                            <td><?=h((string)($row['changed_segment_picked_drivers'] ?? $row['changed_mrl_drivers']))?></td>
-                            <td><?=h($displayText)?></td>
-                            <td><?=h($statusText)?></td>
-                            <td><?=h($snapText)?></td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-
-                <?php
-                    $changedDetailRows = [];
-                    foreach ($classSummary['rows'] as $detailSourceRow) {
-                        if (!is_array($detailSourceRow)) continue;
-                        $details = isset($detailSourceRow['changed_driver_details']) && is_array($detailSourceRow['changed_driver_details'])
-                            ? $detailSourceRow['changed_driver_details']
+                        $summary = isset($state['last_scheduler_summary']) && is_array($state['last_scheduler_summary'])
+                            ? $state['last_scheduler_summary']
                             : [];
+                        echo 'TASKS: checked=' . sd_html($summary['checked'] ?? '')
+                            . ' ran=' . sd_html($summary['ran'] ?? '')
+                            . ' skipped=' . sd_html($summary['skipped'] ?? '')
+                            . ' errors=' . sd_html($summary['errors'] ?? '');
+                        ?>
+                    </td>
+                </tr>
+                <tr>
+                    <th>Base Dir</th>
+                    <td class="mono"><?php echo sd_html($state['base_dir'] ?? $baseDir); ?></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 
-                        foreach ($details as $detailRow) {
-                            if (!is_array($detailRow)) continue;
-                            $changedDetailRows[] = [
-                                'race_code' => (string)($detailSourceRow['race_code'] ?? ''),
-                                'race_label' => (string)($detailSourceRow['race_label'] ?? ''),
-                                'detail' => $detailRow,
-                            ];
-                        }
-                    }
-                ?>
+    <div class="card">
+        <h2>Recent Scheduler Log</h2>
+        <?php if (empty($logLines)): ?>
+            <p class="msg">No scheduler log lines found yet.</p>
+        <?php else: ?>
+            <div class="mono"><?php echo sd_html(implode("\n", $logLines)); ?></div>
+        <?php endif; ?>
+    </div>
+</div>
 
-                <?php if (!empty($changedDetailRows)): ?>
-                <details id="changed-driver-details" style="margin-top:14px;">
-                    <summary class="btn detail-toggle">Show Changed Driver Details</summary>
-                    <table class="dash-table" style="margin-top:12px;">
-                        <thead>
-                            <tr>
-                                <th>Race</th>
-                                <th>Driver</th>
-                                <th>MRL-Listed</th>
-                                <th>Segment-Picked</th>
-                                <th>PTS</th>
-                                <th>BONUS</th>
-                                <th>PENALTY</th>
-                                <th>NET</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($changedDetailRows as $changedDetailRow): ?>
-                            <?php
-                                $detail = isset($changedDetailRow['detail']) && is_array($changedDetailRow['detail']) ? $changedDetailRow['detail'] : [];
-                                $mrlListed = !empty($detail['mrl_listed']);
-                                $segmentPicked = !empty($detail['segment_picked']);
-                            ?>
-                            <tr>
-                                <td><?=h(trim((string)$changedDetailRow['race_code'] . ' ' . (string)$changedDetailRow['race_label']))?></td>
-                                <td><?=h((string)($detail['driver'] ?? ''))?></td>
-                                <td><span class="detail-flag <?=h($mrlListed ? '' : 'muted-no')?>"><?=h(rr_dash_yes_no($mrlListed))?></span></td>
-                                <td><span class="detail-flag <?=h($segmentPicked ? '' : 'muted-no')?>"><?=h(rr_dash_yes_no($segmentPicked))?></span></td>
-                                <td><?=h(rr_dash_format_score_change($detail, 'pts'))?></td>
-                                <td><?=h(rr_dash_format_score_change($detail, 'bonus'))?></td>
-                                <td><?=h(rr_dash_format_score_change($detail, 'penalty'))?></td>
-                                <td><?=h(rr_dash_format_score_change($detail, 'net'))?></td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </details>
-                <?php endif; ?>
-                <?php else: ?>
-                <div class="empty"><?=h((string)$classSummary['message'])?></div>
-                <?php endif; ?>
+<?php elseif ($mainTab === 'monitor'): ?>
+
+<div class="card" style="margin-bottom:16px;">
+    <h2>Last Log Line</h2>
+    <?php if ($lastLogLine !== ''): ?>
+    <div class="last-line"><?=h($lastLogLine)?></div>
+    <?php else: ?>
+    <div class="empty">Monitor log file is missing or empty.</div>
+    <?php endif; ?>
+</div>
+
+<div class="card race-progress-card">
+    <h2>Current Race Status</h2>
+    <?php if (!empty($monitorCurrentRaceStatus['found'])): ?>
+        <div class="race-progress-row">
+            <?php if ((string)$monitorCurrentRaceStatus['race_name'] !== ''): ?>
+                <span class="pill"><strong>Current race:</strong> <?php echo h((string)$monitorCurrentRaceStatus['race_name']); ?></span>
+            <?php endif; ?>
+            <?php if ((string)$monitorCurrentRaceStatus['status'] !== ''): ?>
+                <span class="pill"><strong>Status:</strong> <?php echo h((string)$monitorCurrentRaceStatus['status']); ?></span>
+            <?php else: ?>
+                <span class="pill warn"><strong>Status:</strong> lap status not found yet</span>
+            <?php endif; ?>
+            <?php if ((string)$monitorCurrentRaceStatus['url'] !== ''): ?>
+                <a class="btn" href="<?php echo h((string)$monitorCurrentRaceStatus['url']); ?>" target="_blank" rel="noopener">Open race page</a>
+            <?php endif; ?>
+        </div>
+    <?php elseif ($monitorStatusUrl !== ''): ?>
+        <div class="race-progress-row">
+            <span class="pill warn"><strong>Current race:</strong> race page found, status not readable yet</span>
+            <a class="btn" href="<?php echo h($monitorStatusUrl); ?>" target="_blank" rel="noopener">Open race page</a>
+        </div>
+    <?php else: ?>
+        <div class="empty">No current ESPN race URL found in the monitor log/state yet.</div>
+    <?php endif; ?>
+</div>
+
+<div class="grid race-grid">
+
+    <div class="card status-card">
+        <div class="next-run-row">
+            <span class="pill"><strong>Next Run:</strong> <?php echo h($monitorNextRun !== '' ? $monitorNextRun : 'not scheduled'); ?></span>
+            <?php if ($monitorNextRunEpoch !== ''): ?>
+                <span class="pill countdown-pill" data-next-run-ts="<?php echo h($monitorNextRunEpoch); ?>">calculating...</span>
+            <?php endif; ?>
+        </div>
+        <div class="status-list">
+
+            <div class="status-row">
+                <div class="label">Heartbeat</div>
+                <div class="badge <?=h(rr_dash_status_class($heartbeatExists))?>"><?=h(rr_dash_status_label($heartbeatExists))?></div>
+                <div class="meta">
+                    Modified: <?=h(rr_dash_file_mtime_string($heartbeatFile))?> |
+                    Size: <?=h(rr_dash_file_size_string($heartbeatFile))?> |
+                    <a class="inline-link" href="_race_results_monitor_heartbeat.txt" target="_blank" rel="noopener">Open raw file</a>
+                </div>
             </div>
 
-            <div class="card full">
-                <h2>Classification Last Run JSON</h2>
-                <?php if ($classLastRunPretty !== ''): ?>
-                <pre><?=h($classLastRunPretty)?></pre>
-                <?php else: ?>
-                <div class="empty">Classification last-run JSON file is missing or empty. Run the full classifier report to create it.</div>
-                <?php endif; ?>
+            <div class="status-row">
+                <div class="label">State JSON</div>
+                <div class="badge <?=h(rr_dash_status_class($stateExists))?>"><?=h(rr_dash_status_label($stateExists))?></div>
+                <div class="meta">
+                    Modified: <?=h(rr_dash_file_mtime_string($stateFile))?> |
+                    Size: <?=h(rr_dash_file_size_string($stateFile))?> |
+                    <a class="inline-link" href="_race_results_monitor_state.json" target="_blank" rel="noopener">Open raw file</a>
+                </div>
             </div>
 
-            <div class="card full">
-                <h2>Last <?=h((string)$tailLines)?> Log Lines</h2>
-                <?php if ($revLogTailRaw !== ''): ?>
-                <pre><?=h(trim($revLogTailRaw))?></pre>
-                <?php else: ?>
-                <div class="empty">Revision monitor log file is missing or empty.</div>
-                <?php endif; ?>
+            <div class="status-row">
+                <div class="label">RD Status</div>
+                <div class="badge <?=h(rr_dash_status_class($rdStatusExists))?>"><?=h(rr_dash_status_label($rdStatusExists))?></div>
+                <div class="meta">
+                    Modified: <?=h(rr_dash_file_mtime_string($rdStatusFile))?> |
+                    Size: <?=h(rr_dash_file_size_string($rdStatusFile))?> |
+                    <a class="inline-link" href="_race_results_rd_status.json" target="_blank" rel="noopener">Open raw file</a>
+                    <?php if ($rdStatusCode !== ''): ?>
+                        | Status: <?=h($rdStatusCode)?>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <div class="status-row">
+                <div class="label">Monitor Log</div>
+                <div class="badge <?=h(rr_dash_status_class($logExists))?>"><?=h(rr_dash_status_label($logExists))?></div>
+                <div class="meta">
+                    Modified: <?=h(rr_dash_file_mtime_string($logFile))?> |
+                    Size: <?=h(rr_dash_file_size_string($logFile))?> |
+                    <a class="inline-link" href="_race_results_monitor.log" target="_blank" rel="noopener">Open raw file</a>
+                </div>
             </div>
 
         </div>
     </div>
 
-    <div class="footer">
-        MRL Race Results Dashboard • Drop-in page for /race_results/
+    <div class="card">
+        <h2>Heartbeat</h2>
+        <?php if ($heartbeatRaw !== ''): ?>
+        <pre><?=h(trim($heartbeatRaw))?></pre>
+        <?php else: ?>
+        <div class="empty">Heartbeat file is missing or empty.</div>
+        <?php endif; ?>
+    </div>
+
+    <div class="card full">
+        <h2>RD Status JSON</h2>
+        <?php if ($rdStatusPretty !== ''): ?>
+        <?php if ($rdStatusMessage !== ''): ?>
+        <div class="last-line" style="margin-bottom:12px;"><?=h($rdStatusMessage)?></div>
+        <?php endif; ?>
+        <pre><?=h($rdStatusPretty)?></pre>
+        <?php else: ?>
+        <div class="empty">RD status JSON file is missing or empty. It will appear after the monitor runs an RD check.</div>
+        <?php endif; ?>
+    </div>
+
+    <div class="card full">
+        <h2>Monitor State JSON</h2>
+        <?php if ($statePretty !== ''): ?>
+        <pre><?=h($statePretty)?></pre>
+        <?php else: ?>
+        <div class="empty">State JSON file is missing or empty.</div>
+        <?php endif; ?>
+    </div>
+
+    <div class="card full">
+        <h2>Last <?=h((string)$tailLines)?> Log Lines</h2>
+        <?php if ($logTailRaw !== ''): ?>
+        <pre><?=h(trim($logTailRaw))?></pre>
+        <?php else: ?>
+        <div class="empty">Monitor log file is missing or empty.</div>
+        <?php endif; ?>
     </div>
 
 </div>
 
+<?php else: ?>
+
+<div class="card" style="margin-bottom:16px;">
+    <h2>Last Log Line</h2>
+    <?php if ($revLastLogLine !== ''): ?>
+    <div class="last-line"><?=h($revLastLogLine)?></div>
+    <?php else: ?>
+    <div class="empty">Revision monitor log file is missing or empty.</div>
+    <?php endif; ?>
+</div>
+
+<div class="grid race-grid">
+
+    <div class="card status-card">
+        <div class="next-run-row">
+            <span class="pill"><strong>Next Run:</strong> <?php echo h($revisionNextRun !== '' ? $revisionNextRun : 'not scheduled'); ?></span>
+            <?php if ($revisionNextRunEpoch !== ''): ?>
+                <span class="pill countdown-pill" data-next-run-ts="<?php echo h($revisionNextRunEpoch); ?>">calculating...</span>
+            <?php endif; ?>
+        </div>
+        <div class="status-list">
+
+            <div class="status-row">
+                <div class="label">Heartbeat</div>
+                <div class="badge <?=h(rr_dash_status_class($revHeartbeatExists))?>"><?=h(rr_dash_status_label($revHeartbeatExists))?></div>
+                <div class="meta">
+                    Modified: <?=h(rr_dash_file_mtime_string($revHeartbeatFile))?> |
+                    Size: <?=h(rr_dash_file_size_string($revHeartbeatFile))?> |
+                    <a class="inline-link" href="_race_results_revision_monitor_heartbeat.txt" target="_blank" rel="noopener">Open raw file</a>
+                </div>
+            </div>
+
+            <div class="status-row">
+                <div class="label">Revision Log</div>
+                <div class="badge <?=h(rr_dash_status_class($revLogExists))?>"><?=h(rr_dash_status_label($revLogExists))?></div>
+                <div class="meta">
+                    Modified: <?=h(rr_dash_file_mtime_string($revLogFile))?> |
+                    Size: <?=h(rr_dash_file_size_string($revLogFile))?> |
+                    <a class="inline-link" href="_race_results_revision_monitor.log" target="_blank" rel="noopener">Open raw file</a>
+                </div>
+            </div>
+            <div class="status-row">
+                <div class="label">Class Summary</div>
+                <div class="badge <?=h(rr_dash_status_class($classSummaryExists))?>"><?=h(rr_dash_status_label($classSummaryExists))?></div>
+                <div class="meta">
+                    Modified: <?=h(rr_dash_file_mtime_string($classSummaryFile))?> |
+                    Size: <?=h(rr_dash_file_size_string($classSummaryFile))?> |
+                    <a class="inline-link" href="_race_results_classification_summary.json" target="_blank" rel="noopener">Open raw file</a>
+                </div>
+            </div>
+
+            <div class="status-row">
+                <div class="label">Class Last Run</div>
+                <div class="badge <?=h(rr_dash_status_class($classLastRunExists))?>"><?=h(rr_dash_status_label($classLastRunExists))?></div>
+                <div class="meta">
+                    Modified: <?=h(rr_dash_file_mtime_string($classLastRunFile))?> |
+                    Size: <?=h(rr_dash_file_size_string($classLastRunFile))?> |
+                    <a class="inline-link" href="_race_results_classification_last_run.json" target="_blank" rel="noopener">Open raw file</a>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Heartbeat</h2>
+        <?php if ($revHeartbeatRaw !== ''): ?>
+        <pre><?=h(trim($revHeartbeatRaw))?></pre>
+        <?php else: ?>
+        <div class="empty">Revision monitor heartbeat file is missing or empty.</div>
+        <?php endif; ?>
+
+        <div class="diagnostic-row">
+            <div class="label">Classifier</div>
+            <div class="badge <?=h(rr_dash_status_class($classifierExists))?>"><?=h(rr_dash_status_label($classifierExists))?></div>
+            <div class="meta">
+                Script modified: <?=h(rr_dash_file_mtime_string($classifierFile))?> |
+                Size: <?=h(rr_dash_file_size_string($classifierFile))?>
+            </div>
+        </div>
+    </div>
+
+    <div class="card full">
+        <h2>Revision Classification</h2>
+
+        <div class="summary-pills">
+            <span class="pill">Year: <?=h((string)$classSummary['year'])?></span>
+            <span class="pill">Source: <?=!empty($classSummary['trusted_source']) ? 'Trusted summary' : 'Missing trusted summary'?></span>
+            <span class="pill">Classified: <?=h((string)$classSummary['classified_count'])?></span>
+            <span class="pill">MRL Impact: <?=h((string)$classSummary['mrl_impact_count'])?></span>
+            <span class="pill">All-Driver Change Races: <?=h((string)$classSummary['all_driver_change_race_count'])?></span>
+            <?php if ((string)$classSummary['signature'] !== ''): ?>
+            <span class="pill">Signature: <?=h((string)$classSummary['signature'])?></span>
+            <?php endif; ?>
+            <?php if ((string)$classSummary['generated_at'] !== ''): ?>
+            <span class="pill">Generated: <?=h(rr_dash_display_datetime((string)$classSummary['generated_at']))?></span>
+            <?php endif; ?>
+            <?php if ((string)$classSummary['sapi'] !== ''): ?>
+            <span class="pill">SAPI: <?=h((string)$classSummary['sapi'])?></span>
+            <?php endif; ?>
+        </div>
+
+        <?php if ((string)$classSummary['message'] !== ''): ?>
+        <div class="last-line" style="margin-bottom:12px;"><?=h((string)$classSummary['message'])?></div>
+        <?php endif; ?>
+
+        <?php if (!empty($classSummary['rows']) && is_array($classSummary['rows'])): ?>
+        <table class="dash-table">
+            <thead>
+                <tr>
+                    <th>Race</th>
+                    <th>MRL Impact</th>
+                    <th>Changed All</th>
+                    <th>MRL-Listed</th>
+                    <th>Segment-Picked</th>
+                    <th>Display</th>
+                    <th>Status</th>
+                    <th>Snapshots</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($classSummary['rows'] as $row): ?>
+                <?php
+                    $impactBadge = !empty($row['mrl_impact']) ? 'bad' : 'ok';
+                    $displayText = (string)($row['display_tag'] ?? '');
+                    if ($displayText === '') $displayText = '—';
+                    $statusText = (string)($row['status_label'] ?? '');
+                    if ($statusText === '') $statusText = !empty($row['classified']) ? 'Classified' : 'Not classified';
+                    $snapText = trim((string)($row['previous_snapshot'] ?? '') . ' → ' . (string)($row['current_snapshot'] ?? ''));
+                    if ($snapText === '→') $snapText = '—';
+                ?>
+                <tr>
+                    <td><?=h((string)$row['race_code'])?> <?=h((string)$row['race_label'])?></td>
+                    <td><span class="badge <?=h($impactBadge)?>"><?=!empty($row['mrl_impact']) ? 'YES' : 'NO'?></span></td>
+                    <td><?=h((string)$row['changed_all_drivers'])?></td>
+                    <td><?=h((string)($row['changed_mrl_listed_drivers'] ?? 0))?></td>
+                    <td><?=h((string)($row['changed_segment_picked_drivers'] ?? $row['changed_mrl_drivers']))?></td>
+                    <td><?=h($displayText)?></td>
+                    <td><?=h($statusText)?></td>
+                    <td><?=h($snapText)?></td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+
+        <?php
+            $changedDetailRows = [];
+            foreach ($classSummary['rows'] as $detailSourceRow) {
+                if (!is_array($detailSourceRow)) continue;
+                $details = isset($detailSourceRow['changed_driver_details']) && is_array($detailSourceRow['changed_driver_details'])
+                    ? $detailSourceRow['changed_driver_details']
+                    : [];
+
+                foreach ($details as $detailRow) {
+                    if (!is_array($detailRow)) continue;
+                    $changedDetailRows[] = [
+                        'race_code' => (string)($detailSourceRow['race_code'] ?? ''),
+                        'race_label' => (string)($detailSourceRow['race_label'] ?? ''),
+                        'detail' => $detailRow,
+                    ];
+                }
+            }
+        ?>
+
+        <?php if (!empty($changedDetailRows)): ?>
+        <details id="changed-driver-details" style="margin-top:14px;">
+            <summary class="btn detail-toggle">Show Changed Driver Details</summary>
+            <table class="dash-table" style="margin-top:12px;">
+                <thead>
+                    <tr>
+                        <th>Race</th>
+                        <th>Driver</th>
+                        <th>MRL-Listed</th>
+                        <th>Segment-Picked</th>
+                        <th>PTS</th>
+                        <th>BONUS</th>
+                        <th>PENALTY</th>
+                        <th>NET</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($changedDetailRows as $changedDetailRow): ?>
+                    <?php
+                        $detail = isset($changedDetailRow['detail']) && is_array($changedDetailRow['detail']) ? $changedDetailRow['detail'] : [];
+                        $mrlListed = !empty($detail['mrl_listed']);
+                        $segmentPicked = !empty($detail['segment_picked']);
+                    ?>
+                    <tr>
+                        <td><?=h(trim((string)$changedDetailRow['race_code'] . ' ' . (string)$changedDetailRow['race_label']))?></td>
+                        <td><?=h((string)($detail['driver'] ?? ''))?></td>
+                        <td><span class="detail-flag <?=h($mrlListed ? '' : 'muted-no')?>"><?=h(rr_dash_yes_no($mrlListed))?></span></td>
+                        <td><span class="detail-flag <?=h($segmentPicked ? '' : 'muted-no')?>"><?=h(rr_dash_yes_no($segmentPicked))?></span></td>
+                        <td><?=h(rr_dash_format_score_change($detail, 'pts'))?></td>
+                        <td><?=h(rr_dash_format_score_change($detail, 'bonus'))?></td>
+                        <td><?=h(rr_dash_format_score_change($detail, 'penalty'))?></td>
+                        <td><?=h(rr_dash_format_score_change($detail, 'net'))?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </details>
+        <?php endif; ?>
+        <?php else: ?>
+        <div class="empty"><?=h((string)$classSummary['message'])?></div>
+        <?php endif; ?>
+    </div>
+
+    <div class="card full">
+        <h2>Classification Last Run JSON</h2>
+        <?php if ($classLastRunPretty !== ''): ?>
+        <pre><?=h($classLastRunPretty)?></pre>
+        <?php else: ?>
+        <div class="empty">Classification last-run JSON file is missing or empty. Run the full classifier report to create it.</div>
+        <?php endif; ?>
+    </div>
+
+    <div class="card full">
+        <h2>Last <?=h((string)$tailLines)?> Log Lines</h2>
+        <?php if ($revLogTailRaw !== ''): ?>
+        <pre><?=h(trim($revLogTailRaw))?></pre>
+        <?php else: ?>
+        <div class="empty">Revision monitor log file is missing or empty.</div>
+        <?php endif; ?>
+    </div>
+
+</div>
+
+<?php endif; ?>
+
+<div class="footer">
+    Auto-refreshes according to selected refresh setting. Generated by race_results_dashboard.php <?php echo h(RACE_RESULTS_DASHBOARD_VERSION); ?>.
+</div>
 
 <script>
 (function () {
@@ -1183,6 +2294,50 @@ $selfUrl = strtok($_SERVER['REQUEST_URI'] ?? 'race_results_dashboard.php', '?');
     detailsEl.addEventListener('toggle', function () {
         localStorage.setItem(storageKey, detailsEl.open ? '1' : '0');
     });
+})();
+</script>
+
+<script>
+(function () {
+    function pad2(value) {
+        return String(value).padStart(2, '0');
+    }
+
+    function formatDuration(totalSeconds) {
+        totalSeconds = Math.max(0, Math.floor(totalSeconds));
+        var days = Math.floor(totalSeconds / 86400);
+        var remainder = totalSeconds % 86400;
+        var hours = Math.floor(remainder / 3600);
+        remainder = remainder % 3600;
+        var minutes = Math.floor(remainder / 60);
+        var seconds = remainder % 60;
+
+        var clock = hours + ':' + pad2(minutes) + ':' + pad2(seconds);
+        if (days > 0) {
+            return days + 'd ' + clock + ' from now';
+        }
+        return clock + ' from now';
+    }
+
+    function updateNextRunCountdowns() {
+        var nowSeconds = Math.floor(Date.now() / 1000);
+        document.querySelectorAll('[data-next-run-ts]').forEach(function (el) {
+            var target = parseInt(el.getAttribute('data-next-run-ts') || '0', 10);
+            if (!target) {
+                el.textContent = '';
+                return;
+            }
+            var remaining = target - nowSeconds;
+            if (remaining <= 0) {
+                el.textContent = 'due now';
+                return;
+            }
+            el.textContent = formatDuration(remaining);
+        });
+    }
+
+    updateNextRunCountdowns();
+    window.setInterval(updateNextRunCountdowns, 1000);
 })();
 </script>
 
