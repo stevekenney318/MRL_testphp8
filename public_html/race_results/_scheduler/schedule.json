@@ -62,7 +62,7 @@
             1
           ],
           "start": "00:00",
-          "end": "12:59",
+          "end": "00:59",
           "interval_minutes": 1
         },
         "race_finish_after_midnight": {
