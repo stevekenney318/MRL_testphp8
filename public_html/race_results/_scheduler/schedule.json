@@ -20,6 +20,16 @@
       "lock_minutes": 10,
       "timeout_seconds": 300,
       "windows": {
+        "Non_Race_Days": {
+          "enabled": true,
+          "days": [
+            2,3,4,5,6
+          ],
+          "start": "00:00",
+          "end": "23:59",
+          "interval_minutes": 120
+        },
+
         "race_day_noon": {
           "enabled": true,
           "days": [
