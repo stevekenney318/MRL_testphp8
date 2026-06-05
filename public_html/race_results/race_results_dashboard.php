@@ -4,10 +4,35 @@ declare(strict_types=1);
 /**
  * race_results_dashboard.php
  *
- * VERSION: v010
- * LAST MODIFIED: 5/31/2026 11:26:26 pm
+ * VERSION: v011
+ * LAST MODIFIED: 6/5/2026 1:25:06 am
  *
  * CHANGELOG:
+ * v011 (6/3/2026)
+ *   - CHANGE: Updated Revision Summary action confirmation wording to refer to the source site instead of ESPN.
+ *   - CHANGE: Renamed Revision Summary Run Now to Refresh Summary and added a separate Regenerate Summary action that runs the revision monitor.
+ *   - FIX: Aligned collapsed JSON panel headers with the rest of the dashboard card headings.
+ *   - CHANGE: Renamed Classification Last Run JSON panel to Revision Summary Data.
+ *   - CHANGE: Changed Driver Details toggle now switches between Show and Hide wording.
+ *   - CHANGE: Tightened JSON toggle header alignment for better visual consistency with other panels.
+ *   - CHANGE: Restyled dashboard action buttons as blue rounded action controls to better distinguish clickable actions from status labels.
+ *   - CHANGE: Revision Summary details now use a stable same-row toggle button with remembered open/closed state.
+ *   - CHANGE: Run Now notice now auto-hides after display and removes status parameters from the browser URL.
+ *   - CHANGE: Revision tab classifier block now presents as Revision Summary with title, generated timestamp, and Run Now action on one line.
+ *   - CHANGE: Revision Summary metadata pills now live in an expandable Summary Details section instead of always taking vertical space.
+ *   - NEW: Added confirmed Run Now action link for manually refreshing the trusted revision summary/classifier output.
+ *   - CHANGE: Revision Summary header now keeps title, generated timestamp, Run Now, and Summary Details on one compact line.
+ *   - CHANGE: Run Now now refreshes the trusted revision summary on the dashboard page instead of leaving the user on the classifier report tab.
+ *   - FIX: Bundle JSON and scheduler summary now report the merged dashboard version instead of the older scheduler-dashboard version.
+ *   - NEW: Added automatic cache-buster values to raw file links so active logs/state/heartbeat files open fresh.
+ *   - NEW: Added scheduler heartbeat freshness status to separate current cron heartbeat from scheduler/task configuration.
+ *   - CHANGE: Clarified top status wording to Scheduler / Cron / Mode, with dry-run shown as dry run / paused.
+ *   - CHANGE: Last Status values now display status pill and exit code on one line, with message on the next line.
+ *   - NEW: Raw-file and bundle links refresh their cache-buster value at click time so repeated clicks request fresh content.
+ *   - CHANGE: Consolidated Log Lines and Refresh controls into single labeled dropdowns.
+ *   - CHANGE: RD Status JSON, Monitor State JSON, and Classification Last Run JSON panels are collapsed by default with Open/Close toggles.
+ *   - CHANGE: Styled JSON panel Open/Close toggles as compact blue dashboard controls.
+ *
  * v010 (5/31/2026)
  *   - CHANGE: Monitor Current Race Status now reads current_race_status from monitor state JSON.
  *   - CHANGE: Removed dashboard-side ESPN fetch for current race status.
@@ -50,7 +75,7 @@ if (!headers_sent()) {
     header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
 }
 
-const RACE_RESULTS_DASHBOARD_VERSION = 'v010';
+const RACE_RESULTS_DASHBOARD_VERSION = 'v011';
 
 
 // -----------------------------------------------------------------------------
@@ -64,7 +89,7 @@ if (!headers_sent()) {
     header('Expires: 0');
 }
 
-const SCHEDULER_DASHBOARD_VERSION = 'v006';
+const SCHEDULER_DASHBOARD_VERSION = RACE_RESULTS_DASHBOARD_VERSION;
 
 $baseDir = __DIR__;
 $schedulerDir = $baseDir . '/_scheduler';
@@ -389,6 +414,7 @@ $now = new DateTimeImmutable('now', $tz);
 $schedulerEnabled = !empty($schedule['enabled']);
 $dryRun = !empty($schedule['dry_run']);
 $year = isset($schedule['year']) ? (string)$schedule['year'] : '';
+$schedulerHeartbeatFreshness = rr_dash_file_freshness($heartbeatPath, $now, 120, 300);
 
 $tasks = isset($schedule['tasks']) && is_array($schedule['tasks']) ? $schedule['tasks'] : [];
 $taskCount = count($tasks);
@@ -451,7 +477,7 @@ if ($export !== '') {
     if ($export === 'bundle') {
         $bundle = [
             'generated_at' => $now->format('Y-m-d H:i:s'),
-            'dashboard_version' => SCHEDULER_DASHBOARD_VERSION,
+            'dashboard_version' => RACE_RESULTS_DASHBOARD_VERSION,
             'base_dir' => $baseDir,
             'scheduler_dir' => $schedulerDir,
             'scheduler_enabled' => $schedulerEnabled,
@@ -461,6 +487,7 @@ if ($export !== '') {
             'schedule' => $schedule,
             'state' => $state,
             'heartbeat' => trim($heartbeat),
+            'scheduler_health' => $schedulerHeartbeatFreshness,
             'recent_log_lines' => $logLines,
             'files' => [],
         ];
@@ -480,7 +507,7 @@ if ($export !== '') {
         $lines = [];
         $lines[] = 'MRL Scheduler Dashboard Export';
         $lines[] = 'Generated: ' . $now->format('Y-m-d g:i:s A');
-        $lines[] = 'Dashboard: ' . SCHEDULER_DASHBOARD_VERSION;
+        $lines[] = 'Dashboard: ' . RACE_RESULTS_DASHBOARD_VERSION;
         $lines[] = 'Base Dir: ' . $baseDir;
         $lines[] = 'Scheduler Dir: ' . $schedulerDir;
         $lines[] = 'Scheduler: ' . ($schedulerEnabled ? 'enabled' : 'disabled');
@@ -581,9 +608,10 @@ $logFile       = $baseDir . '/_race_results_monitor.log';
 $rdStatusFile  = $baseDir . '/_race_results_rd_status.json';
 
 // --- Revision Monitor files ---
-$revHeartbeatFile = $baseDir . '/_race_results_revision_monitor_heartbeat.txt';
-$revLogFile       = $baseDir . '/_race_results_revision_monitor.log';
-$classifierFile   = $baseDir . '/race_results_classify_revisions.php';
+$revisionMonitorFile = $baseDir . '/race_results_revision_monitor.php';
+$revHeartbeatFile    = $baseDir . '/_race_results_revision_monitor_heartbeat.txt';
+$revLogFile          = $baseDir . '/_race_results_revision_monitor.log';
+$classifierFile      = $baseDir . '/race_results_classify_revisions.php';
 $classSummaryFile = $baseDir . '/_race_results_classification_summary.json';
 $classLastRunFile = $baseDir . '/_race_results_classification_last_run.json';
 
@@ -707,6 +735,114 @@ function rr_dash_status_class(bool $exists): string
 function rr_dash_status_label(bool $exists): string
 {
     return $exists ? 'Present' : 'Missing';
+}
+
+function rr_dash_cache_busted_href(string $href, string $path = ''): string
+{
+    $buster = '';
+
+    if ($path !== '' && is_file($path)) {
+        $mtime = @filemtime($path);
+        if ($mtime !== false && (int)$mtime > 0) {
+            $buster = (string)(int)$mtime;
+        }
+    }
+
+    if ($buster === '') {
+        $buster = date('Ymd_His');
+    }
+
+    $separator = (strpos($href, '?') === false) ? '?' : '&';
+    return $href . $separator . 't=' . rawurlencode($buster);
+}
+
+function rr_dash_age_text(int $seconds): string
+{
+    if ($seconds < 0) {
+        $seconds = 0;
+    }
+
+    if ($seconds < 60) {
+        return $seconds . ' sec old';
+    }
+
+    $minutes = (int)floor($seconds / 60);
+    if ($minutes < 60) {
+        return $minutes . ' min old';
+    }
+
+    $hours = (int)floor($minutes / 60);
+    $remainingMinutes = $minutes % 60;
+
+    if ($remainingMinutes === 0) {
+        return $hours . ' hr old';
+    }
+
+    return $hours . ' hr ' . $remainingMinutes . ' min old';
+}
+
+function rr_dash_file_freshness(string $path, DateTimeImmutable $now, int $goodSeconds = 120, int $warnSeconds = 300): array
+{
+    if (!is_file($path)) {
+        return [
+            'class' => 'bad',
+            'label' => 'missing',
+            'age_seconds' => null,
+            'age_text' => 'missing',
+            'modified' => '',
+        ];
+    }
+
+    $mtime = @filemtime($path);
+    if ($mtime === false || (int)$mtime <= 0) {
+        return [
+            'class' => 'warn',
+            'label' => 'unknown',
+            'age_seconds' => null,
+            'age_text' => 'unknown age',
+            'modified' => '',
+        ];
+    }
+
+    $ageSeconds = max(0, $now->getTimestamp() - (int)$mtime);
+    $class = 'bad';
+    $label = 'stale';
+
+    if ($ageSeconds <= $goodSeconds) {
+        $class = 'good';
+        $label = 'running';
+    } elseif ($ageSeconds <= $warnSeconds) {
+        $class = 'warn';
+        $label = 'delayed';
+    }
+
+    return [
+        'class' => $class,
+        'label' => $label,
+        'age_seconds' => $ageSeconds,
+        'age_text' => rr_dash_age_text($ageSeconds),
+        'modified' => rr_dash_display_timestamp((int)$mtime),
+    ];
+}
+
+function rr_dash_task_status_class(string $lastStatus, string $exitCode = ''): string
+{
+    $status = strtolower(trim($lastStatus));
+    $exitCode = trim($exitCode);
+
+    if ($status === 'success' || $status === 'ok' || $exitCode === '0') {
+        return 'good';
+    }
+
+    if ($status === '' && $exitCode === '') {
+        return 'warn';
+    }
+
+    if (strpos($status, 'warn') !== false || strpos($status, 'not_due') !== false || strpos($status, 'skipped') !== false) {
+        return 'warn';
+    }
+
+    return 'bad';
 }
 
 function rr_dash_build_url(string $path, array $params): string
@@ -1260,6 +1396,190 @@ function rr_combined_tab_url(string $selfUrl, string $tab, int $tailLines, int $
     ]);
 }
 
+function rr_dash_public_script_url(string $scriptName, array $params = []): string
+{
+    $host = isset($_SERVER['HTTP_HOST']) ? trim((string)$_SERVER['HTTP_HOST']) : '';
+    if ($host === '') {
+        return '';
+    }
+
+    $https = isset($_SERVER['HTTPS']) ? strtolower((string)$_SERVER['HTTPS']) : '';
+    $scheme = ($https !== '' && $https !== 'off') ? 'https' : 'http';
+
+    $scriptDir = isset($_SERVER['SCRIPT_NAME']) ? dirname((string)$_SERVER['SCRIPT_NAME']) : '';
+    $scriptDir = str_replace('\\', '/', $scriptDir);
+    $scriptDir = rtrim($scriptDir, '/');
+    if ($scriptDir === '.' || $scriptDir === '/') {
+        $scriptDir = '';
+    }
+
+    $url = $scheme . '://' . $host . $scriptDir . '/' . ltrim($scriptName, '/');
+    if (!empty($params)) {
+        $url .= '?' . http_build_query($params);
+    }
+
+    return $url;
+}
+
+function rr_dash_fetch_url_quietly(string $url, int $timeoutSeconds = 600): array
+{
+    if ($url === '') {
+        return [
+            'ok' => false,
+            'message' => 'Unable to build local revision-monitor URL.',
+            'http_code' => 0,
+        ];
+    }
+
+    if (function_exists('curl_init')) {
+        $ch = curl_init($url);
+        if ($ch !== false) {
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 15);
+            curl_setopt($ch, CURLOPT_TIMEOUT, $timeoutSeconds);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'MRL Dashboard Revision Summary Regenerate');
+            $body = curl_exec($ch);
+            $err = curl_error($ch);
+            $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            return [
+                'ok' => $body !== false && $code >= 200 && $code < 400,
+                'message' => $body === false ? $err : 'HTTP ' . (string)$code,
+                'http_code' => $code,
+            ];
+        }
+    }
+
+    $context = stream_context_create([
+        'http' => [
+            'method' => 'GET',
+            'timeout' => $timeoutSeconds,
+            'header' => "User-Agent: MRL Dashboard Revision Summary Regenerate\r\n",
+        ],
+    ]);
+
+    $body = @file_get_contents($url, false, $context);
+    $code = 0;
+    if (isset($http_response_header) && is_array($http_response_header)) {
+        foreach ($http_response_header as $headerLine) {
+            if (preg_match('/^HTTP\/\S+\s+(\d+)/', (string)$headerLine, $m)) {
+                $code = (int)$m[1];
+                break;
+            }
+        }
+    }
+
+    return [
+        'ok' => $body !== false && ($code === 0 || ($code >= 200 && $code < 400)),
+        'message' => $body === false ? 'Request failed.' : ($code > 0 ? 'HTTP ' . (string)$code : 'Request completed.'),
+        'http_code' => $code,
+    ];
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array((string)($_POST['rr_dash_action'] ?? ''), ['refresh_revision_summary', 'regenerate_revision_summary'], true)) {
+    $dashAction = (string)($_POST['rr_dash_action'] ?? '');
+    $postYear = isset($_POST['year']) ? (int)$_POST['year'] : $classYear;
+    if ($postYear < 2000 || $postYear > 2100) {
+        $postYear = $classYear;
+    }
+
+    $runOk = false;
+    $runMessage = '';
+
+    ob_start();
+    try {
+        if ($dashAction === 'refresh_revision_summary') {
+            if (!defined('RRCR_AUTO_RUN')) {
+                define('RRCR_AUTO_RUN', false);
+            }
+
+            require_once $classifierFile;
+
+            if (!isset($dbo) || !($dbo instanceof PDO)) {
+                throw new RuntimeException('PDO handle $dbo is not available for Revision Summary refresh.');
+            }
+
+            $rrcrOptions = [
+                'year' => (string)$postYear,
+                'race_code' => '',
+                'verbose' => false,
+                'write_artifacts' => true,
+                'base_dir' => $baseDir,
+            ];
+
+            rrcr_run($rrcrOptions, $dbo);
+            $runOk = true;
+            $runMessage = 'revision_summary_refreshed';
+        } elseif ($dashAction === 'regenerate_revision_summary') {
+            if (!is_file($revisionMonitorFile)) {
+                throw new RuntimeException('race_results_revision_monitor.php was not found.');
+            }
+
+            $revisionMonitorUrl = rr_dash_public_script_url('race_results_revision_monitor.php', [
+                'year' => (string)$postYear,
+                'dashboard_regenerate' => '1',
+                't' => date('Ymd_His'),
+            ]);
+
+            $fetchResult = rr_dash_fetch_url_quietly($revisionMonitorUrl, 600);
+            if (empty($fetchResult['ok'])) {
+                throw new RuntimeException('Revision monitor request failed: ' . (string)($fetchResult['message'] ?? 'unknown error'));
+            }
+
+            $runOk = true;
+            $runMessage = 'revision_summary_regenerated';
+        }
+    } catch (Throwable $e) {
+        $runOk = false;
+        $runMessage = $dashAction === 'regenerate_revision_summary'
+            ? 'revision_summary_regenerate_failed'
+            : 'revision_summary_refresh_failed';
+        @file_put_contents($baseDir . '/_race_results_dashboard_errors.log', '[' . date('Y-m-d H:i:s') . '] Revision Summary action failed (' . $dashAction . '): ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
+    }
+
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+
+    $redirectUrl = $selfUrl . '?' . http_build_query([
+        'tab' => 'revision',
+        'lines' => $tailLines,
+        'refresh' => $autoRefresh,
+        'year' => $postYear,
+        'rr_run' => $runOk ? 'ok' : 'error',
+        'rr_msg' => $runMessage,
+    ]);
+
+    if (!headers_sent()) {
+        header('Location: ' . $redirectUrl);
+        exit;
+    }
+
+    echo '<meta http-equiv="refresh" content="0;url=' . h($redirectUrl) . '">';
+    exit;
+}
+
+$revisionRunNotice = '';
+$revisionRunNoticeClass = 'ok';
+$revisionRunMessageCode = (string)($_GET['rr_msg'] ?? '');
+if ((string)($_GET['rr_run'] ?? '') === 'ok') {
+    if ($revisionRunMessageCode === 'revision_summary_regenerated') {
+        $revisionRunNotice = 'Revision monitor ran. Revision Summary regenerated.';
+    } else {
+        $revisionRunNotice = 'Revision Summary refreshed from stored snapshots.';
+    }
+    $revisionRunNoticeClass = 'ok';
+} elseif ((string)($_GET['rr_run'] ?? '') === 'error') {
+    if ($revisionRunMessageCode === 'revision_summary_regenerate_failed') {
+        $revisionRunNotice = 'Revision Summary regenerate failed. Check the dashboard error log.';
+    } else {
+        $revisionRunNotice = 'Revision Summary refresh failed. Check the dashboard error log.';
+    }
+    $revisionRunNoticeClass = 'bad';
+}
+
 ?><!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1325,7 +1645,7 @@ function rr_combined_tab_url(string $selfUrl, string $tab, int $tailLines, int $
         margin-bottom: 14px;
     }
 
-    .pill, .btn {
+    .pill {
         display: inline-flex;
         align-items: center;
         gap: 6px;
@@ -1337,6 +1657,25 @@ function rr_combined_tab_url(string $selfUrl, string $tab, int $tailLines, int $
         font-size: 14px;
         line-height: 1.2;
         text-decoration: none;
+    }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        border: 3px solid rgb(12, 70, 150);
+        border-radius: 25px;
+        padding: 2px 8px;
+        background: rgb(25, 103, 210);
+        color: #ffffff;
+        font: inherit;
+        font-weight: bold;
+        line-height: 1.2;
+        min-height: 28px;
+        text-decoration: none;
+        cursor: pointer;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
     }
 
     .pill.good {
@@ -1360,7 +1699,28 @@ function rr_combined_tab_url(string $selfUrl, string $tab, int $tailLines, int $
         font-weight: 700;
     }
 
-    .btn:hover, .pill.linklike:hover {
+    .btn:hover {
+        background: rgb(35, 120, 230);
+        border-color: rgb(16, 82, 175);
+        text-decoration: none;
+        filter: brightness(0.98);
+    }
+
+    .btn[disabled],
+    .btn.disabled {
+        opacity: 0.55;
+        cursor: default;
+        filter: none;
+    }
+
+    .btn[disabled]:hover,
+    .btn.disabled:hover {
+        background: rgb(25, 103, 210);
+        border-color: rgb(12, 70, 150);
+        filter: none;
+    }
+
+    .pill.linklike:hover {
         background: #303030;
         text-decoration: none;
     }
@@ -1568,6 +1928,67 @@ function rr_combined_tab_url(string $selfUrl, string $tab, int $tailLines, int $
         margin-bottom: 14px;
     }
 
+    .revision-summary-header {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+
+    .revision-summary-header h2 {
+        margin: 0;
+        margin-right: 4px;
+    }
+
+    .inline-form {
+        display: inline-flex;
+        margin: 0;
+    }
+
+    .revision-run-button {
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    .summary-details-toggle {
+        cursor: pointer;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .summary-details-panel {
+        display: block;
+        width: 100%;
+        margin-top: 10px;
+    }
+
+    .summary-details-panel[hidden] {
+        display: none !important;
+    }
+
+    .revision-run-notice {
+        flex-basis: 100%;
+        width: 100%;
+        margin-top: 2px;
+    }
+
+    .revision-run-notice.is-hidden {
+        display: none !important;
+    }
+
+    @media (max-width: 720px) {
+        .revision-summary-header {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .revision-summary-actions {
+            justify-content: flex-start;
+        }
+    }
+
     table.dash-table tr:nth-child(even) td {
         background: rgba(255,255,255,0.025);
     }
@@ -1575,6 +1996,75 @@ function rr_combined_tab_url(string $selfUrl, string $tab, int $tailLines, int $
     .detail-toggle {
         cursor: pointer;
         width: fit-content;
+    }
+
+    summary.detail-toggle {
+        list-style: none;
+    }
+
+    summary.detail-toggle::-webkit-details-marker {
+        display: none;
+    }
+
+    .json-toggle-card {
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .json-toggle-card summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 14px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 0;
+    }
+
+    .json-toggle-card summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .json-toggle-card summary::marker {
+        content: '';
+    }
+
+    .json-toggle-card summary h2 {
+        margin: 0;
+        padding: 0;
+        line-height: 1.15;
+    }
+
+    .json-toggle-label::before {
+        content: 'Open';
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 62px;
+        padding: 2px 8px;
+        border-radius: 25px;
+        border: 3px solid rgb(12, 70, 150);
+        background: rgb(25, 103, 210);
+        color: #ffffff;
+        font: inherit;
+        line-height: 1.2;
+        font-weight: bold;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+        text-decoration: none;
+    }
+
+    .json-toggle-card summary:hover .json-toggle-label::before {
+        background: rgb(35, 120, 230);
+        border-color: rgb(16, 82, 175);
+        filter: brightness(0.98);
+    }
+
+    .json-toggle-card[open] .json-toggle-label::before {
+        content: 'Close';
+    }
+
+    .json-toggle-body {
+        padding: 0 14px 14px 14px;
     }
 
     .detail-flag {
@@ -1692,9 +2182,13 @@ function rr_combined_tab_url(string $selfUrl, string $tab, int $tailLines, int $
         margin-top: 6px;
     }
 
-    .pill, .btn {
+    .pill {
         padding: 6px 11px;
         font-size: 14px;
+    }
+
+    .btn {
+        padding: 2px 8px;
     }
 
     .control-select {
@@ -1774,8 +2268,12 @@ function rr_combined_tab_url(string $selfUrl, string $tab, int $tailLines, int $
         <span class="pill <?php echo $schedulerEnabled ? 'good' : 'bad'; ?>">
             Scheduler: <?php echo $schedulerEnabled ? 'enabled' : 'disabled'; ?>
         </span>
-        <span class="pill <?php echo $dryRun ? 'warn' : 'good'; ?>">
-            Mode: <?php echo $dryRun ? 'dry run' : 'active'; ?>
+        <span class="pill <?php echo sd_html((string)$schedulerHeartbeatFreshness['class']); ?>">
+            Cron: <?php echo sd_html((string)$schedulerHeartbeatFreshness['label']); ?>
+            <span class="small">(<?php echo sd_html((string)$schedulerHeartbeatFreshness['age_text']); ?>)</span>
+        </span>
+        <span class="pill <?php echo $dryRun ? 'warn' : 'good'; ?>" title="Dry run checks scheduled tasks but does not run monitor or revision scripts.">
+            Mode: <?php echo $dryRun ? 'dry run / paused' : 'live'; ?>
         </span>
         <span class="pill">Year: <?php echo sd_html($year !== '' ? $year : (string)$classYear); ?></span>
         <span class="pill">Timezone: <?php echo sd_html($timezoneName); ?></span>
@@ -1786,18 +2284,16 @@ function rr_combined_tab_url(string $selfUrl, string $tab, int $tailLines, int $
     <div class="control-row">
         <span class="pill">Page Generated: <?php echo h($pageGenerated); ?></span>
 
-        <label class="pill" for="linesSelect">Log Lines</label>
-        <select id="linesSelect" class="control-select" onchange="if (this.value) window.location.href=this.value;">
+        <select id="linesSelect" class="control-select" aria-label="Log Lines" onchange="if (this.value) window.location.href=this.value;">
             <?php foreach ([2, 4, 10, 25, 50, 100] as $lineOption): ?>
-                <option value="<?php echo h(rr_combined_tab_url($selfUrl, $mainTab, $lineOption, $autoRefresh, $classYear)); ?>" <?php echo $tailLines === $lineOption ? 'selected' : ''; ?>><?php echo h((string)$lineOption); ?></option>
+                <option value="<?php echo h(rr_combined_tab_url($selfUrl, $mainTab, $lineOption, $autoRefresh, $classYear)); ?>" <?php echo $tailLines === $lineOption ? 'selected' : ''; ?>>Log Lines: <?php echo h((string)$lineOption); ?></option>
             <?php endforeach; ?>
         </select>
 
-        <label class="pill" for="refreshSelect">Refresh</label>
-        <select id="refreshSelect" class="control-select" onchange="if (this.value) window.location.href=this.value;">
+        <select id="refreshSelect" class="control-select" aria-label="Refresh" onchange="if (this.value) window.location.href=this.value;">
             <?php $refreshOptions = [0 => 'Off', 15 => '15s', 30 => '30s', 60 => '1 min', 120 => '2 min', 300 => '5 min']; ?>
             <?php foreach ($refreshOptions as $refreshValue => $refreshLabel): ?>
-                <option value="<?php echo h(rr_combined_tab_url($selfUrl, $mainTab, $tailLines, (int)$refreshValue, $classYear)); ?>" <?php echo $autoRefresh === (int)$refreshValue ? 'selected' : ''; ?>><?php echo h($refreshLabel); ?></option>
+                <option value="<?php echo h(rr_combined_tab_url($selfUrl, $mainTab, $tailLines, (int)$refreshValue, $classYear)); ?>" <?php echo $autoRefresh === (int)$refreshValue ? 'selected' : ''; ?>>Refresh: <?php echo h($refreshLabel); ?></option>
             <?php endforeach; ?>
         </select>
 
@@ -1854,6 +2350,7 @@ function rr_combined_tab_url(string $selfUrl, string $tab, int $tailLines, int $
 
                     $dueClass = $calc['due'] ? 'warn' : 'good';
                     $enabledClass = $enabled ? 'good' : 'bad';
+                    $lastStatusClass = rr_dash_task_status_class($lastStatus, $exitCode);
                     ?>
                     <tr>
                         <td>
@@ -1867,9 +2364,9 @@ function rr_combined_tab_url(string $selfUrl, string $tab, int $tailLines, int $
                         <td><?php echo sd_html(rr_dash_display_datetime((string)$calc['last_attempt'])); ?></td>
                         <td><?php echo sd_html(rr_dash_display_datetime((string)$calc['last_completed'])); ?></td>
                         <td>
-                            <?php echo sd_html($lastStatus !== '' ? $lastStatus : ''); ?>
+                            <span class="status <?php echo sd_html($lastStatusClass); ?>"><?php echo sd_html($lastStatus !== '' ? $lastStatus : 'unknown'); ?></span>
                             <?php if ($exitCode !== ''): ?>
-                                <br><span class="small">exit: <?php echo sd_html($exitCode); ?></span>
+                                <span class="small">exit: <?php echo sd_html($exitCode); ?></span>
                             <?php endif; ?>
                             <?php if ($lastMessage !== ''): ?>
                                 <br><span class="small"><?php echo sd_html($lastMessage); ?></span>
@@ -1898,7 +2395,7 @@ function rr_combined_tab_url(string $selfUrl, string $tab, int $tailLines, int $
                             Modified: <?php echo sd_html($status['modified']); ?> |
                             Size: <?php echo sd_html($status['size']); ?>
                             <?php if ($status['present']): ?>
-                                | <a class="inline-link" href="<?php echo sd_html('_scheduler/' . basename($path)); ?>" target="_blank" rel="noopener">Open raw file</a>
+                                | <a class="inline-link" href="<?php echo sd_html(rr_dash_cache_busted_href('_scheduler/' . basename($path), $path)); ?>" target="_blank" rel="noopener">Open raw file</a>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -1909,7 +2406,7 @@ function rr_combined_tab_url(string $selfUrl, string $tab, int $tailLines, int $
                     <div><span class="status good">Available</span></div>
                     <div class="meta">
                         Generated on demand |
-                        <a class="inline-link" href="?tab=scheduler&export=bundle" target="_blank" rel="noopener">Open raw view</a>
+                        <a class="inline-link" href="<?php echo sd_html(rr_dash_cache_busted_href('?tab=scheduler&export=bundle')); ?>" target="_blank" rel="noopener">Open raw view</a>
                     </div>
                 </div>
             </div>
@@ -1921,6 +2418,7 @@ function rr_combined_tab_url(string $selfUrl, string $tab, int $tailLines, int $
                 <p class="msg">No heartbeat found yet.</p>
             <?php else: ?>
                 <div class="mono"><?php echo sd_html(trim($heartbeat)); ?></div>
+                <p class="small">Health: <span class="status <?php echo sd_html((string)$schedulerHeartbeatFreshness['class']); ?>"><?php echo sd_html((string)$schedulerHeartbeatFreshness['label']); ?></span> <?php echo sd_html((string)$schedulerHeartbeatFreshness['age_text']); ?></p>
             <?php endif; ?>
         </div>
     </div>
@@ -2030,7 +2528,7 @@ function rr_combined_tab_url(string $selfUrl, string $tab, int $tailLines, int $
                 <div class="meta">
                     Modified: <?=h(rr_dash_file_mtime_string($heartbeatFile))?> |
                     Size: <?=h(rr_dash_file_size_string($heartbeatFile))?> |
-                    <a class="inline-link" href="_race_results_monitor_heartbeat.txt" target="_blank" rel="noopener">Open raw file</a>
+                    <a class="inline-link" href="<?=h(rr_dash_cache_busted_href('_race_results_monitor_heartbeat.txt', $heartbeatFile))?>" target="_blank" rel="noopener">Open raw file</a>
                 </div>
             </div>
 
@@ -2040,7 +2538,7 @@ function rr_combined_tab_url(string $selfUrl, string $tab, int $tailLines, int $
                 <div class="meta">
                     Modified: <?=h(rr_dash_file_mtime_string($stateFile))?> |
                     Size: <?=h(rr_dash_file_size_string($stateFile))?> |
-                    <a class="inline-link" href="_race_results_monitor_state.json" target="_blank" rel="noopener">Open raw file</a>
+                    <a class="inline-link" href="<?=h(rr_dash_cache_busted_href('_race_results_monitor_state.json', $stateFile))?>" target="_blank" rel="noopener">Open raw file</a>
                 </div>
             </div>
 
@@ -2050,7 +2548,7 @@ function rr_combined_tab_url(string $selfUrl, string $tab, int $tailLines, int $
                 <div class="meta">
                     Modified: <?=h(rr_dash_file_mtime_string($rdStatusFile))?> |
                     Size: <?=h(rr_dash_file_size_string($rdStatusFile))?> |
-                    <a class="inline-link" href="_race_results_rd_status.json" target="_blank" rel="noopener">Open raw file</a>
+                    <a class="inline-link" href="<?=h(rr_dash_cache_busted_href('_race_results_rd_status.json', $rdStatusFile))?>" target="_blank" rel="noopener">Open raw file</a>
                     <?php if ($rdStatusCode !== ''): ?>
                         | Status: <?=h($rdStatusCode)?>
                     <?php endif; ?>
@@ -2063,7 +2561,7 @@ function rr_combined_tab_url(string $selfUrl, string $tab, int $tailLines, int $
                 <div class="meta">
                     Modified: <?=h(rr_dash_file_mtime_string($logFile))?> |
                     Size: <?=h(rr_dash_file_size_string($logFile))?> |
-                    <a class="inline-link" href="_race_results_monitor.log" target="_blank" rel="noopener">Open raw file</a>
+                    <a class="inline-link" href="<?=h(rr_dash_cache_busted_href('_race_results_monitor.log', $logFile))?>" target="_blank" rel="noopener">Open raw file</a>
                 </div>
             </div>
 
@@ -2079,26 +2577,30 @@ function rr_combined_tab_url(string $selfUrl, string $tab, int $tailLines, int $
         <?php endif; ?>
     </div>
 
-    <div class="card full">
-        <h2>RD Status JSON</h2>
-        <?php if ($rdStatusPretty !== ''): ?>
-        <?php if ($rdStatusMessage !== ''): ?>
-        <div class="last-line" style="margin-bottom:12px;"><?=h($rdStatusMessage)?></div>
-        <?php endif; ?>
-        <pre><?=h($rdStatusPretty)?></pre>
-        <?php else: ?>
-        <div class="empty">RD status JSON file is missing or empty. It will appear after the monitor runs an RD check.</div>
-        <?php endif; ?>
-    </div>
+    <details class="card full json-toggle-card">
+        <summary><h2>RD Status JSON</h2> <span class="json-toggle-label"></span></summary>
+        <div class="json-toggle-body">
+            <?php if ($rdStatusPretty !== ''): ?>
+            <?php if ($rdStatusMessage !== ''): ?>
+            <div class="last-line" style="margin-bottom:12px;"><?=h($rdStatusMessage)?></div>
+            <?php endif; ?>
+            <pre><?=h($rdStatusPretty)?></pre>
+            <?php else: ?>
+            <div class="empty">RD status JSON file is missing or empty. It will appear after the monitor runs an RD check.</div>
+            <?php endif; ?>
+        </div>
+    </details>
 
-    <div class="card full">
-        <h2>Monitor State JSON</h2>
-        <?php if ($statePretty !== ''): ?>
-        <pre><?=h($statePretty)?></pre>
-        <?php else: ?>
-        <div class="empty">State JSON file is missing or empty.</div>
-        <?php endif; ?>
-    </div>
+    <details class="card full json-toggle-card">
+        <summary><h2>Monitor State JSON</h2> <span class="json-toggle-label"></span></summary>
+        <div class="json-toggle-body">
+            <?php if ($statePretty !== ''): ?>
+            <pre><?=h($statePretty)?></pre>
+            <?php else: ?>
+            <div class="empty">State JSON file is missing or empty.</div>
+            <?php endif; ?>
+        </div>
+    </details>
 
     <div class="card full">
         <h2>Last <?=h((string)$tailLines)?> Log Lines</h2>
@@ -2139,7 +2641,7 @@ function rr_combined_tab_url(string $selfUrl, string $tab, int $tailLines, int $
                 <div class="meta">
                     Modified: <?=h(rr_dash_file_mtime_string($revHeartbeatFile))?> |
                     Size: <?=h(rr_dash_file_size_string($revHeartbeatFile))?> |
-                    <a class="inline-link" href="_race_results_revision_monitor_heartbeat.txt" target="_blank" rel="noopener">Open raw file</a>
+                    <a class="inline-link" href="<?=h(rr_dash_cache_busted_href('_race_results_revision_monitor_heartbeat.txt', $revHeartbeatFile))?>" target="_blank" rel="noopener">Open raw file</a>
                 </div>
             </div>
 
@@ -2149,7 +2651,7 @@ function rr_combined_tab_url(string $selfUrl, string $tab, int $tailLines, int $
                 <div class="meta">
                     Modified: <?=h(rr_dash_file_mtime_string($revLogFile))?> |
                     Size: <?=h(rr_dash_file_size_string($revLogFile))?> |
-                    <a class="inline-link" href="_race_results_revision_monitor.log" target="_blank" rel="noopener">Open raw file</a>
+                    <a class="inline-link" href="<?=h(rr_dash_cache_busted_href('_race_results_revision_monitor.log', $revLogFile))?>" target="_blank" rel="noopener">Open raw file</a>
                 </div>
             </div>
             <div class="status-row">
@@ -2158,7 +2660,7 @@ function rr_combined_tab_url(string $selfUrl, string $tab, int $tailLines, int $
                 <div class="meta">
                     Modified: <?=h(rr_dash_file_mtime_string($classSummaryFile))?> |
                     Size: <?=h(rr_dash_file_size_string($classSummaryFile))?> |
-                    <a class="inline-link" href="_race_results_classification_summary.json" target="_blank" rel="noopener">Open raw file</a>
+                    <a class="inline-link" href="<?=h(rr_dash_cache_busted_href('_race_results_classification_summary.json', $classSummaryFile))?>" target="_blank" rel="noopener">Open raw file</a>
                 </div>
             </div>
 
@@ -2168,7 +2670,7 @@ function rr_combined_tab_url(string $selfUrl, string $tab, int $tailLines, int $
                 <div class="meta">
                     Modified: <?=h(rr_dash_file_mtime_string($classLastRunFile))?> |
                     Size: <?=h(rr_dash_file_size_string($classLastRunFile))?> |
-                    <a class="inline-link" href="_race_results_classification_last_run.json" target="_blank" rel="noopener">Open raw file</a>
+                    <a class="inline-link" href="<?=h(rr_dash_cache_busted_href('_race_results_classification_last_run.json', $classLastRunFile))?>" target="_blank" rel="noopener">Open raw file</a>
                 </div>
             </div>
 
@@ -2194,28 +2696,52 @@ function rr_combined_tab_url(string $selfUrl, string $tab, int $tailLines, int $
     </div>
 
     <div class="card full">
-        <h2>Revision Classification</h2>
-
-        <div class="summary-pills">
-            <span class="pill">Year: <?=h((string)$classSummary['year'])?></span>
-            <span class="pill">Source: <?=!empty($classSummary['trusted_source']) ? 'Trusted summary' : 'Missing trusted summary'?></span>
-            <span class="pill">Classified: <?=h((string)$classSummary['classified_count'])?></span>
-            <span class="pill">MRL Impact: <?=h((string)$classSummary['mrl_impact_count'])?></span>
-            <span class="pill">All-Driver Change Races: <?=h((string)$classSummary['all_driver_change_race_count'])?></span>
-            <?php if ((string)$classSummary['signature'] !== ''): ?>
-            <span class="pill">Signature: <?=h((string)$classSummary['signature'])?></span>
-            <?php endif; ?>
-            <?php if ((string)$classSummary['generated_at'] !== ''): ?>
-            <span class="pill">Generated: <?=h(rr_dash_display_datetime((string)$classSummary['generated_at']))?></span>
-            <?php endif; ?>
-            <?php if ((string)$classSummary['sapi'] !== ''): ?>
-            <span class="pill">SAPI: <?=h((string)$classSummary['sapi'])?></span>
+        <div class="revision-summary-header">
+            <h2>Revision Summary</h2>
+            <span class="pill">Generated: <?=h((string)$classSummary['generated_at'] !== '' ? rr_dash_display_datetime((string)$classSummary['generated_at']) : '—')?></span>
+            <form method="post" class="inline-form" onsubmit="return confirm('Refresh Revision Summary now?\n\nThis will re-read the snapshots already stored in the race folders and refresh the dashboard summary. It will not check the source site or create new snapshots.');">
+                <input type="hidden" name="rr_dash_action" value="refresh_revision_summary">
+                <input type="hidden" name="tab" value="revision">
+                <input type="hidden" name="lines" value="<?=h((string)$tailLines)?>">
+                <input type="hidden" name="refresh" value="<?=h((string)$autoRefresh)?>">
+                <input type="hidden" name="year" value="<?=h((string)$classYear)?>">
+                <button type="submit" class="btn revision-run-button">Refresh Summary</button>
+            </form>
+            <form method="post" class="inline-form" onsubmit="return confirm('Regenerate Revision Summary now?\n\nThis will run the revision monitor, check the source site for revised completed-race results, save new snapshots if found, and regenerate the Revision Summary.');">
+                <input type="hidden" name="rr_dash_action" value="regenerate_revision_summary">
+                <input type="hidden" name="tab" value="revision">
+                <input type="hidden" name="lines" value="<?=h((string)$tailLines)?>">
+                <input type="hidden" name="refresh" value="<?=h((string)$autoRefresh)?>">
+                <input type="hidden" name="year" value="<?=h((string)$classYear)?>">
+                <button type="submit" class="btn revision-run-button">Regenerate Summary</button>
+            </form>
+            <button type="button" class="btn detail-toggle summary-details-toggle" id="summary-details-toggle" aria-expanded="false" aria-controls="summary-details-panel">Show Summary Details</button>
+            <?php if ($revisionRunNotice !== ''): ?>
+            <div class="revision-run-notice" id="revision-run-notice"><span class="badge <?=h($revisionRunNoticeClass)?>"><?=h($revisionRunNotice)?></span></div>
             <?php endif; ?>
         </div>
 
-        <?php if ((string)$classSummary['message'] !== ''): ?>
-        <div class="last-line" style="margin-bottom:12px;"><?=h((string)$classSummary['message'])?></div>
-        <?php endif; ?>
+        <div class="summary-details-panel" id="summary-details-panel" hidden>
+            <div class="summary-pills">
+                <span class="pill">Year: <?=h((string)$classSummary['year'])?></span>
+                <span class="pill">Source: <?=!empty($classSummary['trusted_source']) ? 'Trusted summary' : 'Missing trusted summary'?></span>
+                <span class="pill">Classified: <?=h((string)$classSummary['classified_count'])?></span>
+                <span class="pill">MRL Impact: <?=h((string)$classSummary['mrl_impact_count'])?></span>
+                <span class="pill">All-Driver Change Races: <?=h((string)$classSummary['all_driver_change_race_count'])?></span>
+                <?php if ((string)$classSummary['signature'] !== ''): ?>
+                <span class="pill">Signature: <?=h((string)$classSummary['signature'])?></span>
+                <?php endif; ?>
+                <?php if ((string)$classSummary['generated_at'] !== ''): ?>
+                <span class="pill">Generated: <?=h(rr_dash_display_datetime((string)$classSummary['generated_at']))?></span>
+                <?php endif; ?>
+                <?php if ((string)$classSummary['sapi'] !== ''): ?>
+                <span class="pill">SAPI: <?=h((string)$classSummary['sapi'])?></span>
+                <?php endif; ?>
+            </div>
+            <?php if ((string)$classSummary['message'] !== ''): ?>
+            <div class="last-line"><?=h((string)$classSummary['message'])?></div>
+            <?php endif; ?>
+        </div>
 
         <?php if (!empty($classSummary['rows']) && is_array($classSummary['rows'])): ?>
         <table class="dash-table">
@@ -2318,14 +2844,16 @@ function rr_combined_tab_url(string $selfUrl, string $tab, int $tailLines, int $
         <?php endif; ?>
     </div>
 
-    <div class="card full">
-        <h2>Classification Last Run JSON</h2>
-        <?php if ($classLastRunPretty !== ''): ?>
-        <pre><?=h($classLastRunPretty)?></pre>
-        <?php else: ?>
-        <div class="empty">Classification last-run JSON file is missing or empty. Run the full classifier report to create it.</div>
-        <?php endif; ?>
-    </div>
+    <details class="card full json-toggle-card">
+        <summary><h2>Revision Summary Data</h2> <span class="json-toggle-label"></span></summary>
+        <div class="json-toggle-body">
+            <?php if ($classLastRunPretty !== ''): ?>
+            <pre><?=h($classLastRunPretty)?></pre>
+            <?php else: ?>
+            <div class="empty">Revision summary data file is missing or empty. Run the Revision Summary to create it.</div>
+            <?php endif; ?>
+        </div>
+    </details>
 
     <div class="card full">
         <h2>Last <?=h((string)$tailLines)?> Log Lines</h2>
@@ -2352,13 +2880,67 @@ function rr_combined_tab_url(string $selfUrl, string $tab, int $tailLines, int $
     var storageKey = 'mrlDashboardChangedDriverDetailsOpen';
     var savedState = localStorage.getItem(storageKey);
 
+    var summaryEl = detailsEl.querySelector('summary');
+
+    function updateChangedDriverDetailsLabel() {
+        if (!summaryEl) return;
+        summaryEl.textContent = detailsEl.open ? 'Hide Changed Driver Details' : 'Show Changed Driver Details';
+    }
+
     if (savedState === '1') {
         detailsEl.open = true;
     }
 
+    updateChangedDriverDetailsLabel();
+
     detailsEl.addEventListener('toggle', function () {
         localStorage.setItem(storageKey, detailsEl.open ? '1' : '0');
+        updateChangedDriverDetailsLabel();
     });
+})();
+</script>
+
+<script>
+(function () {
+    var toggle = document.getElementById('summary-details-toggle');
+    var panel = document.getElementById('summary-details-panel');
+    var storageKey = 'mrlDashboardRevisionSummaryDetailsOpen';
+
+    if (toggle && panel) {
+        function setOpen(isOpen) {
+            panel.hidden = !isOpen;
+            toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            toggle.textContent = isOpen ? 'Hide Summary Details' : 'Show Summary Details';
+            if (window.localStorage) {
+                localStorage.setItem(storageKey, isOpen ? '1' : '0');
+            }
+        }
+
+        var savedState = window.localStorage ? localStorage.getItem(storageKey) : '';
+        setOpen(savedState === '1');
+
+        toggle.addEventListener('click', function () {
+            setOpen(panel.hidden);
+        });
+    }
+
+    var notice = document.getElementById('revision-run-notice');
+    if (notice) {
+        window.setTimeout(function () {
+            notice.classList.add('is-hidden');
+        }, 8000);
+
+        if (window.history && window.history.replaceState && window.URL) {
+            try {
+                var url = new URL(window.location.href);
+                if (url.searchParams.has('rr_run') || url.searchParams.has('rr_msg')) {
+                    url.searchParams.delete('rr_run');
+                    url.searchParams.delete('rr_msg');
+                    window.history.replaceState(null, document.title, url.pathname + url.search + url.hash);
+                }
+            } catch (e) {}
+        }
+    }
 })();
 </script>
 
@@ -2403,6 +2985,43 @@ function rr_combined_tab_url(string $selfUrl, string $tab, int $tailLines, int $
 
     updateNextRunCountdowns();
     window.setInterval(updateNextRunCountdowns, 1000);
+})();
+</script>
+
+<script>
+(function () {
+    function pad2(value) {
+        return String(value).padStart(2, '0');
+    }
+
+    function clickTimestamp() {
+        var d = new Date();
+        return String(d.getFullYear()) +
+            pad2(d.getMonth() + 1) +
+            pad2(d.getDate()) + '_' +
+            pad2(d.getHours()) +
+            pad2(d.getMinutes()) +
+            pad2(d.getSeconds());
+    }
+
+    document.querySelectorAll('a.inline-link[target="_blank"][href*="t="]').forEach(function (link) {
+        link.addEventListener('click', function () {
+            try {
+                var url = new URL(link.getAttribute('href'), window.location.href);
+                url.searchParams.set('t', clickTimestamp());
+                link.setAttribute('href', url.pathname + url.search + url.hash);
+            } catch (e) {
+                var href = link.getAttribute('href') || '';
+                var fresh = clickTimestamp();
+                if (href.indexOf('t=') >= 0) {
+                    href = href.replace(/([?&]t=)[^&#]*/, '$1' + fresh);
+                } else {
+                    href += (href.indexOf('?') === -1 ? '?' : '&') + 't=' + fresh;
+                }
+                link.setAttribute('href', href);
+            }
+        });
+    });
 })();
 </script>
 
