@@ -4,10 +4,29 @@ declare(strict_types=1);
 /**
  * race_results_dashboard.php
  *
- * VERSION: v012
- * LAST MODIFIED: 6/6/2026 5:26:14 am
+ * VERSION: v015
+ * LAST MODIFIED: 6/7/2026 10:51:12 am
  *
  * CHANGELOG:
+ * v015 (6/7/2026)
+ *   - NEW: Scheduler tab supports auto_revision_monitor status written by cron_master_scheduler.php v009.
+ *   - NEW: Revision Scheduler can show post-race stabilization phase, interval, handoff race, and next due time.
+ *   - CHANGE: Revision Scheduler remains compact while supporting race-aware post-final cadence.
+ *   - CHANGE: Shortened Revision Scheduler table schedule text and shows Auto when next run is controlled by auto logic but no exact next-due timestamp is available.
+ *
+ * v014 (6/7/2026)
+ *   - CHANGE: Scheduler tab now treats _scheduler/schedule.json as the single scheduler control file.
+ *   - NEW: Adds Race Scheduler panel sourced from cron_master_scheduler.php v008 state.json auto_race_monitor decisions.
+ *   - CHANGE: Revision Scheduler is shown separately from Race Scheduler.
+ *   - CHANGE: Removes separate auto scheduler state/log presentation from the main scheduler flow.
+ *   - NOTE: race_results_auto_scheduler.php is no longer part of the installed scheduling path.
+ *
+ * v013 (6/6/2026)
+ *   - NEW: Added Auto Scheduler panel on Scheduler tab.
+ *   - NEW: Reads _scheduler/auto_state.json written by race_results_auto_scheduler.php.
+ *   - NEW: Shows auto phase, interval, last monitor run, next due, lap status, and last auto result.
+ *   - NEW: Adds raw links for auto_state.json and auto_log.txt.
+ *
  * v012 (6/6/2026)
  *   - CHANGE: Renamed monitor card from Current Race Status to Race Status.
  *   - NEW: Reads schedule-aware race_status from monitor state when available.
@@ -83,7 +102,7 @@ if (!headers_sent()) {
     header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
 }
 
-const RACE_RESULTS_DASHBOARD_VERSION = 'v012';
+const RACE_RESULTS_DASHBOARD_VERSION = 'v015';
 
 
 // -----------------------------------------------------------------------------
@@ -106,6 +125,8 @@ $schedulePath  = $schedulerDir . '/schedule.json';
 $statePath     = $schedulerDir . '/state.json';
 $heartbeatPath = $schedulerDir . '/heartbeat.txt';
 $logPath       = $schedulerDir . '/log.txt';
+$autoStatePath = $schedulerDir . '/auto_state.json';
+$autoLogPath   = $schedulerDir . '/auto_log.txt';
 
 function sd_html($value): string
 {
@@ -358,9 +379,69 @@ function sd_interval_task_status(array $task, array $taskState, DateTimeImmutabl
     ];
 }
 
+function sd_auto_race_task_status(array $task, array $taskState, DateTimeImmutable $now, DateTimeZone $tz): array
+{
+    $auto = isset($taskState['auto_schedule']) && is_array($taskState['auto_schedule']) ? $taskState['auto_schedule'] : [];
+    $decision = isset($auto['decision']) && is_array($auto['decision']) ? $auto['decision'] : [];
+    $interval = isset($decision['interval_minutes']) ? (int)$decision['interval_minutes'] : 0;
+    $due = !empty($decision['due']);
+    $phase = (string)($decision['phase_label'] ?? $decision['phase'] ?? 'auto race-aware');
+    $nextDue = (string)($decision['next_due_at'] ?? '');
+    $lastAttempt = sd_parse_dt($taskState['last_attempt_at'] ?? '', $tz);
+    $lastCompleted = sd_parse_dt($taskState['last_completed_at'] ?? '', $tz);
+
+    return [
+        'due' => $due,
+        'due_text' => $due ? 'DUE' : 'not due',
+        'next_run' => $due ? 'now' : $nextDue,
+        'schedule_text' => $interval > 0 ? 'auto race-aware: ' . $phase . ' / every ' . $interval . ' min' : 'auto race-aware: ' . $phase . ' / disabled',
+        'last_attempt' => $lastAttempt ? $lastAttempt->format('Y-m-d g:i:s A') : '',
+        'last_completed' => $lastCompleted ? $lastCompleted->format('Y-m-d g:i:s A') : '',
+    ];
+}
+
+
+function sd_auto_revision_task_status(array $task, array $taskState, DateTimeImmutable $now, DateTimeZone $tz): array
+{
+    $rev = isset($taskState['revision_schedule']) && is_array($taskState['revision_schedule']) ? $taskState['revision_schedule'] : [];
+    $decision = isset($rev['decision']) && is_array($rev['decision']) ? $rev['decision'] : [];
+    $interval = array_key_exists('interval_minutes', $decision) && $decision['interval_minutes'] !== null ? (int)$decision['interval_minutes'] : 0;
+    $due = !empty($decision['due']);
+    $phase = (string)($decision['phase_label'] ?? $decision['phase'] ?? 'auto revision-aware');
+    $nextDue = (string)($decision['next_due_at'] ?? '');
+    $lastAttempt = sd_parse_dt($taskState['last_attempt_at'] ?? '', $tz);
+    $lastCompleted = sd_parse_dt($taskState['last_completed_at'] ?? '', $tz);
+
+    $dailyTimes = isset($decision['daily_times']) && is_array($decision['daily_times'])
+        ? $decision['daily_times']
+        : (isset($task['normal_times']) && is_array($task['normal_times']) ? $task['normal_times'] : []);
+
+    if (!empty($decision['uses_daily_times'])) {
+        $scheduleText = 'Auto: daily times';
+    } else {
+        $scheduleText = $interval > 0
+            ? 'Auto: every ' . $interval . ' min'
+            : 'Auto: disabled';
+    }
+
+    $displayNextRun = $due ? 'now' : $nextDue;
+    if ($displayNextRun === '') {
+        $displayNextRun = 'Auto';
+    }
+
+    return [
+        'due' => $due,
+        'due_text' => $due ? 'DUE' : 'not due',
+        'next_run' => $displayNextRun,
+        'schedule_text' => $scheduleText,
+        'last_attempt' => $lastAttempt ? $lastAttempt->format('Y-m-d g:i:s A') : '',
+        'last_completed' => $lastCompleted ? $lastCompleted->format('Y-m-d g:i:s A') : '',
+    ];
+}
+
 function sd_daily_task_status(array $task, array $taskState, DateTimeImmutable $now, DateTimeZone $tz): array
 {
-    $times = isset($task['times']) && is_array($task['times']) ? $task['times'] : [];
+    $times = isset($task['times']) && is_array($task['times']) ? $task['times'] : (isset($task['normal_times']) && is_array($task['normal_times']) ? $task['normal_times'] : []);
     $times = array_values(array_filter(array_map('strval', $times), function ($value) {
         return trim($value) !== '';
     }));
@@ -537,7 +618,9 @@ if ($export !== '') {
                 $type = isset($task['type']) ? (string)$task['type'] : 'interval';
                 $calc = ($type === 'daily_times')
                     ? sd_daily_task_status($task, $taskState, $now, $tz)
-                    : sd_interval_task_status($task, $taskState, $now, $tz);
+                    : (($type === 'auto_race_monitor')
+                        ? sd_auto_race_task_status($task, $taskState, $now, $tz)
+                        : sd_interval_task_status($task, $taskState, $now, $tz));
 
                 $lines[] = '- ' . (string)$taskName;
                 $lines[] = '  script: ' . (string)($task['script'] ?? '');
@@ -2340,12 +2423,115 @@ if ((string)($_GET['rr_run'] ?? '') === 'ok') {
 <?php if ($mainTab === 'scheduler'): ?>
 
 <div class="grid">
-    <div class="card">
-        <h2>Tasks (<?php echo (int)$taskCount; ?>)</h2>
 
-        <?php if (empty($tasks)): ?>
-            <p class="msg">No tasks found in schedule.json.</p>
+    <div class="card status-card">
+        <h2>Race Scheduler</h2>
+        <?php
+        $raceTask = isset($tasks['race_results_monitor']) && is_array($tasks['race_results_monitor']) ? $tasks['race_results_monitor'] : [];
+        $raceTaskState = isset($stateTasks['race_results_monitor']) && is_array($stateTasks['race_results_monitor']) ? $stateTasks['race_results_monitor'] : [];
+        $raceAuto = isset($raceTaskState['auto_schedule']) && is_array($raceTaskState['auto_schedule']) ? $raceTaskState['auto_schedule'] : [];
+        $autoDecision = isset($raceAuto['decision']) && is_array($raceAuto['decision']) ? $raceAuto['decision'] : [];
+        $autoNextRace = isset($raceAuto['next_race']) && is_array($raceAuto['next_race']) ? $raceAuto['next_race'] : [];
+        $autoStatus = isset($raceTaskState['last_check_status']) ? (string)$raceTaskState['last_check_status'] : (string)($raceTaskState['last_status'] ?? '');
+        $autoMessage = isset($raceTaskState['last_check_message']) ? (string)$raceTaskState['last_check_message'] : (string)($raceTaskState['last_message'] ?? '');
+        $autoStatusClass = rr_dash_task_status_class($autoStatus, isset($raceTaskState['last_exit_code']) ? (string)$raceTaskState['last_exit_code'] : '');
+        $autoInterval = isset($autoDecision['interval_minutes']) ? (int)$autoDecision['interval_minutes'] : 0;
+        $autoLapFound = !empty($autoDecision['lap_status_found']);
+        $autoLapText = $autoLapFound
+            ? ('Lap ' . sd_html((string)($autoDecision['lap_current'] ?? '')) . ' of ' . sd_html((string)($autoDecision['lap_total'] ?? '')))
+            : 'not found yet';
+        ?>
+        <?php if (empty($raceTask)): ?>
+            <p class="msg">No race_results_monitor task found in _scheduler/schedule.json.</p>
+        <?php elseif (empty($raceAuto)): ?>
+            <p class="msg">Race scheduler state has not been written yet. Wait for cron_master_scheduler.php v008 to run once.</p>
+            <p class="small">Configured mode: <?php echo sd_html((string)($raceTask['type'] ?? '')); ?></p>
         <?php else: ?>
+            <div class="race-progress-row">
+                <span class="pill"><strong>Task:</strong> <?php echo sd_html((string)($raceTask['script'] ?? 'race_results_monitor.php')); ?></span>
+                <span class="pill"><strong>Mode:</strong> <?php echo sd_html((string)($raceTask['type'] ?? '')); ?></span>
+                <span class="pill"><strong>Next Race:</strong> <?php echo sd_html($autoNextRace['label'] ?? ''); ?></span>
+                <span class="pill"><strong>Start:</strong> <?php echo sd_html($autoNextRace['start_text'] ?? $autoNextRace['start_at'] ?? ''); ?></span>
+                <span class="pill"><strong>Phase:</strong> <?php echo sd_html($autoDecision['phase_label'] ?? $autoDecision['phase'] ?? ''); ?></span>
+                <span class="pill"><strong>Interval:</strong> <?php echo $autoInterval > 0 ? 'every ' . sd_html((string)$autoInterval) . ' min' : 'disabled'; ?></span>
+                <span class="pill"><strong>Lap Status:</strong> <?php echo $autoLapText; ?></span>
+                <span class="pill <?php echo sd_html($autoStatusClass); ?>"><strong>Last Status:</strong> <?php echo sd_html($autoStatus !== '' ? $autoStatus : 'unknown'); ?></span>
+            </div>
+
+            <table class="section-spacer">
+                <tbody>
+                    <tr>
+                        <th>Generated</th>
+                        <td><?php echo sd_html(rr_dash_display_datetime((string)($raceAuto['generated_at'] ?? ''))); ?></td>
+                    </tr>
+                    <tr>
+                        <th>Last Monitor Run Used</th>
+                        <td><?php echo sd_html(rr_dash_display_datetime((string)($autoDecision['last_monitor_run_at'] ?? ''))); ?></td>
+                    </tr>
+                    <tr>
+                        <th>Next Due</th>
+                        <td><?php echo sd_html(rr_dash_display_datetime((string)($autoDecision['next_due_at'] ?? ''))); ?></td>
+                    </tr>
+                    <tr>
+                        <th>Due Reason</th>
+                        <td><?php echo sd_html($autoDecision['due_reason'] ?? $autoMessage); ?></td>
+                    </tr>
+                    <tr>
+                        <th>Monitor Output</th>
+                        <td>
+                            <?php if (!empty($raceTaskState['last_output_tail'])): ?>
+                                <div class="mono"><?php echo sd_html((string)$raceTaskState['last_output_tail']); ?></div>
+                            <?php else: ?>
+                                <span class="small">No monitor output from an auto race-aware run yet.</span>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <p class="small">Scheduler config: _scheduler/schedule.json | Race data: _race_results_schedule.json | Monitor state: _race_results_monitor_state.json</p>
+        <?php endif; ?>
+    </div>
+
+    <div class="card">
+        <h2>Revision Scheduler</h2>
+
+        <?php if (empty($tasks) || empty($tasks['race_results_revision_monitor'])): ?>
+            <p class="msg">No race_results_revision_monitor task found in schedule.json.</p>
+        <?php else: ?>
+            <?php
+            $revisionTaskState = isset($stateTasks['race_results_revision_monitor']) && is_array($stateTasks['race_results_revision_monitor']) ? $stateTasks['race_results_revision_monitor'] : [];
+            $revisionSchedule = isset($revisionTaskState['revision_schedule']) && is_array($revisionTaskState['revision_schedule']) ? $revisionTaskState['revision_schedule'] : [];
+            $revisionDecision = isset($revisionSchedule['decision']) && is_array($revisionSchedule['decision']) ? $revisionSchedule['decision'] : [];
+            $revisionHandoff = isset($revisionSchedule['handoff']) && is_array($revisionSchedule['handoff']) ? $revisionSchedule['handoff'] : [];
+            ?>
+            <?php if (!empty($revisionSchedule)): ?>
+                <table class="section-spacer">
+                    <tbody>
+                        <tr>
+                            <th>Mode</th>
+                            <td><?php echo sd_html((string)($revisionSchedule['mode'] ?? '')); ?></td>
+                            <th>Phase</th>
+                            <td><?php echo sd_html((string)($revisionDecision['phase_label'] ?? $revisionDecision['phase'] ?? '')); ?></td>
+                        </tr>
+                        <tr>
+                            <th>Latest Final</th>
+                            <td><?php echo sd_html((string)($revisionHandoff['race_name'] ?? '')); ?></td>
+                            <th>Interval</th>
+                            <td><?php echo array_key_exists('interval_minutes', $revisionDecision) && $revisionDecision['interval_minutes'] !== null ? 'every ' . sd_html((string)$revisionDecision['interval_minutes']) . ' min' : 'daily times'; ?></td>
+                        </tr>
+                        <tr>
+                            <th>Handoff</th>
+                            <td><?php echo sd_html((string)($revisionHandoff['status'] ?? '')); ?></td>
+                            <th>Next Due</th>
+                            <td><?php echo sd_html(rr_dash_display_datetime((string)($revisionDecision['next_due_at'] ?? ''))); ?></td>
+                        </tr>
+                        <tr>
+                            <th>Due Reason</th>
+                            <td colspan="3"><?php echo sd_html((string)($revisionDecision['due_reason'] ?? '')); ?></td>
+                        </tr>
+                    </tbody>
+                </table>
+            <?php endif; ?>
             <table>
                 <thead>
                     <tr>
@@ -2362,6 +2548,9 @@ if ((string)($_GET['rr_run'] ?? '') === 'ok') {
                 <tbody>
                 <?php foreach ($tasks as $taskName => $task): ?>
                     <?php
+                    if ($taskName !== 'race_results_revision_monitor') {
+                        continue;
+                    }
                     if (!is_array($task)) {
                         continue;
                     }
@@ -2371,6 +2560,10 @@ if ((string)($_GET['rr_run'] ?? '') === 'ok') {
 
                     if ($type === 'daily_times') {
                         $calc = sd_daily_task_status($task, $taskState, $now, $tz);
+                    } elseif ($type === 'auto_revision_monitor') {
+                        $calc = sd_auto_revision_task_status($task, $taskState, $now, $tz);
+                    } elseif ($type === 'auto_race_monitor') {
+                        $calc = sd_auto_race_task_status($task, $taskState, $now, $tz);
                     } else {
                         $calc = sd_interval_task_status($task, $taskState, $now, $tz);
                     }

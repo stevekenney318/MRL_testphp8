@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * cron_master_scheduler.php
  *
- * VERSION: v007
- * LAST MODIFIED: 5/29/2026 3:43:59 pm
+ * VERSION: v009
+ * LAST MODIFIED: 6/7/2026 11:02:17 am
  *
  * DESCRIPTION:
  * Basic JSON-driven master scheduler for MRL race-results automation.
@@ -25,6 +25,20 @@ declare(strict_types=1);
  *        -> race_results_classify_revisions.php when revisions are detected
  *
  * CHANGELOG:
+ * v009 (6/7/2026)
+ * - FIX: Auto revision normal-daily phase now writes the next upcoming daily run time into state for dashboard display.
+ * - NEW: Adds auto_revision_monitor task type for post-race revision-monitor scheduling.
+ * - NEW: Revision monitor can run frequently after a new final-result handoff, then scale back to 3-hour and 6-hour intervals before returning to normal daily times.
+ * - NEW: Stores revision scheduler decision details inside _scheduler/state.json under tasks.race_results_revision_monitor.revision_schedule.
+ * - NOTE: First run records the currently known final race as the baseline and does not retroactively trigger a post-race burst for older races.
+ *
+ * v008 (6/7/2026)
+ * - NEW: Adds auto_race_monitor task type for race-aware monitor scheduling.
+ * - NEW: Reads _race_results_schedule.json and _race_results_monitor_state.json as supporting data.
+ * - CHANGE: race_results_monitor can now be scheduled from actual next-race start time while still using _scheduler/schedule.json as the control file.
+ * - NEW: Stores auto race scheduler decision details inside _scheduler/state.json under tasks.race_results_monitor.auto_schedule.
+ * - NOTE: No second Hostinger cron or separate auto scheduler script is required.
+ *
  * v007 (5/28/2026)
  * - NEW: Added cache-busting scheduler query values to URL task calls.
  * - NEW: Heartbeat verification now retries once briefly before warning.
@@ -78,8 +92,8 @@ declare(strict_types=1);
 
 date_default_timezone_set('America/New_York');
 
-const CMS_VERSION = 'v007';
-const CMS_SIGNATURE = 'CRON_MASTER_SCHEDULER v007';
+const CMS_VERSION = 'v009';
+const CMS_SIGNATURE = 'CRON_MASTER_SCHEDULER v009';
 
 $baseDir = __DIR__;
 $schedulerDir = $baseDir . '/_scheduler';
@@ -235,7 +249,13 @@ foreach ($tasks as $taskName => $task) {
         $forceRunAllFlagDetected
     );
 
-    $dueInfo = cms_task_due($taskName, $task, $state, $now, $schedulerResumeDetected, $schedulerResumeReason, $taskForceFlagDetected);
+    $dueInfo = cms_task_due($taskName, $task, $state, $now, $schedulerResumeDetected, $schedulerResumeReason, $taskForceFlagDetected, $baseDir, $year);
+    if (isset($dueInfo['auto_schedule']) && is_array($dueInfo['auto_schedule'])) {
+        $state['tasks'][$taskName]['auto_schedule'] = $dueInfo['auto_schedule'];
+    }
+    if (isset($dueInfo['revision_schedule']) && is_array($dueInfo['revision_schedule'])) {
+        $state['tasks'][$taskName]['revision_schedule'] = $dueInfo['revision_schedule'];
+    }
     if (empty($dueInfo['due'])) {
         $skippedCount++;
         cms_set_task_check_status($state, $taskName, 'not_due', (string)$dueInfo['reason']);
@@ -520,7 +540,7 @@ function cms_task_force_flag_detected(
     return false;
 }
 
-function cms_task_due(string $taskName, array $task, array $state, int $now, bool $schedulerResumeDetected, string $schedulerResumeReason, bool $forceRunFlagDetected): array
+function cms_task_due(string $taskName, array $task, array $state, int $now, bool $schedulerResumeDetected, string $schedulerResumeReason, bool $forceRunFlagDetected, string $baseDir, int $year): array
 {
     $type = (string)($task['type'] ?? 'interval');
 
@@ -528,7 +548,498 @@ function cms_task_due(string $taskName, array $task, array $state, int $now, boo
         return cms_daily_time_task_due($taskName, $task, $state, $now, $forceRunFlagDetected);
     }
 
+    if ($type === 'auto_race_monitor') {
+        return cms_auto_race_monitor_task_due($taskName, $task, $state, $now, $forceRunFlagDetected, $baseDir, $year);
+    }
+
+    if ($type === 'auto_revision_monitor') {
+        return cms_auto_revision_monitor_task_due($taskName, $task, $state, $now, $forceRunFlagDetected, $baseDir, $year);
+    }
+
     return cms_interval_task_due($taskName, $task, $state, $now, $schedulerResumeDetected, $schedulerResumeReason, $forceRunFlagDetected);
+}
+
+
+function cms_parse_ny_datetime($value): int
+{
+    $s = trim((string)$value);
+    if ($s === '') return 0;
+    $ts = strtotime($s);
+    return $ts === false ? 0 : (int)$ts;
+}
+
+function cms_format_ny_datetime_from_ts(int $ts): string
+{
+    if ($ts <= 0) return '';
+    return date('Y-m-d H:i:s', $ts);
+}
+
+function cms_auto_rule_interval(array $task, string $key, int $default): int
+{
+    $rules = isset($task['auto_rules']) && is_array($task['auto_rules']) ? $task['auto_rules'] : [];
+    if (array_key_exists($key, $rules)) {
+        return (int)$rules[$key];
+    }
+    return $default;
+}
+
+function cms_latest_monitor_run_ts(array $state, array $monitorState, int $year, string $taskName): int
+{
+    $latest = 0;
+
+    $taskState = isset($state['tasks'][$taskName]) && is_array($state['tasks'][$taskName]) ? $state['tasks'][$taskName] : [];
+    foreach (['last_actual_attempt_at', 'last_attempt_at', 'last_actual_completed_at', 'last_completed_at'] as $key) {
+        if (!empty($taskState[$key])) {
+            $ts = cms_parse_ny_datetime($taskState[$key]);
+            if ($ts > $latest) $latest = $ts;
+        }
+    }
+
+    $yearState = isset($monitorState['byYear'][(string)$year]) && is_array($monitorState['byYear'][(string)$year])
+        ? $monitorState['byYear'][(string)$year]
+        : [];
+
+    if (!empty($yearState['last_checked_at'])) {
+        $ts = cms_parse_ny_datetime($yearState['last_checked_at']);
+        if ($ts > $latest) $latest = $ts;
+    }
+
+    $raceStatus = isset($yearState['race_status']) && is_array($yearState['race_status'])
+        ? $yearState['race_status']
+        : (isset($yearState['current_race_status']) && is_array($yearState['current_race_status']) ? $yearState['current_race_status'] : []);
+
+    if (!empty($raceStatus['checked_at'])) {
+        $ts = cms_parse_ny_datetime($raceStatus['checked_at']);
+        if ($ts > $latest) $latest = $ts;
+    }
+
+    return $latest;
+}
+
+function cms_monitor_lap_status(array $monitorState, int $year): array
+{
+    $yearState = isset($monitorState['byYear'][(string)$year]) && is_array($monitorState['byYear'][(string)$year])
+        ? $monitorState['byYear'][(string)$year]
+        : [];
+    $raceStatus = isset($yearState['race_status']) && is_array($yearState['race_status'])
+        ? $yearState['race_status']
+        : (isset($yearState['current_race_status']) && is_array($yearState['current_race_status']) ? $yearState['current_race_status'] : []);
+
+    return [
+        'found' => !empty($raceStatus['lap_status_found']),
+        'current' => array_key_exists('lap_current', $raceStatus) ? $raceStatus['lap_current'] : null,
+        'total' => array_key_exists('lap_total', $raceStatus) ? $raceStatus['lap_total'] : null,
+        'checked_at' => isset($raceStatus['checked_at']) ? (string)$raceStatus['checked_at'] : '',
+    ];
+}
+
+function cms_auto_race_phase(array $task, int $now, int $startTs, bool $lapFound): array
+{
+    if ($startTs <= 0) {
+        return [
+            'phase' => 'no_next_race_start',
+            'label' => 'No next race start time',
+            'interval_minutes' => 0,
+            'reason' => 'No next race start_at/start_ts found in _race_results_schedule.json.',
+            'seconds_to_start' => null,
+        ];
+    }
+
+    $seconds = $startTs - $now;
+
+    if ($seconds > 24 * 3600) {
+        return [
+            'phase' => 'standby_more_than_24h',
+            'label' => 'More than 24h before race',
+            'interval_minutes' => cms_auto_rule_interval($task, 'more_than_24h_before_start', 0),
+            'reason' => 'Race monitor is not needed more than 24 hours before scheduled start.',
+            'seconds_to_start' => $seconds,
+        ];
+    }
+
+    if ($seconds > 6 * 3600) {
+        return [
+            'phase' => 'race_day_24h_to_6h',
+            'label' => '24h to 6h before start',
+            'interval_minutes' => cms_auto_rule_interval($task, '24h_to_6h_before_start', 120),
+            'reason' => 'Race is within 24 hours; light monitoring.',
+            'seconds_to_start' => $seconds,
+        ];
+    }
+
+    if ($seconds > 2 * 3600) {
+        return [
+            'phase' => 'race_day_6h_to_2h',
+            'label' => '6h to 2h before start',
+            'interval_minutes' => cms_auto_rule_interval($task, '6h_to_2h_before_start', 30),
+            'reason' => 'Race is within 6 hours.',
+            'seconds_to_start' => $seconds,
+        ];
+    }
+
+    if ($seconds > 0) {
+        return [
+            'phase' => 'race_day_2h_to_start',
+            'label' => '2h to scheduled start',
+            'interval_minutes' => cms_auto_rule_interval($task, '2h_to_start', 15),
+            'reason' => 'Race is within 2 hours.',
+            'seconds_to_start' => $seconds,
+        ];
+    }
+
+    if ($lapFound) {
+        return [
+            'phase' => 'lap_status_active_first_pass',
+            'label' => 'Lap status active',
+            'interval_minutes' => cms_auto_rule_interval($task, 'lap_found', 5),
+            'reason' => 'Lap status has been detected; first pass keeps safe cadence.',
+            'seconds_to_start' => $seconds,
+        ];
+    }
+
+    return [
+        'phase' => 'scheduled_start_waiting_for_lap',
+        'label' => 'Scheduled start passed; waiting for lap status',
+        'interval_minutes' => cms_auto_rule_interval($task, 'start_until_lap_found', 5),
+        'reason' => 'Scheduled start has passed but lap status is not detected yet.',
+        'seconds_to_start' => $seconds,
+    ];
+}
+
+function cms_auto_race_monitor_task_due(string $taskName, array $task, array $state, int $now, bool $forceRunFlagDetected, string $baseDir, int $year): array
+{
+    $schedulePath = rtrim($baseDir, '/\\') . '/_race_results_schedule.json';
+    $monitorStatePath = rtrim($baseDir, '/\\') . '/_race_results_monitor_state.json';
+    $raceSchedule = cms_load_json($schedulePath);
+    $monitorState = cms_load_json($monitorStatePath);
+
+    $nextRace = isset($raceSchedule['next_race']) && is_array($raceSchedule['next_race']) ? $raceSchedule['next_race'] : [];
+    if (empty($nextRace)) {
+        $yearStateForSchedule = isset($monitorState['byYear'][(string)$year]) && is_array($monitorState['byYear'][(string)$year])
+            ? $monitorState['byYear'][(string)$year]
+            : [];
+        if (isset($yearStateForSchedule['schedule_status']['next_race']) && is_array($yearStateForSchedule['schedule_status']['next_race'])) {
+            $nextRace = $yearStateForSchedule['schedule_status']['next_race'];
+        }
+    }
+    $startTs = 0;
+    if (!empty($nextRace['start_ts'])) {
+        $startTs = (int)$nextRace['start_ts'];
+    }
+    if ($startTs <= 0 && !empty($nextRace['start_at'])) {
+        $startTs = cms_parse_ny_datetime($nextRace['start_at']);
+    }
+
+    $lap = cms_monitor_lap_status($monitorState, $year);
+    $phase = cms_auto_race_phase($task, $now, $startTs, !empty($lap['found']));
+    $interval = (int)$phase['interval_minutes'];
+    $lastRunTs = cms_latest_monitor_run_ts($state, $monitorState, $year, $taskName);
+
+    $due = false;
+    $reason = '';
+    $nextDueTs = 0;
+
+    if ($forceRunFlagDetected) {
+        $due = true;
+        $reason = 'manual force-run flag';
+    } elseif ($interval <= 0) {
+        $due = false;
+        $reason = 'phase interval is disabled; monitor not due';
+    } elseif ($lastRunTs <= 0) {
+        $due = true;
+        $reason = 'no previous monitor run found';
+    } else {
+        $nextDueTs = $lastRunTs + ($interval * 60);
+        if ($now >= $nextDueTs) {
+            $due = true;
+            $reason = 'interval ' . (string)$interval . ' minutes elapsed / auto race-aware';
+        } else {
+            $remaining = max(0, $nextDueTs - $now);
+            $due = false;
+            $reason = 'not due; ' . (string)((int)ceil($remaining / 60)) . ' minutes remaining';
+        }
+    }
+
+    if ($nextDueTs <= 0 && $lastRunTs > 0 && $interval > 0) {
+        $nextDueTs = $lastRunTs + ($interval * 60);
+    }
+
+    $raceLabel = trim((string)($nextRace['mrl_race_code'] ?? '') . ' ' . (string)($nextRace['short_name'] ?? $nextRace['race_name'] ?? ''));
+
+    return [
+        'due' => $due,
+        'reason' => $reason,
+        'interval_minutes' => $interval,
+        'auto_schedule' => [
+            'mode' => 'auto_race_monitor',
+            'generated_at' => cms_now_string(),
+            'schedule_source' => '_scheduler/schedule.json',
+            'race_schedule_source' => '_race_results_schedule.json',
+            'monitor_state_source' => '_race_results_monitor_state.json',
+            'next_race' => [
+                'label' => $raceLabel,
+                'race_name' => (string)($nextRace['race_name'] ?? ''),
+                'short_name' => (string)($nextRace['short_name'] ?? ''),
+                'mrl_race_code' => (string)($nextRace['mrl_race_code'] ?? ''),
+                'mrl_race_number' => $nextRace['mrl_race_number'] ?? null,
+                'start_at' => (string)($nextRace['start_at'] ?? ''),
+                'start_text' => trim((string)($nextRace['date_text'] ?? '') . ' ' . (string)($nextRace['time_text'] ?? '')),
+            ],
+            'decision' => [
+                'phase' => $phase['phase'],
+                'phase_label' => $phase['label'],
+                'interval_minutes' => $interval,
+                'due' => $due,
+                'due_reason' => $reason,
+                'seconds_to_start' => $phase['seconds_to_start'],
+                'start_at' => $startTs > 0 ? cms_format_ny_datetime_from_ts($startTs) : '',
+                'last_monitor_run_at' => cms_format_ny_datetime_from_ts($lastRunTs),
+                'next_due_at' => cms_format_ny_datetime_from_ts($nextDueTs),
+                'lap_status_found' => !empty($lap['found']),
+                'lap_current' => $lap['current'],
+                'lap_total' => $lap['total'],
+                'lap_checked_at' => $lap['checked_at'],
+            ],
+        ],
+    ];
+}
+
+
+function cms_latest_revision_run_ts(array $state, string $taskName): int
+{
+    $latest = 0;
+    $taskState = isset($state['tasks'][$taskName]) && is_array($state['tasks'][$taskName]) ? $state['tasks'][$taskName] : [];
+    foreach (['last_actual_attempt_at', 'last_attempt_at', 'last_actual_completed_at', 'last_completed_at'] as $key) {
+        if (!empty($taskState[$key])) {
+            $ts = cms_parse_ny_datetime($taskState[$key]);
+            if ($ts > $latest) $latest = $ts;
+        }
+    }
+    return $latest;
+}
+
+function cms_monitor_latest_final_info(array $monitorState, int $year): array
+{
+    $yearState = isset($monitorState['byYear'][(string)$year]) && is_array($monitorState['byYear'][(string)$year])
+        ? $monitorState['byYear'][(string)$year]
+        : [];
+
+    $raceStatus = isset($yearState['race_status']) && is_array($yearState['race_status']) ? $yearState['race_status'] : [];
+
+    $url = (string)($yearState['final_sent_for_url'] ?? '');
+    if ($url === '') $url = (string)($raceStatus['latest_final_race_url'] ?? '');
+
+    $name = (string)($raceStatus['latest_final_race_name'] ?? '');
+    if ($name === '') $name = (string)($yearState['current_race_status']['race_name'] ?? '');
+
+    $checkedAt = (string)($yearState['last_checked_at'] ?? '');
+    if (!empty($yearState['final_check']) && is_array($yearState['final_check']) && !empty($yearState['final_check']['checked_at'])) {
+        $checkedAt = (string)$yearState['final_check']['checked_at'];
+    }
+
+    $raceId = '';
+    if ($url !== '' && preg_match('/raceId\/(\d+)/', $url, $m)) {
+        $raceId = (string)$m[1];
+    }
+
+    return [
+        'final_key' => $url !== '' ? $url : $raceId,
+        'final_url' => $url,
+        'race_id' => $raceId,
+        'race_name' => $name,
+        'checked_at' => $checkedAt,
+    ];
+}
+
+function cms_auto_revision_rule_interval(array $task, string $key, int $default): int
+{
+    $rules = isset($task['auto_rules']) && is_array($task['auto_rules']) ? $task['auto_rules'] : [];
+    if (array_key_exists($key, $rules)) {
+        return (int)$rules[$key];
+    }
+    return $default;
+}
+
+function cms_auto_revision_normal_due(string $taskName, array $task, array $state, int $now, bool $forceRunFlagDetected): array
+{
+    $normalTimes = isset($task['normal_times']) && is_array($task['normal_times']) ? $task['normal_times'] : [];
+    if (empty($normalTimes) && isset($task['times']) && is_array($task['times'])) {
+        $normalTimes = $task['times'];
+    }
+    if (empty($normalTimes)) {
+        $normalTimes = ['00:00', '06:00', '12:00', '18:00'];
+    }
+
+    $dailyTask = $task;
+    $dailyTask['times'] = $normalTimes;
+    $due = cms_daily_time_task_due($taskName, $dailyTask, $state, $now, $forceRunFlagDetected);
+    $due['interval_minutes'] = null;
+    return $due;
+}
+
+function cms_auto_revision_monitor_task_due(string $taskName, array $task, array $state, int $now, bool $forceRunFlagDetected, string $baseDir, int $year): array
+{
+    $monitorStatePath = rtrim($baseDir, '/\\') . '/_race_results_monitor_state.json';
+    $monitorState = cms_load_json($monitorStatePath);
+    $final = cms_monitor_latest_final_info($monitorState, $year);
+
+    $taskState = isset($state['tasks'][$taskName]) && is_array($state['tasks'][$taskName]) ? $state['tasks'][$taskName] : [];
+    $priorSchedule = isset($taskState['revision_schedule']) && is_array($taskState['revision_schedule']) ? $taskState['revision_schedule'] : [];
+    $priorHandoff = isset($priorSchedule['handoff']) && is_array($priorSchedule['handoff']) ? $priorSchedule['handoff'] : [];
+
+    $finalKey = (string)($final['final_key'] ?? '');
+    $storedKey = (string)($priorHandoff['final_key'] ?? '');
+    $storedAnchorAt = (string)($priorHandoff['anchor_at'] ?? '');
+    $storedAnchorTs = cms_parse_ny_datetime($storedAnchorAt);
+
+    $handoffStatus = 'none';
+    $activePostRace = false;
+    $anchorTs = 0;
+    $anchorAt = '';
+
+    if ($finalKey === '') {
+        $handoffStatus = 'no_final_known';
+    } elseif ($storedKey === '') {
+        // First run after installing this scheduler mode: record the current final as baseline,
+        // but do not treat an older already-known race as a fresh post-race handoff.
+        $storedKey = $finalKey;
+        $handoffStatus = 'baseline_recorded';
+    } elseif ($storedKey !== $finalKey) {
+        $handoffStatus = 'new_final_handoff_detected';
+        $activePostRace = true;
+        $anchorTs = $now;
+        $anchorAt = cms_now_string();
+    } elseif ($storedAnchorTs > 0) {
+        $handoffStatus = 'active_or_completed_handoff';
+        $activePostRace = true;
+        $anchorTs = $storedAnchorTs;
+        $anchorAt = $storedAnchorAt;
+    } else {
+        $handoffStatus = 'baseline_known';
+    }
+
+    $phase = 'normal_daily_times';
+    $phaseLabel = 'Normal daily revision schedule';
+    $interval = 0;
+    $elapsedSeconds = null;
+    $usesDaily = true;
+
+    if ($activePostRace && $anchorTs > 0) {
+        $elapsedSeconds = max(0, $now - $anchorTs);
+        $usesDaily = false;
+        if ($elapsedSeconds < 3 * 3600) {
+            $phase = 'post_final_0_to_3h';
+            $phaseLabel = 'Post-race stabilization: first 3 hours';
+            $interval = cms_auto_revision_rule_interval($task, 'post_final_0_to_3h', 5);
+        } elseif ($elapsedSeconds < 12 * 3600) {
+            $phase = 'post_final_3h_to_12h';
+            $phaseLabel = 'Post-race stabilization: 3h to 12h';
+            $interval = cms_auto_revision_rule_interval($task, 'post_final_3h_to_12h', 180);
+        } elseif ($elapsedSeconds < 48 * 3600) {
+            $phase = 'post_final_12h_to_48h';
+            $phaseLabel = 'Post-race follow-up: 12h to 48h';
+            $interval = cms_auto_revision_rule_interval($task, 'post_final_12h_to_48h', 360);
+        } else {
+            $phase = 'normal_daily_times_after_post_race';
+            $phaseLabel = 'Post-race window complete; normal daily revision schedule';
+            $usesDaily = true;
+            $interval = 0;
+        }
+    }
+
+    $due = false;
+    $reason = '';
+    $nextDueTs = 0;
+    $lastRunTs = cms_latest_revision_run_ts($state, $taskName);
+    $dailyDueInfo = null;
+
+    if ($forceRunFlagDetected) {
+        $due = true;
+        $reason = 'manual force-run flag';
+    } elseif ($usesDaily) {
+        $dailyDueInfo = cms_auto_revision_normal_due($taskName, $task, $state, $now, false);
+        $due = !empty($dailyDueInfo['due']);
+        $reason = (string)($dailyDueInfo['reason'] ?? 'normal daily schedule');
+
+        $normalTimesForNext = isset($task['normal_times']) && is_array($task['normal_times']) ? $task['normal_times'] : [];
+        if (empty($normalTimesForNext) && isset($task['times']) && is_array($task['times'])) {
+            $normalTimesForNext = $task['times'];
+        }
+        if (empty($normalTimesForNext)) {
+            $normalTimesForNext = ['00:00', '06:00', '12:00', '18:00'];
+        }
+        $dailyNextTask = $task;
+        $dailyNextTask['times'] = $normalTimesForNext;
+        $nextDueTs = cms_next_daily_time_ts($taskName, $dailyNextTask, $state, $now);
+    } elseif ($interval <= 0) {
+        $due = false;
+        $reason = 'phase interval is disabled; revision monitor not due';
+    } elseif ($lastRunTs <= 0) {
+        $due = true;
+        $reason = 'no previous revision monitor run found';
+    } else {
+        $nextDueTs = $lastRunTs + ($interval * 60);
+        if ($now >= $nextDueTs) {
+            $due = true;
+            $reason = 'interval ' . (string)$interval . ' minutes elapsed / auto post-race revision schedule';
+        } else {
+            $remaining = max(0, $nextDueTs - $now);
+            $due = false;
+            $reason = 'not due; ' . (string)((int)ceil($remaining / 60)) . ' minutes remaining';
+        }
+    }
+
+    if ($usesDaily && is_array($dailyDueInfo) && !empty($dailyDueInfo['daily_key'])) {
+        $dailyKey = (string)$dailyDueInfo['daily_key'];
+    } else {
+        $dailyKey = '';
+    }
+
+    if ($nextDueTs <= 0 && !$usesDaily && $lastRunTs > 0 && $interval > 0) {
+        $nextDueTs = $lastRunTs + ($interval * 60);
+    }
+
+    $handoff = [
+        'final_key' => $storedKey !== '' ? $storedKey : $finalKey,
+        'current_final_key' => $finalKey,
+        'anchor_at' => $anchorAt,
+        'status' => $handoffStatus,
+        'race_name' => (string)($final['race_name'] ?? ''),
+        'race_id' => (string)($final['race_id'] ?? ''),
+        'final_url' => (string)($final['final_url'] ?? ''),
+        'final_checked_at' => (string)($final['checked_at'] ?? ''),
+    ];
+
+    $revisionSchedule = [
+        'mode' => 'auto_revision_monitor',
+        'generated_at' => cms_now_string(),
+        'schedule_source' => '_scheduler/schedule.json',
+        'monitor_state_source' => '_race_results_monitor_state.json',
+        'handoff' => $handoff,
+        'decision' => [
+            'phase' => $phase,
+            'phase_label' => $phaseLabel,
+            'interval_minutes' => $usesDaily ? null : $interval,
+            'uses_daily_times' => $usesDaily,
+            'daily_times' => isset($task['normal_times']) && is_array($task['normal_times']) ? $task['normal_times'] : (isset($task['times']) && is_array($task['times']) ? $task['times'] : ['00:00', '06:00', '12:00', '18:00']),
+            'due' => $due,
+            'due_reason' => $reason,
+            'last_revision_run_at' => cms_format_ny_datetime_from_ts($lastRunTs),
+            'next_due_at' => $nextDueTs > 0 ? cms_format_ny_datetime_from_ts($nextDueTs) : '',
+            'elapsed_since_handoff_seconds' => $elapsedSeconds,
+        ],
+    ];
+
+    $out = [
+        'due' => $due,
+        'reason' => $reason,
+        'interval_minutes' => $usesDaily ? null : $interval,
+        'revision_schedule' => $revisionSchedule,
+    ];
+    if ($dailyKey !== '') {
+        $out['daily_key'] = $dailyKey;
+    }
+    return $out;
 }
 
 function cms_interval_task_due(string $taskName, array $task, array $state, int $now, bool $schedulerResumeDetected, string $schedulerResumeReason, bool $forceRunFlagDetected): array
@@ -596,6 +1107,40 @@ function cms_interval_task_due(string $taskName, array $task, array $state, int 
         'reason' => "not due; {$elapsed}/{$interval} minutes elapsed",
         'interval_minutes' => $interval,
     ];
+}
+
+
+function cms_next_daily_time_ts(string $taskName, array $task, array $state, int $now): int
+{
+    $times = isset($task['times']) && is_array($task['times']) ? $task['times'] : [];
+    if (empty($times)) return 0;
+
+    $taskState = isset($state['tasks'][$taskName]) && is_array($state['tasks'][$taskName]) ? $state['tasks'][$taskName] : [];
+    $dailyRuns = isset($taskState['daily_runs']) && is_array($taskState['daily_runs']) ? $taskState['daily_runs'] : [];
+
+    $today = date('Y-m-d', $now);
+    $tomorrow = date('Y-m-d', $now + 86400);
+    $best = 0;
+
+    foreach ([$today, $tomorrow] as $day) {
+        foreach ($times as $time) {
+            $time = trim((string)$time);
+            if (!preg_match('/^\d{2}:\d{2}$/', $time)) continue;
+
+            $candidate = strtotime($day . ' ' . $time . ':00');
+            if ($candidate === false) continue;
+            if ($candidate <= $now) continue;
+
+            $key = $day . ' ' . $time;
+            if (!empty($dailyRuns[$key])) continue;
+
+            if ($best <= 0 || $candidate < $best) {
+                $best = $candidate;
+            }
+        }
+    }
+
+    return $best;
 }
 
 function cms_daily_time_task_due(string $taskName, array $task, array $state, int $now, bool $forceRunFlagDetected): array

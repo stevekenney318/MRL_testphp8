@@ -6,101 +6,51 @@
   "notes": [
     "Place this file at race_results/_scheduler/schedule.json.",
     "Scripts are relative to the folder containing cron_master_scheduler.php.",
-    "One Hostinger cron can call cron_master_scheduler.php every minute."
+    "One Hostinger cron calls cron_master_scheduler.php every minute.",
+    "race_results_monitor uses type auto_race_monitor; _race_results_schedule.json supplies next-race timing.",
+    "race_results_revision_monitor uses type auto_revision_monitor; it stays on normal daily times until a new final-result handoff is detected, then temporarily increases cadence."
   ],
   "tasks": {
     "race_results_monitor": {
       "enabled": true,
-      "type": "interval",
+      "type": "auto_race_monitor",
       "script": "race_results_monitor.php",
       "args": [
         "{{year}}"
       ],
-      "interval_minutes": 60,
       "lock_minutes": 10,
       "timeout_seconds": 300,
-      "windows": {
-        "Non_Race_Days": {
-          "enabled": true,
-          "days": [
-            2,3,4,5,6
-          ],
-          "start": "00:00",
-          "end": "23:59",
-          "interval_minutes": 120
-        },
-
-        "race_day_noon": {
-          "enabled": true,
-          "days": [
-            7
-          ],
-          "start": "12:00",
-          "end": "18:59",
-          "interval_minutes": 15
-        },
-        "race_start_7pm": {
-          "enabled": true,
-          "days": [
-            7
-          ],
-          "start": "19:00",
-          "end": "21:29",
-          "interval_minutes": 5
-        },
-        "race_finish_9_30pm": {
-          "enabled": true,
-          "days": [
-            7
-          ],
-          "start": "21:30",
-          "end": "22:29",
-          "interval_minutes": 2
-        },
-        "race_finish_10_30pm": {
-          "enabled": true,
-          "days": [
-            7
-          ],
-          "start": "22:30",
-          "end": "23:59",
-          "interval_minutes": 1
-        },
-        "race_finish_midnight": {
-          "enabled": true,
-          "days": [
-            1
-          ],
-          "start": "00:00",
-          "end": "00:59",
-          "interval_minutes": 1
-        },
-        "race_finish_after_midnight": {
-          "enabled": true,
-          "days": [
-            1
-          ],
-          "start": "01:00",
-          "end": "03:00",
-          "interval_minutes": 2
-        }
-      }
+      "auto_rules": {
+        "more_than_24h_before_start": 0,
+        "24h_to_6h_before_start": 120,
+        "6h_to_2h_before_start": 30,
+        "2h_to_start": 15,
+        "start_until_lap_found": 5,
+        "lap_found": 5
+      },
+      "description": "Race-aware monitor schedule driven by _race_results_schedule.json next_race.start_at and _race_results_monitor_state.json lap/final state."
     },
     "race_results_revision_monitor": {
       "enabled": true,
-      "type": "daily_times",
+      "type": "auto_revision_monitor",
       "script": "race_results_revision_monitor.php",
       "args": [
         "{{year}}"
       ],
-      "times": [
+      "lock_minutes": 30,
+      "timeout_seconds": 600,
+      "normal_times": [
         "00:00",
         "06:00",
         "12:00",
         "18:00"
       ],
-      "lock_minutes": 30,
-      "timeout_seconds": 600
+      "auto_rules": {
+        "post_final_0_to_3h": 5,
+        "post_final_3h_to_12h": 180,
+        "post_final_12h_to_48h": 360
+      },
+      "description": "Revision-aware schedule. Normal daily checks are used until a new final-result handoff is detected; then revision monitor runs more frequently for post-race stabilization before scaling back."
     }
   }
 }
