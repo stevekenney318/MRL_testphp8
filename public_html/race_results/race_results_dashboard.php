@@ -4,10 +4,18 @@ declare(strict_types=1);
 /**
  * race_results_dashboard.php
  *
- * VERSION: v011
- * LAST MODIFIED: 6/5/2026 1:25:06 am
+ * VERSION: v012
+ * LAST MODIFIED: 6/6/2026 5:26:14 am
  *
  * CHANGELOG:
+ * v012 (6/6/2026)
+ *   - CHANGE: Renamed monitor card from Current Race Status to Race Status.
+ *   - NEW: Reads schedule-aware race_status from monitor state when available.
+ *   - NEW: Race Status can show Next Race/Scheduled when the latest final race has handed off to revision monitoring.
+ *   - FIX: Race Status no longer shows Open race page for scheduled races that do not yet have a race-page URL.
+ *   - FIX: Hardened Race Status button logic so scheduled next-race rows cannot fall back to the previous completed race URL.
+ *   - CHANGE: Preserves current_race_status fallback for older monitor state files.
+ *
  * v011 (6/3/2026)
  *   - CHANGE: Updated Revision Summary action confirmation wording to refer to the source site instead of ESPN.
  *   - CHANGE: Renamed Revision Summary Run Now to Refresh Summary and added a separate Regenerate Summary action that runs the revision monitor.
@@ -75,7 +83,7 @@ if (!headers_sent()) {
     header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
 }
 
-const RACE_RESULTS_DASHBOARD_VERSION = 'v011';
+const RACE_RESULTS_DASHBOARD_VERSION = 'v012';
 
 
 // -----------------------------------------------------------------------------
@@ -888,9 +896,9 @@ function rr_dash_monitor_year_state(string $stateRaw, int $year): array
 
 function rr_dash_monitor_status_from_state(array $yearState): array
 {
-    $statusRow = (isset($yearState['current_race_status']) && is_array($yearState['current_race_status']))
-        ? $yearState['current_race_status']
-        : [];
+    $statusRow = (isset($yearState['race_status']) && is_array($yearState['race_status']))
+        ? $yearState['race_status']
+        : ((isset($yearState['current_race_status']) && is_array($yearState['current_race_status'])) ? $yearState['current_race_status'] : []);
 
     $url = '';
     foreach (['race_url', 'url', 'latest_url'] as $key) {
@@ -900,7 +908,14 @@ function rr_dash_monitor_status_from_state(array $yearState): array
         }
     }
 
-    if ($url === '' && isset($yearState['latest_url']) && is_string($yearState['latest_url'])) {
+    $allowLatestUrlFallback = true;
+    $modeForUrl = isset($statusRow['mode']) && is_string($statusRow['mode']) ? (string)$statusRow['mode'] : '';
+    $labelForUrl = isset($statusRow['label']) && is_string($statusRow['label']) ? (string)$statusRow['label'] : '';
+    if ($modeForUrl === 'next_scheduled' || strcasecmp($labelForUrl, 'Next Race') === 0) {
+        $allowLatestUrlFallback = false;
+    }
+
+    if ($url === '' && $allowLatestUrlFallback && isset($yearState['latest_url']) && is_string($yearState['latest_url'])) {
         $url = (string)$yearState['latest_url'];
     }
 
@@ -922,11 +937,28 @@ function rr_dash_monitor_status_from_state(array $yearState): array
         $checkedAt = rr_dash_display_datetime((string)$statusRow['checked_at']);
     }
 
+    $label = 'Current Race';
+    if (isset($statusRow['label']) && is_string($statusRow['label']) && trim($statusRow['label']) !== '') {
+        $label = trim((string)$statusRow['label']);
+    }
+
+    $mode = (string)($statusRow['mode'] ?? '');
+    $canOpenRacePage = ($url !== '' && strpos($url, '/racing/raceresults/') !== false);
+    if ($mode === 'next_scheduled' || strcasecmp($label, 'Next Race') === 0) {
+        // Scheduled future rows often do not have a result-page URL yet. Do not fall back to
+        // the prior completed race page in that case.
+        $canOpenRacePage = false;
+    }
+
     return [
         'url' => $url,
         'race_name' => $raceName,
         'status' => $status,
         'checked_at' => $checkedAt,
+        'label' => $label,
+        'mode' => $mode,
+        'can_open_race_page' => $canOpenRacePage,
+        'owned_by' => (string)($statusRow['owned_by'] ?? ''),
         'found' => ($raceName !== '' || $status !== ''),
         'fetched' => !empty($statusRow),
     ];
@@ -2483,11 +2515,11 @@ if ((string)($_GET['rr_run'] ?? '') === 'ok') {
 </div>
 
 <div class="card race-progress-card">
-    <h2>Current Race Status</h2>
+    <h2>Race Status</h2>
     <?php if (!empty($monitorCurrentRaceStatus['found'])): ?>
         <div class="race-progress-row">
             <?php if ((string)$monitorCurrentRaceStatus['race_name'] !== ''): ?>
-                <span class="pill"><strong>Current race:</strong> <?php echo h((string)$monitorCurrentRaceStatus['race_name']); ?></span>
+                <span class="pill"><strong><?php echo h((string)($monitorCurrentRaceStatus['label'] ?? 'Current Race')); ?>:</strong> <?php echo h((string)$monitorCurrentRaceStatus['race_name']); ?></span>
             <?php endif; ?>
             <?php if ((string)$monitorCurrentRaceStatus['status'] !== ''): ?>
                 <span class="pill"><strong>Status:</strong> <?php echo h((string)$monitorCurrentRaceStatus['status']); ?></span>
@@ -2497,17 +2529,17 @@ if ((string)($_GET['rr_run'] ?? '') === 'ok') {
             <?php if (!empty($monitorCurrentRaceStatus['checked_at'])): ?>
                 <span class="pill"><strong>Checked:</strong> <?php echo h((string)$monitorCurrentRaceStatus['checked_at']); ?></span>
             <?php endif; ?>
-            <?php if ((string)$monitorCurrentRaceStatus['url'] !== ''): ?>
+            <?php if (!empty($monitorCurrentRaceStatus['can_open_race_page']) && (string)$monitorCurrentRaceStatus['url'] !== ''): ?>
                 <a class="btn" href="<?php echo h((string)$monitorCurrentRaceStatus['url']); ?>" target="_blank" rel="noopener">Open race page</a>
             <?php endif; ?>
         </div>
     <?php elseif ($monitorStatusUrl !== ''): ?>
         <div class="race-progress-row">
-            <span class="pill warn"><strong>Current race:</strong> race page found, status not readable yet</span>
+            <span class="pill warn"><strong>Race Status:</strong> race page found, status not readable yet</span>
             <a class="btn" href="<?php echo h($monitorStatusUrl); ?>" target="_blank" rel="noopener">Open race page</a>
         </div>
     <?php else: ?>
-        <div class="empty">No stored current race status found yet. It should appear after race_results_monitor.php v131 runs.</div>
+        <div class="empty">No stored race status found yet. It should appear after race_results_monitor.php runs.</div>
     <?php endif; ?>
 </div>
 

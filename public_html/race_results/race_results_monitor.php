@@ -4,10 +4,21 @@ declare(strict_types=1);
 /**
  * race_results_monitor.php
  *
- * VERSION: v132
- * LAST MODIFIED: 5/31/2026 11:51:10 pm
+ * VERSION: v133
+ * LAST MODIFIED: 6/6/2026 5:26:14 am
  *
  * CHANGELOG:
+ *
+ * v133 (6/6/2026)
+ *   - CHANGE: Schedule JSON now includes a filtered mrl_points_races list and uses that list for next-race selection.
+ *   - CHANGE: Race Status no longer relies on raw schedule row numbering as an MRL R-race number.
+ *   - FIX: Annotates schedule rows with MRL R## identity using the existing year index before choosing the next race.
+ *   - FIX: Schedule JSON now separates all schedule rows from MRL points races.
+ *   - CHANGE: Uses corrected engine schedule identity so projected next races continue after the latest known R folder.
+ *   - NEW: Added schedule-aware Race Status foundation using the ESPN yearly schedule source.
+ *   - NEW: Writes _race_results_schedule.json with parsed schedule rows and next scheduled race data.
+ *   - NEW: Writes monitor ownership state so completed/final-email races hand off to the revision monitor.
+ *   - CHANGE: Dashboard-ready race_status can now show the next scheduled race after the latest completed race has been finalized.
  *
  * v132 (5/31/2026)
  *   - FIX: Live race status extraction now targets the Race Results leader row and captures lap progress from that row.
@@ -62,7 +73,7 @@ ini_set('log_errors', '1');
 ini_set('error_log', __DIR__ . '/_race_results_monitor_php_errors.log');
 error_reporting(E_ALL);
 
-const RR_MONITOR_SIGNATURE = 'RACE_RESULTS_MONITOR v132';
+const RR_MONITOR_SIGNATURE = 'RACE_RESULTS_MONITOR v133';
 
 // ------------------------- PREFLIGHT HEARTBEAT -------------------------
 // This intentionally happens before helper includes and USER initialization.
@@ -133,6 +144,7 @@ $logFile       = __DIR__ . '/_race_results_monitor.log';
 $heartbeatFile = __DIR__ . '/_race_results_monitor_heartbeat.txt';
 $rdLogFile     = __DIR__ . '/_race_results_rd.log';
 $rdStatusFile  = __DIR__ . '/_race_results_rd_status.json';
+$scheduleFile  = __DIR__ . '/_race_results_schedule.json';
 
 $yearIndexFile = __DIR__ . '/' . (string)$year . '/_year_index.json';
 
@@ -215,6 +227,32 @@ function rr_monitor_next_kind_number(array $yearIndex, string $kind): int
     }
 
     return $max + 1;
+}
+
+function rr_monitor_apply_known_race_corrections(int $year, string $raceId, string &$raceName, bool &$isExhibition, ?int &$raceNum): void
+{
+    $combined = strtoupper($raceId . ' ' . $raceName);
+
+    // Same known 2026 San Diego anomaly protected at folder-creation time.
+    // If the results source eventually carries the same bad label as the schedule
+    // page, still create the correct MRL race folder identity.
+    if ($year === 2026
+        && (
+            strpos($combined, '20260621') !== false
+            || strpos($combined, 'SAN DIEGO') !== false
+            || strpos($combined, 'CORONADO') !== false
+            || strpos($combined, 'ANDURIL') !== false
+        )
+        && (
+            strpos($combined, 'SAN DIEGO') !== false
+            || strpos($combined, 'CORONADO') !== false
+            || strpos($combined, 'ANDURIL') !== false
+        )
+    ) {
+        $raceName = 'San Diego';
+        $isExhibition = false;
+        $raceNum = 17;
+    }
 }
 
 function rr_monitor_assign_folder_and_update_index(
@@ -1107,6 +1145,199 @@ function rr_monitor_extract_live_race_status(string $html, int $year, string $ra
     return $out;
 }
 
+
+function rr_monitor_short_schedule_name(array $race): string
+{
+    $name = trim((string)($race['short_name'] ?? ''));
+    if ($name === '') {
+        $name = trim((string)($race['race_name'] ?? ''));
+    }
+    $name = preg_replace('/^NASCAR Cup Series at\s+/i', '', (string)$name);
+    $name = trim((string)$name);
+    return $name !== '' ? $name : 'Race';
+}
+
+function rr_monitor_format_schedule_start(array $race): string
+{
+    $startAt = trim((string)($race['start_at'] ?? ''));
+    $timeText = trim((string)($race['time_text'] ?? ''));
+    $dateText = trim((string)($race['date_text'] ?? ''));
+
+    if ($startAt !== '') {
+        try {
+            $dt = new DateTimeImmutable($startAt, new DateTimeZone('America/New_York'));
+            return $dt->format('l g:i a');
+        } catch (Exception $e) {
+            // fall through
+        }
+    }
+
+    if ($dateText !== '' && $timeText !== '') {
+        return $dateText . ' ' . $timeText;
+    }
+
+    if ($dateText !== '') {
+        return $dateText;
+    }
+
+    return '';
+}
+
+function rr_monitor_fetch_and_store_schedule(int $year, int $timeoutSeconds, string $scheduleFile, string $logFile, array $yearIndex = []): array
+{
+    $result = [
+        'ok' => false,
+        'message' => '',
+        'races' => [],
+        'mrl_points_races' => [],
+        'next_race' => [],
+        'debug' => [],
+    ];
+
+    if (!function_exists('rr_fetch_year_schedule')) {
+        $result['message'] = 'Schedule helpers are not available.';
+        rr_log_line($logFile, 'SCHEDULE: ' . $result['message']);
+        return $result;
+    }
+
+    [$ok, $races, $err, $debug] = rr_fetch_year_schedule($year, $timeoutSeconds);
+    if ($ok && function_exists('rr_schedule_annotate_mrl_race_numbers')) {
+        $races = rr_schedule_annotate_mrl_race_numbers($races, $yearIndex);
+        if (is_array($debug)) {
+            $debug['mrl_identity_source'] = 'year_index';
+        }
+    }
+    $mrlPointsRaces = ($ok && function_exists('rr_filter_mrl_schedule_points_races')) ? rr_filter_mrl_schedule_points_races($races) : [];
+    $nextRace = $ok ? rr_find_next_scheduled_race($mrlPointsRaces, time()) : [];
+
+    $result['ok'] = $ok;
+    $result['message'] = $ok ? 'Schedule refreshed.' : $err;
+    $result['races'] = $races;
+    $result['mrl_points_races'] = $mrlPointsRaces;
+    $result['next_race'] = $nextRace;
+    $result['debug'] = $debug;
+
+    $payload = [
+        'generated_at' => date('c'),
+        'source' => RR_MONITOR_SIGNATURE,
+        'year' => $year,
+        'schedule_url' => function_exists('rr_schedule_source_url') ? rr_schedule_source_url($year) : '',
+        'ok' => $ok,
+        'message' => $result['message'],
+        'debug' => $debug,
+        'next_race' => $nextRace,
+        'mrl_points_races' => $mrlPointsRaces,
+        'races' => $races,
+    ];
+
+    rr_save_json($scheduleFile, $payload);
+
+    rr_log_line(
+        $logFile,
+        'SCHEDULE ' . ($ok ? 'OK' : 'ERROR')
+        . ' races=' . (string)count($races)
+        . ' mrl_points=' . (string)count($mrlPointsRaces)
+        . ' next=' . (string)($nextRace['short_name'] ?? $nextRace['race_name'] ?? '')
+        . ' message=' . $result['message']
+    );
+
+    return $result;
+}
+
+function rr_monitor_build_race_status(array $liveStatus, array $nextRace, bool $isFinal, bool $finalEmailSent, string $latestUrl, string $reason): array
+{
+    $status = [
+        'checked_at' => date('c'),
+        'source' => RR_MONITOR_SIGNATURE,
+        'mode' => '',
+        'label' => '',
+        'race_name' => '',
+        'full_race_name' => '',
+        'status' => '',
+        'race_url' => '',
+        'race_id' => '',
+        'start_at' => '',
+        'start_text' => '',
+        'owned_by' => '',
+        'monitor_owned' => false,
+        'final_email_sent' => $finalEmailSent,
+        'is_final' => $isFinal,
+        'final_reason' => $reason,
+        'lap_current' => null,
+        'lap_total' => null,
+        'lap_status_found' => false,
+    ];
+
+    $liveRaceName = trim((string)($liveStatus['race_name'] ?? ''));
+    $liveUrl = trim((string)($liveStatus['race_url'] ?? $latestUrl));
+    $liveRaceId = trim((string)($liveStatus['race_id'] ?? ''));
+
+    if ($isFinal && $finalEmailSent && !empty($nextRace)) {
+        $status['mode'] = 'next_scheduled';
+        $status['label'] = 'Next Race';
+        $status['race_name'] = rr_monitor_short_schedule_name($nextRace);
+        $status['full_race_name'] = (string)($nextRace['race_name'] ?? '');
+        $status['race_url'] = (string)($nextRace['race_url'] ?? '');
+        $status['race_id'] = (string)($nextRace['race_id'] ?? '');
+        $status['start_at'] = (string)($nextRace['start_at'] ?? '');
+        $status['start_text'] = rr_monitor_format_schedule_start($nextRace);
+        $status['status'] = $status['start_text'] !== '' ? 'Scheduled - ' . $status['start_text'] : 'Scheduled';
+        $status['owned_by'] = 'race_results_monitor';
+        $status['monitor_owned'] = true;
+        $status['latest_final_race_url'] = $liveUrl;
+        $status['latest_final_race_name'] = $liveRaceName;
+        $status['latest_final_owned_by'] = 'race_results_revision_monitor';
+        return $status;
+    }
+
+    if ($isFinal && $finalEmailSent) {
+        $status['mode'] = 'latest_final_handoff';
+        $status['label'] = 'Latest Final';
+        $status['race_name'] = $liveRaceName;
+        $status['full_race_name'] = (string)($liveStatus['full_race_name'] ?? $liveRaceName);
+        $status['race_url'] = $liveUrl;
+        $status['race_id'] = $liveRaceId;
+        $status['status'] = 'Final captured - handed off to revision monitor';
+        $status['owned_by'] = 'race_results_revision_monitor';
+        $status['monitor_owned'] = false;
+        return $status;
+    }
+
+    $status['mode'] = $isFinal ? 'final_pending_email' : (!empty($liveStatus['lap_status_found']) ? 'live' : 'monitoring');
+    $status['label'] = $isFinal ? 'Current Race' : 'Current Race';
+    $status['race_name'] = $liveRaceName;
+    $status['full_race_name'] = (string)($liveStatus['full_race_name'] ?? $liveRaceName);
+    $status['race_url'] = $liveUrl;
+    $status['race_id'] = $liveRaceId;
+    $status['status'] = trim((string)($liveStatus['status'] ?? ''));
+    if ($status['status'] === '') {
+        $status['status'] = $isFinal ? 'Final detected - preparing notification' : 'Monitoring for live/final status';
+    }
+    $status['owned_by'] = 'race_results_monitor';
+    $status['monitor_owned'] = true;
+    $status['lap_current'] = $liveStatus['lap_current'] ?? null;
+    $status['lap_total'] = $liveStatus['lap_total'] ?? null;
+    $status['lap_status_found'] = !empty($liveStatus['lap_status_found']);
+
+    return $status;
+}
+
+function rr_monitor_build_ownership(array $raceStatus, string $latestUrl, string $raceId): array
+{
+    return [
+        'updated_at' => date('c'),
+        'source' => RR_MONITOR_SIGNATURE,
+        'active_monitor_race_url' => !empty($raceStatus['monitor_owned']) ? (string)($raceStatus['race_url'] ?? '') : '',
+        'active_monitor_race_id' => !empty($raceStatus['monitor_owned']) ? (string)($raceStatus['race_id'] ?? '') : '',
+        'latest_results_url' => $latestUrl,
+        'latest_results_race_id' => $raceId,
+        'owned_by' => (string)($raceStatus['owned_by'] ?? ''),
+        'phase' => (string)($raceStatus['mode'] ?? ''),
+        'final_email_sent' => !empty($raceStatus['final_email_sent']),
+        'monitor_owned' => !empty($raceStatus['monitor_owned']),
+    ];
+}
+
 function rr_monitor_led_check(string $html): array
 {
     $out = [
@@ -1261,9 +1492,18 @@ if (!isset($yearIndex['races']) || !is_array($yearIndex['races'])) {
     $yearIndex['races'] = [];
 }
 
+$scheduleResult = rr_monitor_fetch_and_store_schedule($year, $timeoutSeconds, $scheduleFile, $logFile, $yearIndex);
+$nextScheduledRace = (isset($scheduleResult['next_race']) && is_array($scheduleResult['next_race'])) ? $scheduleResult['next_race'] : [];
+
 list($ok, $latestUrl, $err, $debug) = rr_find_latest_race_results_url($year, $timeoutSeconds);
 
 $yearState['last_checked_at'] = date('c');
+$yearState['schedule_status'] = [
+    'ok' => !empty($scheduleResult['ok']),
+    'message' => (string)($scheduleResult['message'] ?? ''),
+    'next_race' => $nextScheduledRace,
+    'debug' => isset($scheduleResult['debug']) && is_array($scheduleResult['debug']) ? $scheduleResult['debug'] : [],
+];
 $yearState['latest_debug'] = $debug;
 
 if (!$ok) {
@@ -1291,6 +1531,7 @@ $raceId = rr_extract_race_id_from_url($latestUrl);
 $raceName = $latestRaceMeta ? (string)$latestRaceMeta['race_name'] : 'Race';
 $isExh = $latestRaceMeta ? (bool)$latestRaceMeta['is_exhibition'] : false;
 $raceNum = $latestRaceMeta ? $latestRaceMeta['race_number'] : null;
+rr_monitor_apply_known_race_corrections($year, $raceId, $raceName, $isExh, $raceNum);
 
 $yearFolder = __DIR__ . '/' . $yKey;
 rr_ensure_dir($yearFolder);
@@ -1355,7 +1596,11 @@ if ($isFinal && !$ledReady) {
     $reason = 'Scoring table has non-zero PTS, but LED column is still all zero.';
 }
 
-$yearState['current_race_status'] = rr_monitor_extract_live_race_status($html2, $year, $latestUrl, $raceId, $raceName, $isFinal, $reason);
+$liveRaceStatus = rr_monitor_extract_live_race_status($html2, $year, $latestUrl, $raceId, $raceName, $isFinal, $reason);
+$finalEmailAlreadySentAtCheck = ((string)($yearState['final_sent_for_url'] ?? '') === $latestUrl);
+$yearState['current_race_status'] = $liveRaceStatus;
+$yearState['race_status'] = rr_monitor_build_race_status($liveRaceStatus, $nextScheduledRace, $isFinal, $finalEmailAlreadySentAtCheck, $latestUrl, $reason);
+$yearState['monitor_ownership'] = rr_monitor_build_ownership($yearState['race_status'], $latestUrl, $raceId);
 
 $yearState['final_check'] = [
     'is_final' => $isFinal,
@@ -1391,6 +1636,8 @@ if ($finalHashNow !== '' && is_file($hashFilePath)) {
     if ($existing !== '' && hash_equals($existing, $finalHashNow)) {
         $yearState['final_sent_for_url'] = $latestUrl;
         $yearState['final_table_hash'] = $finalHashNow;
+        $yearState['race_status'] = rr_monitor_build_race_status($liveRaceStatus, $nextScheduledRace, true, true, $latestUrl, $reason);
+        $yearState['monitor_ownership'] = rr_monitor_build_ownership($yearState['race_status'], $latestUrl, $raceId);
         $state['byYear'][$yKey] = $yearState;
         rr_save_json($stateFile, $state);
 
@@ -1436,6 +1683,11 @@ if ($finalSentForUrl !== $latestUrl) {
 }
 
 if (!$shouldEmail) {
+    $yearState['race_status'] = rr_monitor_build_race_status($liveRaceStatus, $nextScheduledRace, true, ((string)($yearState['final_sent_for_url'] ?? '') === $latestUrl), $latestUrl, $reason);
+    $yearState['monitor_ownership'] = rr_monitor_build_ownership($yearState['race_status'], $latestUrl, $raceId);
+    $state['byYear'][$yKey] = $yearState;
+    rr_save_json($stateFile, $state);
+
     rr_log_line($logFile, "FINAL detected but no email needed (already notified) url={$latestUrl}");
     rr_monitor_out("FINAL detected, already notified (no email).");
 
@@ -1474,6 +1726,8 @@ if ($snapshotsEnabled) {
 
 $yearState['final_sent_for_url'] = $latestUrl;
 $yearState['final_table_hash'] = $finalHashNow;
+$yearState['race_status'] = rr_monitor_build_race_status($liveRaceStatus, $nextScheduledRace, true, true, $latestUrl, $reason);
+$yearState['monitor_ownership'] = rr_monitor_build_ownership($yearState['race_status'], $latestUrl, $raceId);
 
 $state['byYear'][$yKey] = $yearState;
 rr_save_json($stateFile, $state);

@@ -4,10 +4,15 @@ declare(strict_types=1);
 /**
  * race_results_revision_monitor.php
  *
- * VERSION: v008
- * LAST MODIFIED: 5/29/2026 7:34:39 pm
+ * VERSION: v009
+ * LAST MODIFIED: 6/6/2026 3:44:59 am
  *
  * CHANGELOG:
+ * v009 (6/6/2026)
+ *   - CHANGE: Revision monitor now skips only the race actively owned by the live monitor, not automatically the latest results page.
+ *   - CHANGE: Completed/final-email races are allowed to enter revision-monitor ownership and scanning.
+ *   - NEW: Reads monitor_ownership/race_status from _race_results_monitor_state.json for monitor/revision handoff.
+ *
  * v008 (5/29/2026)
  *   - NEW: Always refreshes the full-year classification summary after each revision-monitor scan.
  *   - PURPOSE: Keeps _race_results_classification_summary.json and _race_results_classification_last_run.json current without manually opening the classifier report.
@@ -68,7 +73,7 @@ ini_set('log_errors', '1');
 ini_set('error_log', __DIR__ . '/_race_results_revision_monitor_php_errors.log');
 error_reporting(E_ALL);
 
-const RR_REVISION_MONITOR_SIGNATURE = 'RACE_RESULTS_REVISION_MONITOR v008';
+const RR_REVISION_MONITOR_SIGNATURE = 'RACE_RESULTS_REVISION_MONITOR v009';
 
 require_once __DIR__ . '/race_results_engine.php';
 
@@ -95,6 +100,7 @@ $notifyEmail = 'stevekenney318@gmail.com';
 // Base files (in this folder)
 $logFile       = __DIR__ . '/_race_results_revision_monitor.log';
 $heartbeatFile = __DIR__ . '/_race_results_revision_monitor_heartbeat.txt';
+$monitorStateFile = __DIR__ . '/_race_results_monitor_state.json';
 
 // Year index produced by backfill
 $yearIndexFile = __DIR__ . '/' . (string)$year . '/_year_index.json';
@@ -120,6 +126,56 @@ function rrrev_out(string $line): void
 {
     if (PHP_SAPI === 'cli') return;
     echo htmlspecialchars($line, ENT_QUOTES, 'UTF-8') . "<br>\n";
+}
+
+
+function rrrev_active_monitor_ownership(string $monitorStateFile, int $year): array
+{
+    $out = [
+        'monitor_owned' => false,
+        'active_monitor_race_url' => '',
+        'active_monitor_race_id' => '',
+        'phase' => '',
+        'owned_by' => '',
+        'source' => '',
+        'message' => '',
+    ];
+
+    $state = rr_load_json($monitorStateFile);
+    if (!isset($state['byYear']) || !is_array($state['byYear'])) {
+        $out['message'] = 'monitor state missing byYear';
+        return $out;
+    }
+
+    $yKey = (string)$year;
+    if (!isset($state['byYear'][$yKey]) || !is_array($state['byYear'][$yKey])) {
+        $out['message'] = 'monitor state missing year';
+        return $out;
+    }
+
+    $yearState = $state['byYear'][$yKey];
+    $ownership = (isset($yearState['monitor_ownership']) && is_array($yearState['monitor_ownership']))
+        ? $yearState['monitor_ownership']
+        : [];
+
+    $raceStatus = (isset($yearState['race_status']) && is_array($yearState['race_status']))
+        ? $yearState['race_status']
+        : [];
+
+    $out['monitor_owned'] = !empty($ownership['monitor_owned']) || !empty($raceStatus['monitor_owned']);
+    $out['active_monitor_race_url'] = (string)($ownership['active_monitor_race_url'] ?? ($raceStatus['race_url'] ?? ''));
+    $out['active_monitor_race_id'] = (string)($ownership['active_monitor_race_id'] ?? ($raceStatus['race_id'] ?? ''));
+    $out['phase'] = (string)($ownership['phase'] ?? ($raceStatus['mode'] ?? ''));
+    $out['owned_by'] = (string)($ownership['owned_by'] ?? ($raceStatus['owned_by'] ?? ''));
+    $out['source'] = (string)($ownership['source'] ?? ($raceStatus['source'] ?? ''));
+    $out['message'] = $out['monitor_owned'] ? 'active monitor-owned race found' : 'no unfinished monitor-owned race';
+
+    if (!$out['monitor_owned']) {
+        $out['active_monitor_race_url'] = '';
+        $out['active_monitor_race_id'] = '';
+    }
+
+    return $out;
 }
 
 function rrrev_refresh_classification_after_scan(int $year, string $logFile): array
@@ -460,26 +516,19 @@ if (empty($yearIndex)) {
     exit(0);
 }
 
-// ------------------------- FIND THE LATEST (LIVE) RACE URL -------------------------
-// We skip the latest race — the live monitor owns that one.
-[$okLatest, $latestUrl, $errLatest, $latestDebug] = rr_find_latest_race_results_url($year, $timeoutSeconds);
+// ------------------------- FIND ACTIVE MONITOR-OWNED RACE -------------------------
+// The revision monitor should skip only the unfinished race actively owned by the live monitor.
+// A latest/final/email-sent race is no longer skipped just because it is the latest result page.
+$activeOwnership = rrrev_active_monitor_ownership($monitorStateFile, $year);
+$skipUrl = (string)($activeOwnership['active_monitor_race_url'] ?? '');
+$skipRaceId = (string)($activeOwnership['active_monitor_race_id'] ?? '');
 
-$skipUrl = '';
-$skipRaceId = '';
-if ($okLatest && $latestUrl !== '') {
-    $skipUrl = $latestUrl;
-    $skipRaceId = rr_extract_race_id_from_url($latestUrl);
-    rr_log_line($logFile, "LATEST (live) race URL identified - will skip: {$latestUrl}");
-    rrrev_out("Skipping latest/live race (owned by live monitor): " . $skipRaceId);
+if (!empty($activeOwnership['monitor_owned']) && ($skipUrl !== '' || $skipRaceId !== '')) {
+    rr_log_line($logFile, "ACTIVE MONITOR-OWNED race will be skipped url={$skipUrl} raceId={$skipRaceId} phase=" . (string)$activeOwnership['phase']);
+    rrrev_out("Skipping active monitor-owned race: " . ($skipRaceId !== '' ? $skipRaceId : $skipUrl));
 } else {
-    // Non-fatal: if we can't determine the latest, log a warning but continue.
-    // Worst case we check all races including the live one — harmless for revision detection.
-    $latestDiag = is_array($latestDebug ?? null) ? json_encode($latestDebug, JSON_UNESCAPED_SLASHES) : '';
-    rr_log_line($logFile, "WARNING: Could not determine latest race URL ({$errLatest}) - will scan all known races. debug={$latestDiag}");
-    rrrev_out("WARNING: Could not determine latest race URL. Scanning all known races.");
-    if (!empty($latestDebug) && is_array($latestDebug)) {
-        rrrev_out("Latest-race diagnostics: HTTP " . (string)($latestDebug['httpStatus'] ?? '') . " / bytes " . (string)($latestDebug['htmlBytes'] ?? '') . " / races found " . (string)($latestDebug['raceCount'] ?? ''));
-    }
+    rr_log_line($logFile, "No active monitor-owned race found; revision monitor may scan all completed races.");
+    rrrev_out("No active monitor-owned race found; scanning completed races.");
 }
 
 rrrev_out("---");
@@ -513,19 +562,19 @@ foreach ($completedRaces as $race) {
     $folderName = $race['folder'];
     $raceCode   = rrrev_race_code_from_folder($folderName);
 
-    // Skip the live/latest race
+    // Skip only the active race still owned by the live monitor
     if ($skipUrl !== '' && (string)$raceUrl === (string)$skipUrl) {
         $skipped++;
-        rr_log_line($logFile, "SKIP (latest/live) raceId={$raceId} folder={$folderName}");
-        rrrev_out("SKIP (latest/live): {$folderName}");
+        rr_log_line($logFile, "SKIP (active monitor-owned) raceId={$raceId} folder={$folderName}");
+        rrrev_out("SKIP (active monitor-owned): {$folderName}");
         continue;
     }
 
     // Also skip by raceId match as a secondary guard
     if ($skipRaceId !== '' && $raceId === $skipRaceId) {
         $skipped++;
-        rr_log_line($logFile, "SKIP (latest/live by raceId) raceId={$raceId} folder={$folderName}");
-        rrrev_out("SKIP (latest/live): {$folderName}");
+        rr_log_line($logFile, "SKIP (active monitor-owned by raceId) raceId={$raceId} folder={$folderName}");
+        rrrev_out("SKIP (active monitor-owned): {$folderName}");
         continue;
     }
 
