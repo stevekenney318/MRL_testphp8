@@ -4,10 +4,15 @@ declare(strict_types=1);
 /**
  * race_results_dashboard.php
  *
- * VERSION: v015
- * LAST MODIFIED: 6/7/2026 10:51:12 am
+ * VERSION: v016
+ * LAST MODIFIED: 6/8/2026 12:24:11 am
  *
  * CHANGELOG:
+ * v016 (6/8/2026)
+ *   - CHANGE: Rename Bundle JSON link to System Debug Data.
+ *   - CHANGE: Revision Scheduler wording now shows Revision State instead of raw Handoff status.
+ *   - CHANGE: Adds clearer scheduler/debug labels for post-final investigation.
+ *
  * v015 (6/7/2026)
  *   - NEW: Scheduler tab supports auto_revision_monitor status written by cron_master_scheduler.php v009.
  *   - NEW: Revision Scheduler can show post-race stabilization phase, interval, handoff race, and next due time.
@@ -102,7 +107,7 @@ if (!headers_sent()) {
     header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
 }
 
-const RACE_RESULTS_DASHBOARD_VERSION = 'v015';
+const RACE_RESULTS_DASHBOARD_VERSION = 'v016';
 
 
 // -----------------------------------------------------------------------------
@@ -237,6 +242,31 @@ function sd_parse_dt(?string $value, DateTimeZone $tz): ?DateTimeImmutable
         return new DateTimeImmutable($value, $tz);
     } catch (Exception $e) {
         return null;
+    }
+}
+
+
+function rr_dash_revision_state_label(string $status, string $raceName): string
+{
+    $raceName = trim($raceName);
+    $raceText = $raceName !== '' ? $raceName : 'latest race';
+    switch ($status) {
+        case 'new_final_handoff_detected':
+        case 'recent_final_handoff_recorded':
+        case 'recent_final_handoff_recovered':
+            return 'Post-race monitoring for ' . $raceText;
+        case 'active_or_completed_handoff':
+            return 'Monitoring ' . $raceText . ' revisions';
+        case 'baseline_recorded':
+        case 'baseline_known':
+            return 'Baseline recorded for ' . $raceText;
+        case 'no_final_known':
+            return 'No final race known yet';
+        case 'none':
+        case '':
+            return 'Not established yet';
+        default:
+            return $status;
     }
 }
 
@@ -586,7 +616,7 @@ if ($export !== '') {
         }
 
         sd_download_text(
-            $exportBaseName . '_bundle.json',
+            $exportBaseName . '_debug_data.json',
             json_encode($bundle, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL,
             'application/json'
         );
@@ -2520,8 +2550,8 @@ if ((string)($_GET['rr_run'] ?? '') === 'ok') {
                             <td><?php echo array_key_exists('interval_minutes', $revisionDecision) && $revisionDecision['interval_minutes'] !== null ? 'every ' . sd_html((string)$revisionDecision['interval_minutes']) . ' min' : 'daily times'; ?></td>
                         </tr>
                         <tr>
-                            <th>Handoff</th>
-                            <td><?php echo sd_html((string)($revisionHandoff['status'] ?? '')); ?></td>
+                            <th>Revision State</th>
+                            <td><?php echo sd_html(rr_dash_revision_state_label((string)($revisionHandoff['status'] ?? ''), (string)($revisionHandoff['race_name'] ?? ''))); ?></td>
                             <th>Next Due</th>
                             <td><?php echo sd_html(rr_dash_display_datetime((string)($revisionDecision['next_due_at'] ?? ''))); ?></td>
                         </tr>
@@ -2627,11 +2657,11 @@ if ((string)($_GET['rr_run'] ?? '') === 'ok') {
                 <?php endforeach; ?>
 
                 <div class="status-row">
-                    <div class="label">Bundle JSON</div>
+                    <div class="label">System Debug Data</div>
                     <div><span class="status good">Available</span></div>
                     <div class="meta">
                         Generated on demand |
-                        <a class="inline-link" href="<?php echo sd_html(rr_dash_cache_busted_href('?tab=scheduler&export=bundle')); ?>" target="_blank" rel="noopener">Open raw view</a>
+                        <a class="inline-link" href="<?php echo sd_html(rr_dash_cache_busted_href('?tab=scheduler&export=bundle')); ?>" target="_blank" rel="noopener">Open debug data</a>
                     </div>
                 </div>
             </div>

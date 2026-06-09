@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+ob_start();
+
 require_once $_SERVER['DOCUMENT_ROOT'] . '/config.php';
 require_once $_SERVER['DOCUMENT_ROOT'] . '/config_mrl.php';
 require_once $_SERVER['DOCUMENT_ROOT'] . '/functions_mrl.php';
@@ -9,15 +11,23 @@ require_once $_SERVER['DOCUMENT_ROOT'] . '/functions_mrl.php';
 disableCaching();
 
 // visual id of a sandbox file - SK & background
-require_once $_SERVER['DOCUMENT_ROOT'] . '/sandbox.html';
+// require_once $_SERVER['DOCUMENT_ROOT'] . '/sandbox.html';
 
 /**
  * weekly_standings.php
  *
- * VERSION: v056
- * LAST MODIFIED: 4/30/2026 2:49:14 am
+ * VERSION: v057
+ * LAST MODIFIED: 6/9/2026 1:49:14 am
  *
  * CHANGELOG:
+ *
+ * v057 (6/9/2026)
+ *   - FIX: Kept the same version and refreshed the timestamp for the historical-note/button-layout correction pass.
+ *   - FIX: Restored the left-side top-control behavior and shortened the historical note slot so action buttons can stay on the top row.
+ *   - FIX: Replaced the weekly spreadsheet export path with a pure-PHP XLSX writer to avoid a white-screen export failure.
+ *   - CHANGE: Added Print and Spreadsheet controls for the clean four-table weekly standings report view.
+ *   - CHANGE: Spreadsheet export now creates one XLSX worksheet with the four report tables arranged side-by-side to resemble the web page.
+ *   - CHANGE: Print styling now hides controls, validation/debug content, and collapsed detail rows so only the clean report area prints.
  *
  * v056 (4/30/2026)
  *   - CHANGE: Weekly standings now reads revision_meta.json for race revision display labels.
@@ -153,6 +163,412 @@ require_once __DIR__ . '/race_results_engine.php';
 function rrsg_h($val): string
 {
     return htmlspecialchars((string)$val, ENT_QUOTES, 'UTF-8');
+}
+
+
+function rrsg_ranked_summary_rows(array $rows, string $scoreKey, array $tieMap = [], array $markersByTeam = []): array
+{
+    $out = [];
+    $rank = 1;
+    $displayRank = 0;
+    $prevRankScore = null;
+
+    foreach ($rows as $row) {
+        $currentRankScore = (int)($row[$scoreKey] ?? 0);
+        if ($prevRankScore === null || $currentRankScore !== $prevRankScore) {
+            $displayRank = $rank;
+            $prevRankScore = $currentRankScore;
+        }
+
+        $teamName = (string)($row['teamName'] ?? '');
+        $marker = (string)($markersByTeam[$teamName] ?? '');
+
+        $out[] = [
+            'rank' => (string)$displayRank,
+            'teamName' => $teamName,
+            'marker' => $marker,
+            'score' => $currentRankScore,
+            'isTie' => isset($tieMap[$teamName]),
+        ];
+
+        $rank++;
+    }
+
+    return $out;
+}
+
+function rrsg_weekly_winner_summary_rows(array $pointRaces, array $weeklyWinners, int $selectedRaceNumber): array
+{
+    $winnerRows = $pointRaces;
+    usort($winnerRows, function ($a, $b) {
+        return ((int)$a['number']) <=> ((int)$b['number']);
+    });
+
+    $out = [];
+
+    foreach ($winnerRows as $race) {
+        $raceNumber = (int)($race['number'] ?? 0);
+        if ($raceNumber > $selectedRaceNumber) {
+            continue;
+        }
+
+        $raceCode = (string)($race['raceCode'] ?? '');
+        $winnerNames = $weeklyWinners[$raceCode]['teamNames'] ?? [];
+        $winnerPoints = (int)($weeklyWinners[$raceCode]['points'] ?? 0);
+
+        if (empty($winnerNames)) {
+            $fallbackWinner = (string)($weeklyWinners[$raceCode]['teamName'] ?? '');
+            if ($fallbackWinner !== '') {
+                $winnerNames[] = $fallbackWinner;
+            }
+        }
+
+        $winnerIsTieWeek = (count($winnerNames) > 1);
+
+        if (empty($winnerNames)) {
+            $out[] = [
+                'week' => (string)$raceNumber,
+                'winner' => '',
+                'points' => 0,
+                'isTie' => false,
+            ];
+        } else {
+            foreach ($winnerNames as $winnerName) {
+                $out[] = [
+                    'week' => (string)$raceNumber,
+                    'winner' => (string)$winnerName,
+                    'points' => $winnerPoints,
+                    'isTie' => $winnerIsTieWeek,
+                ];
+            }
+        }
+    }
+
+    return $out;
+}
+
+function rrsg_xlsx_xml(string $value): string
+{
+    return htmlspecialchars($value, ENT_XML1 | ENT_COMPAT, 'UTF-8');
+}
+
+function rrsg_xlsx_col_letter(int $col): string
+{
+    $col = max(1, $col);
+    $letter = '';
+    while ($col > 0) {
+        $mod = ($col - 1) % 26;
+        $letter = chr(65 + $mod) . $letter;
+        $col = (int)(($col - $mod) / 26);
+    }
+    return $letter;
+}
+
+function rrsg_xlsx_cell_xml(string $cellRef, $value, int $styleIndex, bool $isNumeric = false): string
+{
+    if ($isNumeric && is_numeric($value)) {
+        return '<c r="' . rrsg_xlsx_xml($cellRef) . '" s="' . $styleIndex . '"><v>' . rrsg_xlsx_xml((string)$value) . '</v></c>';
+    }
+
+    return '<c r="' . rrsg_xlsx_xml($cellRef) . '" t="inlineStr" s="' . $styleIndex . '"><is><t>' . rrsg_xlsx_xml((string)$value) . '</t></is></c>';
+}
+
+function rrsg_zip_dos_parts(?int $timestamp = null): array
+{
+    $timestamp = $timestamp ?? time();
+    $year = (int)date('Y', $timestamp);
+    $month = (int)date('n', $timestamp);
+    $day = (int)date('j', $timestamp);
+    $hour = (int)date('G', $timestamp);
+    $minute = (int)date('i', $timestamp);
+    $second = (int)date('s', $timestamp);
+
+    $dosTime = ($hour << 11) | ($minute << 5) | (int)floor($second / 2);
+    $dosDate = (($year - 1980) << 9) | ($month << 5) | $day;
+
+    return [$dosTime, $dosDate];
+}
+
+function rrsg_zip_from_strings(array $files): string
+{
+    $zipData = '';
+    $centralDirectory = '';
+    $offset = 0;
+    [$dosTime, $dosDate] = rrsg_zip_dos_parts();
+
+    foreach ($files as $name => $data) {
+        $name = str_replace('\\', '/', (string)$name);
+        $data = (string)$data;
+        $nameLength = strlen($name);
+        $dataLength = strlen($data);
+        $crc = crc32($data);
+
+        $localHeader = pack(
+            'VvvvvvVVVvv',
+            0x04034b50,
+            20,
+            0,
+            0,
+            $dosTime,
+            $dosDate,
+            $crc,
+            $dataLength,
+            $dataLength,
+            $nameLength,
+            0
+        );
+
+        $zipData .= $localHeader . $name . $data;
+
+        $centralDirectory .= pack(
+            'VvvvvvvVVVvvvvvVV',
+            0x02014b50,
+            20,
+            20,
+            0,
+            0,
+            $dosTime,
+            $dosDate,
+            $crc,
+            $dataLength,
+            $dataLength,
+            $nameLength,
+            0,
+            0,
+            0,
+            0,
+            0,
+            $offset
+        ) . $name;
+
+        $offset += strlen($localHeader) + $nameLength + $dataLength;
+    }
+
+    $centralOffset = strlen($zipData);
+    $centralSize = strlen($centralDirectory);
+    $fileCount = count($files);
+
+    $endOfCentralDirectory = pack(
+        'VvvvvVVv',
+        0x06054b50,
+        0,
+        0,
+        $fileCount,
+        $fileCount,
+        $centralSize,
+        $centralOffset,
+        0
+    );
+
+    return $zipData . $centralDirectory . $endOfCentralDirectory;
+}
+
+function rrsg_send_weekly_standings_xlsx(string $filenameBase, array $tables, string $footerText): void
+{
+    /*
+     * Pure-PHP XLSX export.
+     *
+     * team_chart.php uses PhpSpreadsheet, but this page intentionally writes a
+     * small XLSX package directly so export is not dependent on a vendor load
+     * path and does not fail as a blank white page when that path is unavailable.
+     */
+    $safeBase = preg_replace('/[^A-Za-z0-9_\-]/', '_', $filenameBase);
+    if ($safeBase === '') {
+        $safeBase = 'weekly_standings';
+    }
+    $filename = $safeBase . '.xlsx';
+
+    $tableStarts = [1, 5, 9, 13];
+    $cellsByRow = [];
+    $mergeRanges = [];
+    $maxLastRow = 1;
+
+    foreach ($tables as $idx => $table) {
+        $startCol = $tableStarts[$idx] ?? (1 + ($idx * 4));
+        $endCol = $startCol + 2;
+        $startColLetter = rrsg_xlsx_col_letter($startCol);
+        $endColLetter = rrsg_xlsx_col_letter($endCol);
+
+        $titleRef = $startColLetter . '1';
+        $cellsByRow[1][] = rrsg_xlsx_cell_xml($titleRef, (string)($table['title'] ?? ''), 1, false);
+        $mergeRanges[] = $startColLetter . '1:' . $endColLetter . '1';
+
+        $headers = $table['headers'] ?? [];
+        for ($c = 0; $c < 3; $c++) {
+            $cellRef = rrsg_xlsx_col_letter($startCol + $c) . '2';
+            $cellsByRow[2][] = rrsg_xlsx_cell_xml($cellRef, (string)($headers[$c] ?? ''), 2, false);
+        }
+
+        $rowNum = 3;
+        $rows = $table['rows'] ?? [];
+        if (empty($rows)) {
+            $cellsByRow[$rowNum][] = rrsg_xlsx_cell_xml($startColLetter . $rowNum, 'No rows generated.', 8, false);
+            $mergeRanges[] = $startColLetter . $rowNum . ':' . $endColLetter . $rowNum;
+            $rowNum++;
+        } else {
+            foreach ($rows as $dataRow) {
+                $values = $dataRow['values'] ?? [];
+                $isEvenStripe = (($rowNum - 3) % 2 === 1);
+                for ($c = 0; $c < 3; $c++) {
+                    $colIndex = $startCol + $c;
+                    $cellRef = rrsg_xlsx_col_letter($colIndex) . $rowNum;
+                    $value = $values[$c] ?? '';
+                    $isTeamColumn = ($c === 1);
+                    $isNumeric = ($c === 2 && is_numeric($value));
+                    $boldThisCell = (($c === 0 && !empty($dataRow['boldFirst'])) || ($c === 1 && !empty($dataRow['boldTeam'])));
+
+                    if ($isTeamColumn) {
+                        $styleIndex = $isEvenStripe ? ($boldThisCell ? 11 : 9) : ($boldThisCell ? 10 : 8);
+                    } else {
+                        $styleIndex = $isEvenStripe ? ($boldThisCell ? 7 : 4) : ($boldThisCell ? 6 : 3);
+                    }
+
+                    $cellsByRow[$rowNum][] = rrsg_xlsx_cell_xml($cellRef, $value, $styleIndex, $isNumeric);
+                }
+                $rowNum++;
+            }
+        }
+
+        $maxLastRow = max($maxLastRow, $rowNum - 1);
+    }
+
+    $footerRow = $maxLastRow + 3;
+    $cellsByRow[$footerRow][] = rrsg_xlsx_cell_xml('A' . $footerRow, $footerText, 5, false);
+    $mergeRanges[] = 'A' . $footerRow . ':O' . $footerRow;
+
+    ksort($cellsByRow, SORT_NUMERIC);
+    $sheetRows = '';
+    foreach ($cellsByRow as $rowNum => $cellXmlParts) {
+        $sheetRows .= '<row r="' . (int)$rowNum . '">' . implode('', $cellXmlParts) . '</row>';
+    }
+
+    $mergeXml = '';
+    if (!empty($mergeRanges)) {
+        $mergeXml .= '<mergeCells count="' . count($mergeRanges) . '">';
+        foreach ($mergeRanges as $range) {
+            $mergeXml .= '<mergeCell ref="' . rrsg_xlsx_xml($range) . '"/>';
+        }
+        $mergeXml .= '</mergeCells>';
+    }
+
+    $worksheetXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        . '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        . '<sheetViews><sheetView workbookViewId="0"><pane ySplit="2" topLeftCell="A3" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
+        . '<sheetFormatPr defaultRowHeight="15"/>'
+        . '<cols>'
+        . '<col min="1" max="1" width="7" customWidth="1"/><col min="2" max="2" width="25" customWidth="1"/><col min="3" max="3" width="10" customWidth="1"/><col min="4" max="4" width="2" customWidth="1"/>'
+        . '<col min="5" max="5" width="7" customWidth="1"/><col min="6" max="6" width="25" customWidth="1"/><col min="7" max="7" width="10" customWidth="1"/><col min="8" max="8" width="2" customWidth="1"/>'
+        . '<col min="9" max="9" width="7" customWidth="1"/><col min="10" max="10" width="25" customWidth="1"/><col min="11" max="11" width="10" customWidth="1"/><col min="12" max="12" width="2" customWidth="1"/>'
+        . '<col min="13" max="13" width="7" customWidth="1"/><col min="14" max="14" width="25" customWidth="1"/><col min="15" max="15" width="10" customWidth="1"/>'
+        . '</cols>'
+        . '<sheetData>' . $sheetRows . '</sheetData>'
+        . $mergeXml
+        . '<pageMargins left="0.25" right="0.25" top="0.25" bottom="0.25" header="0.3" footer="0.3"/>'
+        . '<pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/>'
+        . '</worksheet>';
+
+    $stylesXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        . '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        . '<fonts count="4">'
+        . '<font><sz val="11"/><name val="Arial"/></font>'
+        . '<font><b/><sz val="11"/><name val="Arial"/></font>'
+        . '<font><sz val="9"/><color rgb="FF666666"/><name val="Arial"/></font>'
+        . '<font><b/><sz val="11"/><name val="Arial"/></font>'
+        . '</fonts>'
+        . '<fills count="5">'
+        . '<fill><patternFill patternType="none"/></fill>'
+        . '<fill><patternFill patternType="gray125"/></fill>'
+        . '<fill><patternFill patternType="solid"><fgColor rgb="FFFBFF00"/><bgColor indexed="64"/></patternFill></fill>'
+        . '<fill><patternFill patternType="solid"><fgColor rgb="FFFFFFFF"/><bgColor indexed="64"/></patternFill></fill>'
+        . '<fill><patternFill patternType="solid"><fgColor rgb="FFD2E5F7"/><bgColor indexed="64"/></patternFill></fill>'
+        . '</fills>'
+        . '<borders count="2">'
+        . '<border><left/><right/><top/><bottom/><diagonal/></border>'
+        . '<border><left style="thin"><color rgb="FF151313"/></left><right style="thin"><color rgb="FF151313"/></right><top style="thin"><color rgb="FF151313"/></top><bottom style="thin"><color rgb="FF151313"/></bottom><diagonal/></border>'
+        . '</borders>'
+        . '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+        . '<cellXfs count="12">'
+        . '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
+        . '<xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf>'
+        . '<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
+        . '<xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
+        . '<xf numFmtId="0" fontId="0" fillId="4" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
+        . '<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
+        . '<xf numFmtId="0" fontId="3" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
+        . '<xf numFmtId="0" fontId="3" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
+        . '<xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf>'
+        . '<xf numFmtId="0" fontId="0" fillId="4" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf>'
+        . '<xf numFmtId="0" fontId="3" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf>'
+        . '<xf numFmtId="0" fontId="3" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf>'
+        . '</cellXfs>'
+        . '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>'
+        . '</styleSheet>';
+
+    $workbookXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        . '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        . '<sheets><sheet name="Weekly Standings" sheetId="1" r:id="rId1"/></sheets>'
+        . '</workbook>';
+
+    $workbookRelsXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        . '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+        . '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
+        . '</Relationships>';
+
+    $rootRelsXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        . '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+        . '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>'
+        . '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>'
+        . '</Relationships>';
+
+    $contentTypesXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        . '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        . '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+        . '<Default Extension="xml" ContentType="application/xml"/>'
+        . '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+        . '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+        . '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+        . '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>'
+        . '<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>'
+        . '</Types>';
+
+    $created = gmdate('Y-m-d\TH:i:s\Z');
+    $coreXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        . '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+        . '<dc:creator>Manlius Racing League</dc:creator><cp:lastModifiedBy>Manlius Racing League</cp:lastModifiedBy>'
+        . '<dcterms:created xsi:type="dcterms:W3CDTF">' . $created . '</dcterms:created>'
+        . '<dcterms:modified xsi:type="dcterms:W3CDTF">' . $created . '</dcterms:modified>'
+        . '</cp:coreProperties>';
+
+    $appXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        . '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">'
+        . '<Application>Manlius Racing League</Application>'
+        . '</Properties>';
+
+    $xlsxBinary = rrsg_zip_from_strings([
+        '[Content_Types].xml' => $contentTypesXml,
+        '_rels/.rels' => $rootRelsXml,
+        'docProps/core.xml' => $coreXml,
+        'docProps/app.xml' => $appXml,
+        'xl/workbook.xml' => $workbookXml,
+        'xl/_rels/workbook.xml.rels' => $workbookRelsXml,
+        'xl/styles.xml' => $stylesXml,
+        'xl/worksheets/sheet1.xml' => $worksheetXml,
+    ]);
+
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+
+    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('Cache-Control: max-age=0');
+    header('Pragma: public');
+    header('Content-Length: ' . strlen($xlsxBinary));
+
+    echo $xlsxBinary;
+    exit;
 }
 
 function rrsg_driver_net(array $driverPoints, string $driverName): int
@@ -1648,6 +2064,94 @@ if ($selectedRace !== null) {
 
 $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
 
+$weeklySummaryRows = rrsg_ranked_summary_rows(
+    $selectedRaceWeeklyRows,
+    'weeklyTotal',
+    $weeklyTieMap,
+    $weeklySpecialContext['markersByTeam'] ?? []
+);
+$segmentSummaryRows = rrsg_ranked_summary_rows($segmentStandings, 'total', $segmentTieMap);
+$seasonSummaryRows = rrsg_ranked_summary_rows($seasonStandings, 'total', $seasonTieMap);
+$weeklyWinnerSummaryRows = rrsg_weekly_winner_summary_rows($pointRaces, $weeklyWinners, $selectedRaceNumber);
+
+$exportMode = isset($_GET['export']) ? trim((string)$_GET['export']) : '';
+if ($exportMode === 'xlsx') {
+    $weeklyExcelRows = [];
+    foreach ($weeklySummaryRows as $row) {
+        $teamDisplay = (string)$row['teamName'];
+        if ((string)$row['marker'] !== '') {
+            $teamDisplay .= ' ' . (string)$row['marker'];
+        }
+        $weeklyExcelRows[] = [
+            'values' => [(string)$row['rank'], $teamDisplay, (int)$row['score']],
+            'boldFirst' => !empty($row['isTie']),
+        ];
+    }
+
+    $segmentExcelRows = [];
+    foreach ($segmentSummaryRows as $row) {
+        $segmentExcelRows[] = [
+            'values' => [(string)$row['rank'], (string)$row['teamName'], (int)$row['score']],
+            'boldFirst' => !empty($row['isTie']),
+        ];
+    }
+
+    $seasonExcelRows = [];
+    foreach ($seasonSummaryRows as $row) {
+        $seasonExcelRows[] = [
+            'values' => [(string)$row['rank'], (string)$row['teamName'], (int)$row['score']],
+            'boldFirst' => !empty($row['isTie']),
+        ];
+    }
+
+    $winnerExcelRows = [];
+    foreach ($weeklyWinnerSummaryRows as $row) {
+        $winnerExcelRows[] = [
+            'values' => [(string)$row['week'], (string)$row['winner'], (int)$row['points']],
+            'boldFirst' => !empty($row['isTie']),
+        ];
+    }
+
+    $raceTitle = $selectedYear . ' ' . $selectedRaceMeta['raceDisplayLabel'];
+    if ((string)$selectedRaceMeta['snapshotDisplay'] !== '') {
+        $raceTitle .= ' (' . (string)$selectedRaceMeta['snapshotDisplay'] . ')';
+    }
+
+    $tables = [
+        [
+            'title' => $raceTitle,
+            'headers' => ['#', 'Team', 'Week ' . (string)$selectedRaceNumber],
+            'rows' => $weeklyExcelRows,
+        ],
+        [
+            'title' => $selectedYear . ' ' . $scoreSegment,
+            'headers' => ['#', 'Team', $scoreSegment],
+            'rows' => $segmentExcelRows,
+        ],
+        [
+            'title' => $selectedYear,
+            'headers' => ['#', 'Team', $selectedYear],
+            'rows' => $seasonExcelRows,
+        ],
+        [
+            'title' => $selectedYear . ' Weekly Winners',
+            'headers' => ['Week', 'Winner', 'Points'],
+            'rows' => $winnerExcelRows,
+        ],
+    ];
+
+    $filenameBase = 'weekly_standings_' . $selectedYear . '_' . $selectedRaceCode;
+    if ($selectedRaceMeta['raceLabel'] !== '') {
+        $filenameBase .= '_' . $selectedRaceMeta['raceLabel'];
+    }
+
+    rrsg_send_weekly_standings_xlsx(
+        $filenameBase,
+        $tables,
+        'Copyright © 2017-' . $selectedYear . ' Manlius Racing League — All rights reserved.'
+    );
+}
+
 ?>
 <!DOCTYPE html>
 <html>
@@ -1700,6 +2204,33 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
             cursor: pointer;
         }
 
+
+        .top-controls-actions {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            gap: 6px 10px;
+            margin-left: auto;
+        }
+
+        .report-action-btn {
+            min-width: 92px;
+            border: 2px solid #777;
+            border-radius: 3px;
+            background: #f2f2f2;
+            color: #111;
+        }
+
+        .report-action-btn:hover {
+            filter: brightness(0.96);
+        }
+
+        .report-action-btn[disabled] {
+            cursor: default;
+            opacity: 0.5;
+            filter: none;
+        }
+
         .live-btn {
             min-width: 66px;
             font-weight: bold;
@@ -1750,7 +2281,8 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
 
         .historical-note-slot {
             display: inline-block;
-            width: 620px;
+            width: 460px;
+            max-width: 460px;
             min-height: 1.2em;
             margin-left: 6px;
             font-size: 11px;
@@ -2111,13 +2643,89 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
             white-space: nowrap;
         }
 
+
+        @media print {
+            @page {
+                size: landscape;
+                margin: 0.25in;
+            }
+
+            html,
+            body {
+                margin: 0;
+                padding: 0;
+                color: #000;
+                background: #fff;
+            }
+
+            .page-wrap {
+                max-width: none;
+                width: 100%;
+                margin: 0;
+            }
+
+            .top-controls,
+            .pending-review-panel,
+            .race-placeholder,
+            .details-content,
+            .team-detail-row {
+                display: none !important;
+            }
+
+            #resultsArea {
+                display: block !important;
+            }
+
+            .report-grid {
+                display: grid !important;
+                grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+                gap: 10px;
+                align-items: start;
+                page-break-inside: avoid;
+            }
+
+            .table-wrap {
+                overflow: visible !important;
+            }
+
+            .panel-title {
+                font-size: 12px;
+                margin: 0 0 3px 0;
+            }
+
+            table {
+                font-size: 10px;
+                width: 100%;
+                table-layout: fixed;
+                page-break-inside: avoid;
+            }
+
+            th,
+            td {
+                border: 1px solid #151313;
+                padding: 1px 4px;
+                white-space: nowrap;
+            }
+
+            .team-col {
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .footnote-block,
+            .winner-footnote,
+            .table-footnote {
+                font-size: 9px;
+            }
+        }
+
         @media (max-width: 1500px) {
             .report-grid {
                 grid-template-columns: minmax(280px, 1fr) minmax(280px, 1fr);
             }
 
             .historical-note-slot {
-                width: 480px;
+                max-width: 480px;
             }
         }
 
@@ -2128,6 +2736,7 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
             }
 
             .top-controls {
+                flex-wrap: wrap;
                 gap: 4px 8px;
             }
 
@@ -2247,6 +2856,19 @@ $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
             <?php endif; ?>
 
             <span class="historical-note-slot" id="historicalNoteSlot"><?php echo ($historicalNote !== '' ? rrsg_h($historicalNote) : '&nbsp;'); ?></span>
+        </div>
+
+        <div class="top-controls-actions">
+            <button type="button"
+                    class="report-action-btn"
+                    id="weeklyPrintBtn"
+                    onclick="printWeeklyReport()"
+                    <?php echo ($selectedRace === null ? 'disabled' : ''); ?>>Print</button>
+            <button type="button"
+                    class="report-action-btn"
+                    id="weeklySpreadsheetBtn"
+                    onclick="exportWeeklyStandingsXlsx()"
+                    <?php echo ($selectedRace === null ? 'disabled' : ''); ?>>Spreadsheet</button>
         </div>
     </div>
 
@@ -2757,6 +3379,17 @@ function rrsgPadRaceCode(num) {
 function rrsgRaceNumberFromCode(code) {
     var match = String(code || '').match(/^R(\d+)$/);
     return match ? parseInt(match[1], 10) : null;
+}
+
+
+function printWeeklyReport() {
+    window.print();
+}
+
+function exportWeeklyStandingsXlsx() {
+    var url = new URL(window.location.href);
+    url.searchParams.set('export', 'xlsx');
+    window.location.href = url.toString();
 }
 
 function goLiveView() {
