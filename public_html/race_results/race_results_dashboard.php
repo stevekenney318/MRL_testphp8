@@ -4,10 +4,14 @@ declare(strict_types=1);
 /**
  * race_results_dashboard.php
  *
- * VERSION: v016
- * LAST MODIFIED: 6/8/2026 12:24:11 am
+ * VERSION: v016sk
+ * LAST MODIFIED: 6/11/2026 9:51:58 pm
  *
  * CHANGELOG:
+ *
+ * v016sk (6/11/26)
+ *   - CHANGE: Added environment check to show sandbox text.
+ *
  * v016 (6/8/2026)
  *   - CHANGE: Rename Bundle JSON link to System Debug Data.
  *   - CHANGE: Revision Scheduler wording now shows Revision State instead of raw Handoff status.
@@ -109,6 +113,20 @@ if (!headers_sent()) {
 
 const RACE_RESULTS_DASHBOARD_VERSION = 'v016';
 
+// visual id of sandbox/test site only
+$host = strtolower($_SERVER['HTTP_HOST'] ?? '');
+$docRoot = strtolower($_SERVER['DOCUMENT_ROOT'] ?? '');
+
+$isTestSite =
+    strpos($host, 'testphp8') !== false ||
+    strpos($docRoot, 'testphp8') !== false;
+
+if ($isTestSite) {
+    $sandboxFile = $_SERVER['DOCUMENT_ROOT'] . '/sandbox.html';
+    if (is_file($sandboxFile)) {
+        require_once $sandboxFile;
+    }
+}
 
 // -----------------------------------------------------------------------------
 // Scheduler dashboard data/functions

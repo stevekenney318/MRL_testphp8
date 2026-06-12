@@ -10,16 +10,31 @@ require_once $_SERVER['DOCUMENT_ROOT'] . '/functions_mrl.php';
 // disableCaching() defined in functions_mrl.php
 disableCaching();
 
-// visual id of a sandbox file - SK & background
-// require_once $_SERVER['DOCUMENT_ROOT'] . '/sandbox.html';
+// visual id of sandbox/test site only
+$host = strtolower($_SERVER['HTTP_HOST'] ?? '');
+$docRoot = strtolower($_SERVER['DOCUMENT_ROOT'] ?? '');
+
+$isTestSite =
+    strpos($host, 'testphp8') !== false ||
+    strpos($docRoot, 'testphp8') !== false;
+
+if ($isTestSite) {
+    $sandboxFile = $_SERVER['DOCUMENT_ROOT'] . '/sandbox.html';
+    if (is_file($sandboxFile)) {
+        require_once $sandboxFile;
+    }
+}
 
 /**
  * weekly_standings.php
  *
- * VERSION: v057
- * LAST MODIFIED: 6/9/2026 1:49:14 am
+ * VERSION: v057sk
+ * LAST MODIFIED: 6/11/2026 9:51:58 pm
  *
  * CHANGELOG:
+ *
+ * v057sk (6/11/26)
+ *   - CHANGE: Added environment check to show sandbox text.
  *
  * v057 (6/9/2026)
  *   - FIX: Kept the same version and refreshed the timestamp for the historical-note/button-layout correction pass.
