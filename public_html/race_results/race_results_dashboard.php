@@ -1,15 +1,35 @@
 <?php
 declare(strict_types=1);
 
+if (!headers_sent()) {
+    header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0');
+    header('Cache-Control: post-check=0, pre-check=0', false);
+    header('Pragma: no-cache');
+    header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
+}
+
 /**
  * race_results_dashboard.php
  *
- * VERSION: v016sk
- * LAST MODIFIED: 6/11/2026 9:51:58 pm
+ * VERSION: v017
+ * LAST MODIFIED: 6/11/2026 11:58:34 pm
  *
  * CHANGELOG:
  *
- * v016sk (6/11/26)
+ * v017 (6/11/2026)
+ *   - CHANGE: Renamed System Snapshot tile to Last Revision Snapshot and limited it to revision snapshot pairs.
+ *   - CHANGE: Added red Last Revision Snapshot card treatment for MRL Impact: YES.
+ *   - NEW: Added Last Snapshot Captured tile to System Snapshot, including MRL Impact status with red emphasis when needed.
+ *   - CHANGE: Updated user-facing Cron wording to Scheduler for a less technical operations view.
+ *   - NEW: Added prominent LIVE/TESTPHP8 environment banner near the top of the dashboard.
+ *   - NEW: Added first-pass System Snapshot panel with scheduler health, race-monitor status, revision scan summary, and next revision run.
+ *   - CHANGE: Race Scheduler and Revision Scheduler panels now use a more consistent summary-row layout.
+ *   - CHANGE: Scheduler intervals and countdowns are displayed in more human-readable wording where practical.
+ *   - CHANGE: Replaced some debug-style due wording with more operational status/reason wording.
+ *   - CHANGE: Preserved automatic sandbox/test-site visual marker logic for testphp8.
+ *   - CHANGE: Changelog trimmed to June 2026 entries.
+ *
+ * v016sk (6/11/2026)
  *   - CHANGE: Added environment check to show sandbox text.
  *
  * v016 (6/8/2026)
@@ -48,70 +68,12 @@ declare(strict_types=1);
  *   - CHANGE: Updated Revision Summary action confirmation wording to refer to the source site instead of ESPN.
  *   - CHANGE: Renamed Revision Summary Run Now to Refresh Summary and added a separate Regenerate Summary action that runs the revision monitor.
  *   - FIX: Aligned collapsed JSON panel headers with the rest of the dashboard card headings.
- *   - CHANGE: Renamed Classification Last Run JSON panel to Revision Summary Data.
- *   - CHANGE: Changed Driver Details toggle now switches between Show and Hide wording.
- *   - CHANGE: Tightened JSON toggle header alignment for better visual consistency with other panels.
- *   - CHANGE: Restyled dashboard action buttons as blue rounded action controls to better distinguish clickable actions from status labels.
- *   - CHANGE: Revision Summary details now use a stable same-row toggle button with remembered open/closed state.
- *   - CHANGE: Run Now notice now auto-hides after display and removes status parameters from the browser URL.
- *   - CHANGE: Revision tab classifier block now presents as Revision Summary with title, generated timestamp, and Run Now action on one line.
- *   - CHANGE: Revision Summary metadata pills now live in an expandable Summary Details section instead of always taking vertical space.
- *   - NEW: Added confirmed Run Now action link for manually refreshing the trusted revision summary/classifier output.
- *   - CHANGE: Revision Summary header now keeps title, generated timestamp, Run Now, and Summary Details on one compact line.
- *   - CHANGE: Run Now now refreshes the trusted revision summary on the dashboard page instead of leaving the user on the classifier report tab.
- *   - FIX: Bundle JSON and scheduler summary now report the merged dashboard version instead of the older scheduler-dashboard version.
+ *   - CHANGE: Restyled dashboard action buttons as blue rounded action controls.
  *   - NEW: Added automatic cache-buster values to raw file links so active logs/state/heartbeat files open fresh.
  *   - NEW: Added scheduler heartbeat freshness status to separate current cron heartbeat from scheduler/task configuration.
- *   - CHANGE: Clarified top status wording to Scheduler / Cron / Mode, with dry-run shown as dry run / paused.
- *   - CHANGE: Last Status values now display status pill and exit code on one line, with message on the next line.
- *   - NEW: Raw-file and bundle links refresh their cache-buster value at click time so repeated clicks request fresh content.
- *   - CHANGE: Consolidated Log Lines and Refresh controls into single labeled dropdowns.
- *   - CHANGE: RD Status JSON, Monitor State JSON, and Classification Last Run JSON panels are collapsed by default with Open/Close toggles.
- *   - CHANGE: Styled JSON panel Open/Close toggles as compact blue dashboard controls.
- *
- * v010 (5/31/2026)
- *   - CHANGE: Monitor Current Race Status now reads current_race_status from monitor state JSON.
- *   - CHANGE: Removed dashboard-side ESPN fetch for current race status.
- *   - NOTE: race_results_monitor.php v131 is expected to populate the stored status.
- *
- * v009 (5/31/2026)
- *   - NEW: Monitor tab now shows a first-pass Current Race Status card.
- *   - NEW: Extracts latest ESPN race URL from monitor log/state, fetches page title, and displays simplified current race name.
- *   - NEW: Extracts in-progress lap text such as "leads on lap X of Y" and displays only "Lap X of Y".
- *   - NOTE: This is display-only status; final scoring/snapshot logic is unchanged.
- *
- * v008 (5/30/2026)
- *   - CHANGE: Tightened dashboard header spacing and reduced tab/control height.
- *   - CHANGE: Standardized scheduler/monitor/revision status rows so raw files open in browser.
- *   - NEW: Added next-run countdown rows in monitor/revision status sections.
- *   - CHANGE: Removed top-level scheduler export buttons from normal view.
- *   - CHANGE: Scheduler bundle JSON now opens inline as raw text instead of forcing download.
- *
- * v007 (5/30/2026)
- *   - CHANGE: Reduced top-page clutter by moving tabs above the status/control panel.
- *   - CHANGE: Replaced log-line and auto-refresh button groups with dropdown controls.
- *   - NEW: Added Next Run info to Monitor and Revision tabs.
- *   - CHANGE: Uses friendlier AM/PM-style display for dashboard dates/times where practical.
- *   - CHANGE: Removed normal-view manual classifier report links and moved classifier script info to diagnostics.
- *
- * v006 (5/30/2026)
- *   - NEW: First-pass merged dashboard using scheduler_dashboard.php styling.
- *   - NEW: Adds top-level tabs: Scheduler, Monitor, and Revision.
- *   - NEW: Preserves scheduler dashboard content and race-results monitor/revision dashboard content in one page.
- *   - NOTE: No manual run buttons or Guide tab yet; this build is intended as a layout proof.
- *
- * v005 (5/19/2026)
- *   - Previous race-results-only dashboard baseline.
  */
 
-if (!headers_sent()) {
-    header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0');
-    header('Cache-Control: post-check=0, pre-check=0', false);
-    header('Pragma: no-cache');
-    header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
-}
-
-const RACE_RESULTS_DASHBOARD_VERSION = 'v016';
+const RACE_RESULTS_DASHBOARD_VERSION = 'v017';
 
 // visual id of sandbox/test site only
 $host = strtolower($_SERVER['HTTP_HOST'] ?? '');
@@ -121,12 +83,17 @@ $isTestSite =
     strpos($host, 'testphp8') !== false ||
     strpos($docRoot, 'testphp8') !== false;
 
+$dashboardEnvironmentLabel = $isTestSite ? 'TESTPHP8 / DEMO SITE' : 'LIVE MRL SITE';
+$dashboardEnvironmentClass = $isTestSite ? 'env-test' : 'env-live';
+$dashboardEnvironmentHost = $host !== '' ? $host : 'unknown host';
+
 if ($isTestSite) {
     $sandboxFile = $_SERVER['DOCUMENT_ROOT'] . '/sandbox.html';
     if (is_file($sandboxFile)) {
         require_once $sandboxFile;
     }
 }
+
 
 // -----------------------------------------------------------------------------
 // Scheduler dashboard data/functions
@@ -316,6 +283,158 @@ function rr_dash_display_timestamp($timestamp): string
     return date('n/j/Y g:i:s a', (int)$timestamp);
 }
 
+function rr_dash_format_minutes_human(int $minutes): string
+{
+    if ($minutes <= 0) {
+        return '0 min';
+    }
+
+    if ($minutes < 60) {
+        return $minutes . ' min';
+    }
+
+    $hours = intdiv($minutes, 60);
+    $remaining = $minutes % 60;
+    $text = $hours . ' hr' . ($hours === 1 ? '' : 's');
+
+    if ($remaining > 0) {
+        $text .= ' ' . $remaining . ' min';
+    }
+
+    return $text;
+}
+
+function rr_dash_format_seconds_human(int $seconds): string
+{
+    if ($seconds <= 0) {
+        return 'now';
+    }
+
+    $minutes = (int)ceil($seconds / 60);
+    return rr_dash_format_minutes_human($minutes);
+}
+
+function rr_dash_format_interval_label($minutes): string
+{
+    if ($minutes === null || $minutes === '') {
+        return 'daily times';
+    }
+
+    $minutes = (int)$minutes;
+    if ($minutes <= 0) {
+        return 'disabled';
+    }
+
+    return 'every ' . rr_dash_format_minutes_human($minutes);
+}
+
+function rr_dash_display_time_only(string $value): string
+{
+    $value = trim($value);
+    if ($value === '') {
+        return '';
+    }
+
+    try {
+        $dt = new DateTimeImmutable($value, new DateTimeZone('America/New_York'));
+        return $dt->format('g:i A');
+    } catch (Exception $e) {
+        return $value;
+    }
+}
+
+function rr_dash_next_run_sentence(string $nextDueAt, DateTimeImmutable $now): string
+{
+    $nextDueAt = trim($nextDueAt);
+    if ($nextDueAt === '') {
+        return 'No scheduled run';
+    }
+
+    try {
+        $next = new DateTimeImmutable($nextDueAt, new DateTimeZone('America/New_York'));
+    } catch (Exception $e) {
+        return rr_dash_display_datetime($nextDueAt);
+    }
+
+    $seconds = $next->getTimestamp() - $now->getTimestamp();
+    if ($seconds <= 0) {
+        return 'Due now (' . $next->format('g:i A') . ')';
+    }
+
+    return 'Next run in ' . rr_dash_format_seconds_human($seconds) . ' (' . $next->format('g:i A') . ')';
+}
+
+function rr_dash_revision_scan_counts(string $text): array
+{
+    $counts = [
+        'scanned' => null,
+        'unchanged' => null,
+        'revised' => null,
+        'errors' => null,
+    ];
+
+    if (preg_match('/Races scanned\s*:\s*(\d+)/i', $text, $m)) {
+        $counts['scanned'] = (int)$m[1];
+    }
+    if (preg_match('/Unchanged\s*:\s*(\d+)/i', $text, $m)) {
+        $counts['unchanged'] = (int)$m[1];
+    }
+    if (preg_match('/Revised\s*:\s*(\d+)/i', $text, $m)) {
+        $counts['revised'] = (int)$m[1];
+    }
+    if (preg_match('/Errors\/skips\s*:\s*(\d+)/i', $text, $m)) {
+        $counts['errors'] = (int)$m[1];
+    }
+
+    return $counts;
+}
+
+function rr_dash_scan_summary_text(array $counts): string
+{
+    if ($counts['scanned'] === null) {
+        return 'No scan summary found';
+    }
+
+    return (string)$counts['scanned'] . ' checked · '
+        . (string)($counts['revised'] ?? 0) . ' revised · '
+        . (string)($counts['errors'] ?? 0) . ' errors';
+}
+
+function rr_dash_race_operational_status(array $decision, array $nextRace): array
+{
+    $raceLabel = trim((string)($nextRace['label'] ?? 'next race'));
+    $phase = trim((string)($decision['phase_label'] ?? $decision['phase'] ?? ''));
+    $interval = array_key_exists('interval_minutes', $decision) ? (int)$decision['interval_minutes'] : 0;
+    $due = !empty($decision['due']);
+
+    if ($due) {
+        return ['Due now', $phase !== '' ? $phase : 'Race monitor is ready to run'];
+    }
+
+    if ($interval <= 0) {
+        return ['Standing by for ' . $raceLabel, $phase !== '' ? $phase : 'Monitor interval is currently disabled'];
+    }
+
+    return ['Monitoring ' . $raceLabel, $phase !== '' ? $phase : rr_dash_format_interval_label($interval)];
+}
+
+function rr_dash_revision_operational_status(array $decision): array
+{
+    $phase = trim((string)($decision['phase_label'] ?? $decision['phase'] ?? ''));
+    $due = !empty($decision['due']);
+
+    if ($due) {
+        return ['Due now', $phase !== '' ? $phase : 'Revision monitor is ready to run'];
+    }
+
+    if (!empty($decision['uses_daily_times'])) {
+        return ['Normal schedule', $phase !== '' ? $phase : 'Daily revision checks'];
+    }
+
+    return ['Post-race monitoring', $phase !== '' ? $phase : 'Revision monitor active'];
+}
+
+
 function rr_dash_next_run_epoch(string $value, DateTimeZone $tz): string
 {
     $value = trim($value);
@@ -442,7 +561,7 @@ function sd_auto_race_task_status(array $task, array $taskState, DateTimeImmutab
         'due' => $due,
         'due_text' => $due ? 'DUE' : 'not due',
         'next_run' => $due ? 'now' : $nextDue,
-        'schedule_text' => $interval > 0 ? 'auto race-aware: ' . $phase . ' / every ' . $interval . ' min' : 'auto race-aware: ' . $phase . ' / disabled',
+        'schedule_text' => $interval > 0 ? 'auto race-aware: ' . $phase . ' / ' . rr_dash_format_interval_label($interval) : 'auto race-aware: ' . $phase . ' / disabled',
         'last_attempt' => $lastAttempt ? $lastAttempt->format('Y-m-d g:i:s A') : '',
         'last_completed' => $lastCompleted ? $lastCompleted->format('Y-m-d g:i:s A') : '',
     ];
@@ -468,7 +587,7 @@ function sd_auto_revision_task_status(array $task, array $taskState, DateTimeImm
         $scheduleText = 'Auto: daily times';
     } else {
         $scheduleText = $interval > 0
-            ? 'Auto: every ' . $interval . ' min'
+            ? 'Auto: ' . rr_dash_format_interval_label($interval)
             : 'Auto: disabled';
     }
 
@@ -1415,6 +1534,83 @@ function rr_dash_normalize_classifier_row(array $row): array
         'previous_snapshot' => rr_dash_first_existing_string($row, ['previousSnapshot', 'previous_snapshot'], ''),
         'current_snapshot' => rr_dash_first_existing_string($row, ['currentSnapshot', 'current_snapshot'], ''),
         'message' => rr_dash_first_existing_string($row, ['message'], ''),
+    ];
+}
+
+
+function rr_dash_snapshot_filename_sort_key(string $snapshot): string
+{
+    if (preg_match('/snapshot_(\d{8})_(\d{9})\.html/i', $snapshot, $m)) {
+        return $m[1] . '_' . $m[2];
+    }
+    if (preg_match('/snapshot_(\d{8})_(\d{6})(\d{0,3})\.html/i', $snapshot, $m)) {
+        return $m[1] . '_' . $m[2] . str_pad($m[3], 3, '0');
+    }
+    return $snapshot;
+}
+
+function rr_dash_snapshot_filename_display_time(string $snapshot): string
+{
+    if (!preg_match('/snapshot_(\d{8})_(\d{6})\d{0,3}\.html/i', $snapshot, $m)) {
+        return 'snapshot time unknown';
+    }
+
+    $dt = DateTime::createFromFormat('Ymd His', $m[1] . ' ' . $m[2], new DateTimeZone('America/New_York'));
+    if (!$dt instanceof DateTime) {
+        return 'snapshot time unknown';
+    }
+
+    return $dt->format('n/j/Y g:i A');
+}
+
+function rr_dash_last_revision_snapshot(array $rows): array
+{
+    $best = null;
+    $bestKey = '';
+
+    foreach ($rows as $row) {
+        if (!is_array($row)) continue;
+
+        $previousSnapshot = (string)($row['previous_snapshot'] ?? '');
+        $snapshot = (string)($row['current_snapshot'] ?? '');
+
+        // Revision-summary rows represent a revision pair. Ignore ordinary
+        // first/final race-monitor snapshots that do not have a prior snapshot.
+        if ($previousSnapshot === '' || $snapshot === '') continue;
+
+        $key = rr_dash_snapshot_filename_sort_key($snapshot);
+        if ($best === null || strcmp($key, $bestKey) > 0) {
+            $best = $row;
+            $bestKey = $key;
+        }
+    }
+
+    if ($best === null) {
+        return [
+            'race' => 'No revision snapshots found',
+            'time' => '—',
+            'impact_text' => 'MRL Impact: unknown',
+            'impact_class' => 'warn',
+            'tile_class' => '',
+        ];
+    }
+
+    $raceCode = (string)($best['race_code'] ?? '');
+    $raceLabel = (string)($best['race_label'] ?? '');
+    $raceText = trim($raceCode . ' ' . $raceLabel);
+    if ($raceText === '') {
+        $raceText = 'Race unknown';
+    }
+
+    $snapshot = (string)($best['current_snapshot'] ?? '');
+    $impactYes = !empty($best['mrl_impact']);
+
+    return [
+        'race' => $raceText,
+        'time' => rr_dash_snapshot_filename_display_time($snapshot),
+        'impact_text' => $impactYes ? 'MRL Impact: YES' : 'No MRL Impact',
+        'impact_class' => $impactYes ? 'bad' : 'ok',
+        'tile_class' => $impactYes ? 'snapshot-impact-yes' : '',
     ];
 }
 
@@ -2414,6 +2610,166 @@ if ((string)($_GET['rr_run'] ?? '') === 'ok') {
         color: var(--gold);
     }
 
+
+    /* v017 operations-view refinements */
+    .env-banner {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        border: 1px solid #5a5142;
+        border-radius: 16px;
+        padding: 10px 14px;
+        margin: 0 0 10px 0;
+        background: linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.025));
+        box-shadow: var(--shadow);
+    }
+
+    .env-title {
+        font-size: 24px;
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        line-height: 1.1;
+    }
+
+    .env-subtitle {
+        color: var(--muted);
+        font-size: 13px;
+    }
+
+    .env-banner.env-live {
+        border-color: #477a59;
+        background: linear-gradient(180deg, rgba(38,63,48,0.75), rgba(34,34,34,0.92));
+    }
+
+    .env-banner.env-test {
+        border-color: #b0832e;
+        background: linear-gradient(180deg, rgba(73,61,32,0.88), rgba(34,34,34,0.94));
+    }
+
+    .snapshot-card {
+        margin-bottom: 16px;
+        border-color: rgba(242,201,142,0.42);
+        background: linear-gradient(180deg, rgba(242,201,142,0.08), rgba(255,255,255,0.018));
+    }
+
+    .snapshot-card h2 {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    .snapshot-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    @media (min-width: 900px) {
+        .snapshot-grid {
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        }
+    }
+
+    .snapshot-tile {
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 14px;
+        padding: 11px 12px;
+        background: rgba(255,255,255,0.032);
+        min-height: 92px;
+    }
+
+    .snapshot-label {
+        color: var(--gold);
+        font-weight: 800;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 7px;
+    }
+
+    .snapshot-main {
+        font-size: 18px;
+        font-weight: 800;
+        line-height: 1.2;
+        margin-bottom: 7px;
+    }
+
+    .snapshot-detail {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.35;
+    }
+
+    .snapshot-tile.snapshot-impact-yes {
+        border-color: rgba(255,107,107,0.72);
+        background: linear-gradient(180deg, rgba(255,107,107,0.14), rgba(255,255,255,0.03));
+    }
+
+    .snapshot-impact-line {
+        margin-top: 6px;
+    }
+
+    .scheduler-card-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    .scheduler-card-head h2 {
+        margin-bottom: 0;
+    }
+
+    .scheduler-summary {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+
+    @media (min-width: 900px) {
+        .scheduler-summary {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    .summary-box {
+        border: 1px solid rgba(255,255,255,0.075);
+        border-radius: 14px;
+        padding: 10px 12px;
+        background: rgba(255,255,255,0.03);
+    }
+
+    .summary-box .label {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 5px;
+    }
+
+    .summary-box .value {
+        font-size: 16px;
+        font-weight: 800;
+        line-height: 1.25;
+    }
+
+    .summary-box .note {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.3;
+        margin-top: 4px;
+    }
+
+
 </style>
 </head>
 <body>
@@ -2426,13 +2782,21 @@ if ((string)($_GET['rr_run'] ?? '') === 'ok') {
     </div>
 </div>
 
+<div class="env-banner <?php echo sd_html($dashboardEnvironmentClass); ?>">
+    <div>
+        <div class="env-title"><?php echo sd_html($dashboardEnvironmentLabel); ?></div>
+        <div class="env-subtitle"><?php echo sd_html($dashboardEnvironmentHost); ?></div>
+    </div>
+    <span class="pill <?php echo $isTestSite ? 'warn' : 'good'; ?>"><?php echo $isTestSite ? 'Demo / test data' : 'Production site'; ?></span>
+</div>
+
 <div class="control-panel">
     <div class="topline">
         <span class="pill <?php echo $schedulerEnabled ? 'good' : 'bad'; ?>">
             Scheduler: <?php echo $schedulerEnabled ? 'enabled' : 'disabled'; ?>
         </span>
         <span class="pill <?php echo sd_html((string)$schedulerHeartbeatFreshness['class']); ?>">
-            Cron: <?php echo sd_html((string)$schedulerHeartbeatFreshness['label']); ?>
+            Scheduler: <?php echo sd_html((string)$schedulerHeartbeatFreshness['label']); ?>
             <span class="small">(<?php echo sd_html((string)$schedulerHeartbeatFreshness['age_text']); ?>)</span>
         </span>
         <span class="pill <?php echo $dryRun ? 'warn' : 'good'; ?>" title="Dry run checks scheduled tasks but does not run monitor or revision scripts.">
@@ -2468,12 +2832,68 @@ if ((string)($_GET['rr_run'] ?? '') === 'ok') {
     </div>
 </div>
 
+<?php
+$dashRaceTaskState = isset($stateTasks['race_results_monitor']) && is_array($stateTasks['race_results_monitor']) ? $stateTasks['race_results_monitor'] : [];
+$dashRaceAuto = isset($dashRaceTaskState['auto_schedule']) && is_array($dashRaceTaskState['auto_schedule']) ? $dashRaceTaskState['auto_schedule'] : [];
+$dashRaceDecision = isset($dashRaceAuto['decision']) && is_array($dashRaceAuto['decision']) ? $dashRaceAuto['decision'] : [];
+$dashNextRace = isset($dashRaceAuto['next_race']) && is_array($dashRaceAuto['next_race']) ? $dashRaceAuto['next_race'] : [];
+$dashRaceStatus = rr_dash_race_operational_status($dashRaceDecision, $dashNextRace);
+
+$dashRevisionTaskState = isset($stateTasks['race_results_revision_monitor']) && is_array($stateTasks['race_results_revision_monitor']) ? $stateTasks['race_results_revision_monitor'] : [];
+$dashRevisionSchedule = isset($dashRevisionTaskState['revision_schedule']) && is_array($dashRevisionTaskState['revision_schedule']) ? $dashRevisionTaskState['revision_schedule'] : [];
+$dashRevisionDecision = isset($dashRevisionSchedule['decision']) && is_array($dashRevisionSchedule['decision']) ? $dashRevisionSchedule['decision'] : [];
+$dashRevisionStatus = rr_dash_revision_operational_status($dashRevisionDecision);
+$dashRevisionCounts = rr_dash_revision_scan_counts((string)($dashRevisionTaskState['last_output_tail'] ?? ''));
+$dashRevisionNext = rr_dash_next_run_sentence((string)($dashRevisionDecision['next_due_at'] ?? ''), $now);
+$dashLastSnapshot = rr_dash_last_revision_snapshot(isset($classSummary['rows']) && is_array($classSummary['rows']) ? $classSummary['rows'] : []);
+$dashCronMain = (string)$schedulerHeartbeatFreshness['label'] === 'running' ? 'Scheduler firing every minute' : 'Scheduler ' . (string)$schedulerHeartbeatFreshness['label'];
+$dashCronDetail = (string)$schedulerHeartbeatFreshness['age_text'] !== '' ? (string)$schedulerHeartbeatFreshness['age_text'] : 'heartbeat unknown';
+?>
+
+<div class="card snapshot-card">
+    <h2>
+        <span>System Snapshot</span>
+        <span class="pill <?php echo sd_html((string)$schedulerHeartbeatFreshness['class']); ?>"><?php echo sd_html($schedulerEnabled ? 'Scheduler enabled' : 'Scheduler disabled'); ?></span>
+    </h2>
+    <div class="snapshot-grid">
+        <div class="snapshot-tile">
+            <div class="snapshot-label">Scheduler</div>
+            <div class="snapshot-main"><?php echo sd_html($dashCronMain); ?></div>
+            <div class="snapshot-detail">Heartbeat <?php echo sd_html($dashCronDetail); ?></div>
+        </div>
+        <div class="snapshot-tile">
+            <div class="snapshot-label">Race Monitor</div>
+            <div class="snapshot-main"><?php echo sd_html($dashRaceStatus[0]); ?></div>
+            <div class="snapshot-detail"><?php echo sd_html($dashRaceStatus[1]); ?></div>
+        </div>
+        <div class="snapshot-tile">
+            <div class="snapshot-label">Revision Scan</div>
+            <div class="snapshot-main"><?php echo sd_html(rr_dash_scan_summary_text($dashRevisionCounts)); ?></div>
+            <div class="snapshot-detail">Last run: <?php echo sd_html(rr_dash_display_datetime((string)($dashRevisionTaskState['last_completed_at'] ?? ''))); ?></div>
+        </div>
+        <div class="snapshot-tile <?php echo sd_html((string)$dashLastSnapshot['tile_class']); ?>">
+            <div class="snapshot-label">Last Revision Snapshot</div>
+            <div class="snapshot-main"><?php echo sd_html((string)$dashLastSnapshot['race']); ?></div>
+            <div class="snapshot-detail"><?php echo sd_html((string)$dashLastSnapshot['time']); ?></div>
+            <div class="snapshot-impact-line"><span class="badge <?php echo sd_html((string)$dashLastSnapshot['impact_class']); ?>"><?php echo sd_html((string)$dashLastSnapshot['impact_text']); ?></span></div>
+        </div>
+        <div class="snapshot-tile">
+            <div class="snapshot-label">Next Revision</div>
+            <div class="snapshot-main"><?php echo sd_html($dashRevisionNext); ?></div>
+            <div class="snapshot-detail"><?php echo sd_html($dashRevisionStatus[0]); ?></div>
+        </div>
+    </div>
+</div>
+
 <?php if ($mainTab === 'scheduler'): ?>
 
 <div class="grid">
 
     <div class="card status-card">
-        <h2>Race Scheduler</h2>
+        <div class="scheduler-card-head">
+            <h2>Race Scheduler</h2>
+            <span class="pill">race_results_monitor.php</span>
+        </div>
         <?php
         $raceTask = isset($tasks['race_results_monitor']) && is_array($tasks['race_results_monitor']) ? $tasks['race_results_monitor'] : [];
         $raceTaskState = isset($stateTasks['race_results_monitor']) && is_array($stateTasks['race_results_monitor']) ? $stateTasks['race_results_monitor'] : [];
@@ -2488,6 +2908,8 @@ if ((string)($_GET['rr_run'] ?? '') === 'ok') {
         $autoLapText = $autoLapFound
             ? ('Lap ' . sd_html((string)($autoDecision['lap_current'] ?? '')) . ' of ' . sd_html((string)($autoDecision['lap_total'] ?? '')))
             : 'not found yet';
+        $raceOperationalStatus = rr_dash_race_operational_status($autoDecision, $autoNextRace);
+        $raceNextDueSentence = rr_dash_next_run_sentence((string)($autoDecision['next_due_at'] ?? ''), $now);
         ?>
         <?php if (empty($raceTask)): ?>
             <p class="msg">No race_results_monitor task found in _scheduler/schedule.json.</p>
@@ -2495,13 +2917,25 @@ if ((string)($_GET['rr_run'] ?? '') === 'ok') {
             <p class="msg">Race scheduler state has not been written yet. Wait for cron_master_scheduler.php v008 to run once.</p>
             <p class="small">Configured mode: <?php echo sd_html((string)($raceTask['type'] ?? '')); ?></p>
         <?php else: ?>
+            <div class="scheduler-summary">
+                <div class="summary-box">
+                    <div class="label">Status</div>
+                    <div class="value"><?php echo sd_html($raceOperationalStatus[0]); ?></div>
+                    <div class="note"><?php echo sd_html($raceOperationalStatus[1]); ?></div>
+                </div>
+                <div class="summary-box">
+                    <div class="label">Schedule</div>
+                    <div class="value"><?php echo sd_html(rr_dash_format_interval_label($autoInterval)); ?></div>
+                    <div class="note"><?php echo sd_html($raceNextDueSentence); ?></div>
+                </div>
+                <div class="summary-box">
+                    <div class="label">Race</div>
+                    <div class="value"><?php echo sd_html((string)($autoNextRace['label'] ?? '')); ?></div>
+                    <div class="note"><?php echo sd_html((string)($autoNextRace['start_text'] ?? $autoNextRace['start_at'] ?? '')); ?></div>
+                </div>
+            </div>
             <div class="race-progress-row">
-                <span class="pill"><strong>Task:</strong> <?php echo sd_html((string)($raceTask['script'] ?? 'race_results_monitor.php')); ?></span>
                 <span class="pill"><strong>Mode:</strong> <?php echo sd_html((string)($raceTask['type'] ?? '')); ?></span>
-                <span class="pill"><strong>Next Race:</strong> <?php echo sd_html($autoNextRace['label'] ?? ''); ?></span>
-                <span class="pill"><strong>Start:</strong> <?php echo sd_html($autoNextRace['start_text'] ?? $autoNextRace['start_at'] ?? ''); ?></span>
-                <span class="pill"><strong>Phase:</strong> <?php echo sd_html($autoDecision['phase_label'] ?? $autoDecision['phase'] ?? ''); ?></span>
-                <span class="pill"><strong>Interval:</strong> <?php echo $autoInterval > 0 ? 'every ' . sd_html((string)$autoInterval) . ' min' : 'disabled'; ?></span>
                 <span class="pill"><strong>Lap Status:</strong> <?php echo $autoLapText; ?></span>
                 <span class="pill <?php echo sd_html($autoStatusClass); ?>"><strong>Last Status:</strong> <?php echo sd_html($autoStatus !== '' ? $autoStatus : 'unknown'); ?></span>
             </div>
@@ -2517,12 +2951,12 @@ if ((string)($_GET['rr_run'] ?? '') === 'ok') {
                         <td><?php echo sd_html(rr_dash_display_datetime((string)($autoDecision['last_monitor_run_at'] ?? ''))); ?></td>
                     </tr>
                     <tr>
-                        <th>Next Due</th>
-                        <td><?php echo sd_html(rr_dash_display_datetime((string)($autoDecision['next_due_at'] ?? ''))); ?></td>
+                        <th>Next Run</th>
+                        <td><?php echo sd_html($raceNextDueSentence); ?></td>
                     </tr>
                     <tr>
-                        <th>Due Reason</th>
-                        <td><?php echo sd_html($autoDecision['due_reason'] ?? $autoMessage); ?></td>
+                        <th>Reason</th>
+                        <td><?php echo sd_html($raceOperationalStatus[1]); ?></td>
                     </tr>
                     <tr>
                         <th>Monitor Output</th>
@@ -2540,8 +2974,11 @@ if ((string)($_GET['rr_run'] ?? '') === 'ok') {
         <?php endif; ?>
     </div>
 
-    <div class="card">
-        <h2>Revision Scheduler</h2>
+    <div class="card status-card">
+        <div class="scheduler-card-head">
+            <h2>Revision Scheduler</h2>
+            <span class="pill">race_results_revision_monitor.php</span>
+        </div>
 
         <?php if (empty($tasks) || empty($tasks['race_results_revision_monitor'])): ?>
             <p class="msg">No race_results_revision_monitor task found in schedule.json.</p>
@@ -2553,29 +2990,53 @@ if ((string)($_GET['rr_run'] ?? '') === 'ok') {
             $revisionHandoff = isset($revisionSchedule['handoff']) && is_array($revisionSchedule['handoff']) ? $revisionSchedule['handoff'] : [];
             ?>
             <?php if (!empty($revisionSchedule)): ?>
+                <?php
+                $revisionOperationalStatus = rr_dash_revision_operational_status($revisionDecision);
+                $revisionIntervalText = array_key_exists('interval_minutes', $revisionDecision) && $revisionDecision['interval_minutes'] !== null
+                    ? rr_dash_format_interval_label((int)$revisionDecision['interval_minutes'])
+                    : 'daily times';
+                $revisionNextDueSentence = rr_dash_next_run_sentence((string)($revisionDecision['next_due_at'] ?? ''), $now);
+                $revisionCounts = rr_dash_revision_scan_counts((string)($revisionTaskState['last_output_tail'] ?? ''));
+                ?>
+                <div class="scheduler-summary">
+                    <div class="summary-box">
+                        <div class="label">Status</div>
+                        <div class="value"><?php echo sd_html($revisionOperationalStatus[0]); ?></div>
+                        <div class="note"><?php echo sd_html($revisionOperationalStatus[1]); ?></div>
+                    </div>
+                    <div class="summary-box">
+                        <div class="label">Schedule</div>
+                        <div class="value"><?php echo sd_html($revisionIntervalText); ?></div>
+                        <div class="note"><?php echo sd_html($revisionNextDueSentence); ?></div>
+                    </div>
+                    <div class="summary-box">
+                        <div class="label">Latest Scan</div>
+                        <div class="value"><?php echo sd_html(rr_dash_scan_summary_text($revisionCounts)); ?></div>
+                        <div class="note">Latest final: <?php echo sd_html((string)($revisionHandoff['race_name'] ?? '')); ?></div>
+                    </div>
+                </div>
+                <div class="race-progress-row">
+                    <span class="pill"><strong>Mode:</strong> <?php echo sd_html((string)($revisionSchedule['mode'] ?? '')); ?></span>
+                    <span class="pill"><strong>Revision State:</strong> <?php echo sd_html(rr_dash_revision_state_label((string)($revisionHandoff['status'] ?? ''), (string)($revisionHandoff['race_name'] ?? ''))); ?></span>
+                    <span class="pill"><strong>Next:</strong> <?php echo sd_html($revisionNextDueSentence); ?></span>
+                </div>
                 <table class="section-spacer">
                     <tbody>
                         <tr>
-                            <th>Mode</th>
-                            <td><?php echo sd_html((string)($revisionSchedule['mode'] ?? '')); ?></td>
-                            <th>Phase</th>
-                            <td><?php echo sd_html((string)($revisionDecision['phase_label'] ?? $revisionDecision['phase'] ?? '')); ?></td>
+                            <th>Generated</th>
+                            <td><?php echo sd_html(rr_dash_display_datetime((string)($revisionSchedule['generated_at'] ?? ''))); ?></td>
                         </tr>
                         <tr>
-                            <th>Latest Final</th>
-                            <td><?php echo sd_html((string)($revisionHandoff['race_name'] ?? '')); ?></td>
-                            <th>Interval</th>
-                            <td><?php echo array_key_exists('interval_minutes', $revisionDecision) && $revisionDecision['interval_minutes'] !== null ? 'every ' . sd_html((string)$revisionDecision['interval_minutes']) . ' min' : 'daily times'; ?></td>
+                            <th>Last Revision Run</th>
+                            <td><?php echo sd_html(rr_dash_display_datetime((string)($revisionDecision['last_revision_run_at'] ?? ''))); ?></td>
                         </tr>
                         <tr>
-                            <th>Revision State</th>
-                            <td><?php echo sd_html(rr_dash_revision_state_label((string)($revisionHandoff['status'] ?? ''), (string)($revisionHandoff['race_name'] ?? ''))); ?></td>
-                            <th>Next Due</th>
-                            <td><?php echo sd_html(rr_dash_display_datetime((string)($revisionDecision['next_due_at'] ?? ''))); ?></td>
+                            <th>Status</th>
+                            <td><?php echo sd_html($revisionOperationalStatus[0] . '; ' . $revisionNextDueSentence); ?></td>
                         </tr>
                         <tr>
-                            <th>Due Reason</th>
-                            <td colspan="3"><?php echo sd_html((string)($revisionDecision['due_reason'] ?? '')); ?></td>
+                            <th>Reason</th>
+                            <td><?php echo sd_html($revisionOperationalStatus[1]); ?></td>
                         </tr>
                     </tbody>
                 </table>
