@@ -4,10 +4,13 @@ declare(strict_types=1);
 /**
  * race_results_engine.php
  *
- * VERSION: v005
- * LAST MODIFIED: 6/6/2026 5:55:10 am
+ * VERSION: v006
+ * LAST MODIFIED: 6/13/2026 6:13:08 pm
  *
  * CHANGELOG:
+ * v006 (2026-06-13)
+ *   - CHANGE: Removed the temporary 2026 San Diego ESPN schedule source correction now that ESPN is supplying the corrected Cup Series schedule row/name.
+ *
  * v005 (2026-06-06)
  *   - NEW: Added ESPN year-schedule parsing helpers for monitor race-status and scheduler-data foundation.
  *   - NEW: Added helpers to identify the next scheduled points race and write schedule JSON artifacts.
@@ -18,7 +21,6 @@ declare(strict_types=1);
  *   - FIX: Schedule MRL identity now matches existing R folders by race date/name before projecting future R numbers.
  *   - FIX: Projected future R numbers now start after the latest known R race instead of re-numbering all schedule rows.
  *   - FIX: Schedule parser now preserves special race titles such as Daytona 500 instead of grabbing action links like Starting Grid.
- *   - FIX: Added an explicit 2026 San Diego schedule correction so ESPN's mislabeled Truck Series row is treated as MRL R17 San Diego, with JSON breadcrumbs.
  *   - FIX: Schedule MRL eligibility now reuses rr_is_exhibition_race_name() and lets confirmed R-folder/year-index matches force points eligibility.
  *
  * v004 (2026-04-26)
@@ -679,39 +681,9 @@ function rr_schedule_find_known_special_event(array $flat, string $rowText): arr
 
 function rr_schedule_apply_known_source_corrections(array $race, int $year, string $rowText): array
 {
-    $date = rr_schedule_date_from_start_at((string)($race['start_at'] ?? ''));
-    $combined = rr_clean_schedule_text(
-        (string)($race['race_name'] ?? '') . ' '
-        . (string)($race['short_name'] ?? '') . ' '
-        . (string)($race['track_name'] ?? '') . ' '
-        . $rowText
-    );
-
-    // Known 2026 ESPN schedule anomaly:
-    // ESPN currently labels the 2026-06-21 Naval Base Coronado / San Diego Cup
-    // race as "NASCAR Truck Series at San Diego". For MRL schedule/status logic,
-    // treat it as the Cup points race and leave an explicit breadcrumb.
-    if ($year === 2026
-        && $date === '2026-06-21'
-        && preg_match('/\b(San\s+Diego|Naval\s+Base\s+Coronado|Coronado)\b/i', $combined)
-    ) {
-        $race['race_name'] = 'San Diego';
-        $race['short_name'] = 'San Diego';
-        $race['track_name'] = 'Naval Base Coronado';
-        $race['series'] = 'NASCAR Cup Series';
-        $race['is_exhibition'] = false;
-        $race['mrl_points_eligible'] = true;
-        $race['source_correction'] = [
-            'applied' => true,
-            'type' => 'known_espn_schedule_series_label_error',
-            'reason' => 'ESPN schedule listed the 2026-06-21 Naval Base Coronado / San Diego Cup race as NASCAR Truck Series at San Diego. MRL treats this event as the Cup Series San Diego race / Anduril 250.',
-            'display_name' => 'San Diego',
-            'expected_mrl_race_code' => 'R17',
-            'primary_source' => 'ESPN schedule page',
-            'verification_source' => 'NASCAR Cup Series 2026 schedule',
-        ];
-    }
-
+    // Intentionally no current source corrections.
+    // ESPN corrected the 2026 San Diego schedule row/name, so MRL now uses the
+    // schedule feed directly instead of overriding that race locally.
     return $race;
 }
 

@@ -1,0 +1,434 @@
+<!--
+  race_countdown.html
+
+  VERSION: v003
+  LAST MODIFIED: 6/13/2026 5:52:28 pm
+
+  Purpose:
+  - Dynamically reads /race_results/_race_results_schedule.json
+  - Uses ESPN-derived MRL schedule data already produced by race_results_monitor.php
+  - Groups races by MRL segment race-number boundaries
+  - Avoids hard-coded race names, dates, and times
+
+  WordPress include target:
+  fetch('/race_countdown.html', { cache: 'no-store' })
+
+  CHANGELOG:
+  v003 (6/13/2026)
+  - FIX: Only shows End of Segment text when the visible list includes that segment's final race.
+  - CHANGE: Tightens segment divider spacing so the blue line sits between segment labels.
+
+  v002 (6/13/2026)
+  - NEW: Limits the visible upcoming race countdown list to five races.
+  - NEW: Adds a blue double-line divider between segment groups.
+  - CHANGE: Adds standard MRL-style file name/version/timestamp header information.
+
+  v001 (6/13/2026)
+  - NEW: Initial dynamic countdown reading /race_results/_race_results_schedule.json.
+-->
+
+<div class="mrl-race-countdown-root" data-schedule-url="/race_results/_race_results_schedule.json">
+  <div class="mrl-header">Upcoming Races</div>
+  <div class="mrl-countdown-status">Loading races...</div>
+</div>
+
+<script>
+(function () {
+  const roots = document.querySelectorAll('.mrl-race-countdown-root');
+  if (!roots.length) return;
+
+  function pad(n) {
+    n = Math.floor(Math.abs(Number(n) || 0));
+    return n < 10 ? '0' + n : String(n);
+  }
+
+  function htmlEscape(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function segmentFromRaceNumber(raceNumber) {
+    raceNumber = Number(raceNumber || 0);
+    if (raceNumber >= 1 && raceNumber <= 8) return 'S1';
+    if (raceNumber >= 9 && raceNumber <= 17) return 'S2';
+    if (raceNumber >= 18 && raceNumber <= 26) return 'S3';
+    if (raceNumber >= 27 && raceNumber <= 36) return 'S4';
+    return '';
+  }
+
+  function segmentLabel(segment) {
+    if (segment === 'S1') return '2026 Segment 1';
+    if (segment === 'S2') return '2026 Segment 2';
+    if (segment === 'S3') return '2026 Segment 3';
+    if (segment === 'S4') return '2026 Segment 4';
+    return 'Upcoming Races';
+  }
+
+  function segmentEndRaceNumber(segment) {
+    if (segment === 'S1') return 8;
+    if (segment === 'S2') return 17;
+    if (segment === 'S3') return 26;
+    if (segment === 'S4') return 36;
+    return 0;
+  }
+
+  function parseStartDate(race) {
+    if (!race || !race.start_at) return null;
+
+    // MRL schedule start_at is local New York time: YYYY-MM-DD HH:MM:SS
+    const m = String(race.start_at).match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+    if (!m) return null;
+
+    return new Date(
+      Number(m[1]),
+      Number(m[2]) - 1,
+      Number(m[3]),
+      Number(m[4]),
+      Number(m[5]),
+      Number(m[6] || 0)
+    );
+  }
+
+  function raceNumber(race) {
+    return Number(race.mrl_race_number || race.race_number || race.schedule_sequence || 0);
+  }
+
+  function raceCode(race) {
+    const rn = raceNumber(race);
+    return race.mrl_race_code || (rn > 0 ? 'R' + String(rn).padStart(2, '0') : '');
+  }
+
+  function raceTitle(race) {
+    return race.mrl_race_name || race.race_name || race.short_name || race.track_name || 'Race';
+  }
+
+  function raceDateLabel(date) {
+    return date.toLocaleString('en-US', {
+      timeZone: 'America/New_York',
+      month: 'numeric',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    }).toLowerCase().replace(',', '');
+  }
+
+  function shouldShowRace(date) {
+    // Same philosophy as old races.html: keep the current race visible briefly after start.
+    const hideAfterMs = 5 * 60 * 60 * 1000;
+    return (date.getTime() - Date.now()) > -hideAfterMs;
+  }
+
+  function normalizeRaces(schedule) {
+    const source = Array.isArray(schedule && schedule.mrl_points_races)
+      ? schedule.mrl_points_races
+      : (Array.isArray(schedule && schedule.races) ? schedule.races : []);
+
+    return source
+      .filter(function (race) {
+        if (!race || race.mrl_points_eligible === false || race.is_exhibition === true) return false;
+        const rn = raceNumber(race);
+        return rn >= 1 && rn <= 36 && parseStartDate(race);
+      })
+      .sort(function (a, b) {
+        return raceNumber(a) - raceNumber(b);
+      });
+  }
+
+  function buildRaceHtml(race) {
+    const rn = raceNumber(race);
+    const code = raceCode(race);
+    const title = raceTitle(race);
+    const date = parseStartDate(race);
+    const ts = date ? date.getTime() : 0;
+
+    return `
+      <div class="mrl-race" data-race-number="${rn}" data-race-ts="${ts}">
+        <div class="mrl-race-number">RACE ${rn}</div>
+        <div class="mrl-countdown"
+             data-title="${htmlEscape(title)}"
+             data-race-code="${htmlEscape(code)}"
+             data-target-ts="${ts}"></div>
+      </div>`;
+  }
+
+  function buildScheduleHtml(races) {
+    const visibleRaces = races.filter(function (race) {
+      const date = parseStartDate(race);
+      return date && shouldShowRace(date);
+    }).slice(0, 5);
+
+    if (!visibleRaces.length) {
+      return '<p class="mrl-empty">No upcoming races found.</p>';
+    }
+
+    let html = '';
+    let currentSegment = '';
+
+    visibleRaces.forEach(function (race) {
+      const rn = raceNumber(race);
+      const segment = segmentFromRaceNumber(rn);
+
+      if (segment !== currentSegment) {
+        if (currentSegment !== '') {
+          const prevRace = visibleRaces[visibleRaces.indexOf(race) - 1];
+          const prevRaceNumber = raceNumber(prevRace);
+          if (prevRaceNumber === segmentEndRaceNumber(currentSegment)) {
+            html += `<h2 class="mrl-segment-title mrl-segment-end">End of Segment ${currentSegment.replace('S', '')}</h2><div class="mrl-segment-divider" aria-hidden="true"></div>`;
+          }
+          html += `</div>`;
+        }
+        currentSegment = segment;
+        html += `<div class="mrl-segment-group"><h2 class="mrl-segment-title">${htmlEscape(segmentLabel(segment))}</h2>`;
+      }
+
+      html += buildRaceHtml(race);
+    });
+
+    if (currentSegment !== '') {
+      const lastRace = visibleRaces[visibleRaces.length - 1];
+      const lastRaceNumber = raceNumber(lastRace);
+      if (lastRaceNumber === segmentEndRaceNumber(currentSegment)) {
+        html += `<h2 class="mrl-segment-title mrl-segment-end">End of Segment ${currentSegment.replace('S', '')}</h2>`;
+      }
+      html += `</div>`;
+    }
+
+    return html;
+  }
+
+  function tickOne(el) {
+    const targetTs = Number(el.dataset.targetTs || 0);
+    if (!targetTs) {
+      el.innerHTML = '<em>Invalid date/time</em>';
+      return;
+    }
+
+    const target = new Date(targetTs);
+    let diff = targetTs - Date.now();
+
+    const hideAfterMs = 5 * 60 * 60 * 1000;
+    if (diff < -hideAfterMs) {
+      const raceBlock = el.closest('.mrl-race');
+      if (raceBlock) raceBlock.style.display = 'none';
+      return;
+    }
+
+    const isPast = diff < 0;
+    if (isPast) diff = Math.abs(diff);
+
+    const d = Math.floor(diff / 86400000);
+    const h = Math.floor((diff % 86400000) / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const dayValue = isPast ? '-' + d : d;
+
+    el.innerHTML = `
+      <div class="mrl-box ${isPast ? 'mrl-past' : ''}">
+        <div class="mrl-title">${htmlEscape(el.dataset.title || '')}</div>
+        <div class="mrl-row">
+          <div class="unit"><span class="num">${dayValue}</span><span class="lab">DAYS</span></div>
+          <span class="sep">:</span>
+          <div class="unit"><span class="num">${pad(h)}</span><span class="lab">HOURS</span></div>
+          <span class="sep">:</span>
+          <div class="unit"><span class="num red">${pad(m)}</span><span class="lab">MINUTES</span></div>
+        </div>
+        <div class="mrl-race-dt">${raceDateLabel(target)}</div>
+      </div>`;
+  }
+
+  function tickAll(root) {
+    root.querySelectorAll('.mrl-countdown').forEach(tickOne);
+  }
+
+  function initRoot(root) {
+    if (root.dataset.mrlDynamicInit === '1') return;
+    root.dataset.mrlDynamicInit = '1';
+
+    const scheduleUrl = root.dataset.scheduleUrl || '/race_results/_race_results_schedule.json';
+    const cacheBust = scheduleUrl.indexOf('?') === -1 ? '?' : '&';
+
+    fetch(scheduleUrl + cacheBust + 'v=' + Date.now(), { cache: 'no-store' })
+      .then(function (response) {
+        if (!response.ok) throw new Error('Could not load schedule JSON');
+        return response.json();
+      })
+      .then(function (schedule) {
+        const races = normalizeRaces(schedule);
+        const status = root.querySelector('.mrl-countdown-status');
+        if (status) status.remove();
+
+        const container = document.createElement('div');
+        container.className = 'mrl-race-countdown-content';
+        container.innerHTML = buildScheduleHtml(races);
+        root.appendChild(container);
+
+        tickAll(root);
+        setInterval(function () { tickAll(root); }, 1000);
+      })
+      .catch(function (error) {
+        const status = root.querySelector('.mrl-countdown-status');
+        if (status) {
+          status.innerHTML = '<p style="color:red; text-align:center;">Upcoming races could not be loaded.</p>';
+        }
+        console.error(error);
+      });
+  }
+
+  roots.forEach(initRoot);
+})();
+</script>
+
+<style>
+.mrl-header{
+  font-size:32px;
+  font-weight:bold;
+  color:#ff0000;
+  text-shadow:1px 1px 3px #555;
+  text-align:center;
+  margin:0 0 6px 0;
+  border-top: thick double #32a1ce;
+  border-bottom: thick double #32a1ce;
+}
+
+.mrl-countdown-status,
+.mrl-empty{
+  text-align:center;
+  font-size:18px;
+  color:#555;
+  margin:20px 0;
+}
+
+.mrl-box{
+  border:none;
+  background:transparent;
+  margin:0 auto;
+  padding:0;
+  max-width:720px;
+  text-align:center;
+  font-family:inherit;
+}
+
+.mrl-title{
+  color:#2a4f8e;
+  font-weight:600;
+  margin:0 0 6px 0;
+  font-size:24px;
+  line-height:1.1;
+}
+
+.mrl-row{
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+  gap:4px;
+  white-space:nowrap;
+  margin:0;
+  padding:0;
+}
+
+.unit{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  min-width:64px;
+}
+
+.num{
+  font-size:48px;
+  font-weight:500;
+  line-height:1;
+}
+
+.num.red{
+  color:#ff0000;
+}
+
+.lab{
+  font-size:10px;
+  color:#333;
+  letter-spacing:.05em;
+  margin:0;
+  transform:translateY(-5px);
+}
+
+.sep{
+  font-size:32px;
+  line-height:1;
+  position:relative;
+  top:2px;
+  margin:0 2px;
+  opacity:.9;
+}
+
+.mrl-race-dt{
+  font-size:20px;
+  color:#555;
+  margin:2px 0 0 0;
+  letter-spacing:.03em;
+}
+
+.mrl-countdown .mrl-box{
+  margin:-16px 0 !important;
+}
+
+.mrl-segment-group{
+  max-width:850px;
+  margin:0 auto 0 auto;
+  padding:10px 20px 0 20px;
+  background:transparent !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  border:none !important;
+}
+
+.mrl-segment-title{
+  text-align:center;
+  font-size:30px;
+  font-weight:bold;
+  margin:10px 0 25px 0;
+}
+
+.mrl-segment-end{
+  margin-top:28px;
+}
+
+.mrl-segment-divider{
+  max-width:720px;
+  margin:22px auto 22px auto;
+  border-top:thick double #32a1ce;
+  height:0;
+}
+
+.mrl-race{
+  padding:34px 0;
+  border-top:3px solid #666;
+}
+
+.mrl-race:first-of-type{
+  border-top:none;
+}
+
+.mrl-race-number{
+  text-align:center;
+  font-size:22px;
+  font-weight:bold;
+  color:#ff0000;
+  letter-spacing:2px;
+  text-shadow:1px 1px 3px #555;
+  margin:0 0 8px 0;
+}
+
+@media (max-width:520px){
+  .mrl-header{ font-size:26px; }
+  .mrl-title{ font-size:18px; }
+  .num{ font-size:30px; }
+  .lab{ font-size:9px; transform:translateY(-4px); }
+  .sep{ font-size:26px; top:1px; }
+  .mrl-segment-title{ font-size:24px; }
+}
+</style>

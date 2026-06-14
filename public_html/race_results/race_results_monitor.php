@@ -4,10 +4,13 @@ declare(strict_types=1);
 /**
  * race_results_monitor.php
  *
- * VERSION: v133
- * LAST MODIFIED: 6/6/2026 5:26:14 am
+ * VERSION: v134
+ * LAST MODIFIED: 6/13/2026 6:13:08 pm
  *
  * CHANGELOG:
+ *
+ * v134 (6/13/2026)
+ *   - CHANGE: Removed the temporary 2026 San Diego folder-creation correction now that ESPN is supplying the corrected Cup Series schedule row/name.
  *
  * v133 (6/6/2026)
  *   - CHANGE: Schedule JSON now includes a filtered mrl_points_races list and uses that list for next-race selection.
@@ -73,7 +76,7 @@ ini_set('log_errors', '1');
 ini_set('error_log', __DIR__ . '/_race_results_monitor_php_errors.log');
 error_reporting(E_ALL);
 
-const RR_MONITOR_SIGNATURE = 'RACE_RESULTS_MONITOR v133';
+const RR_MONITOR_SIGNATURE = 'RACE_RESULTS_MONITOR v134';
 
 // ------------------------- PREFLIGHT HEARTBEAT -------------------------
 // This intentionally happens before helper includes and USER initialization.
@@ -231,28 +234,9 @@ function rr_monitor_next_kind_number(array $yearIndex, string $kind): int
 
 function rr_monitor_apply_known_race_corrections(int $year, string $raceId, string &$raceName, bool &$isExhibition, ?int &$raceNum): void
 {
-    $combined = strtoupper($raceId . ' ' . $raceName);
-
-    // Same known 2026 San Diego anomaly protected at folder-creation time.
-    // If the results source eventually carries the same bad label as the schedule
-    // page, still create the correct MRL race folder identity.
-    if ($year === 2026
-        && (
-            strpos($combined, '20260621') !== false
-            || strpos($combined, 'SAN DIEGO') !== false
-            || strpos($combined, 'CORONADO') !== false
-            || strpos($combined, 'ANDURIL') !== false
-        )
-        && (
-            strpos($combined, 'SAN DIEGO') !== false
-            || strpos($combined, 'CORONADO') !== false
-            || strpos($combined, 'ANDURIL') !== false
-        )
-    ) {
-        $raceName = 'San Diego';
-        $isExhibition = false;
-        $raceNum = 17;
-    }
+    // Intentionally no current race-name corrections.
+    // ESPN corrected the 2026 San Diego schedule row/name, so folder identity
+    // should now follow the normal schedule/year-index matching path.
 }
 
 function rr_monitor_assign_folder_and_update_index(
