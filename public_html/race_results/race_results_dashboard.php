@@ -11,10 +11,14 @@ if (!headers_sent()) {
 /**
  * race_results_dashboard.php
  *
- * VERSION: v017
- * LAST MODIFIED: 6/11/2026 11:58:34 pm
+ * VERSION: v018
+ * LAST MODIFIED: 6/14/2026 12:24:50 pm
  *
  * CHANGELOG:
+ *
+ * v018 (6/14/2026)
+ *   - FIX: Race Scheduler monitor output now suppresses stale prior-final wording while waiting for the scheduled race.
+ *   - CHANGE: Dashboard version updated for race-day monitor wording cleanup.
  *
  * v017 (6/11/2026)
  *   - CHANGE: Renamed System Snapshot tile to Last Revision Snapshot and limited it to revision snapshot pairs.
@@ -73,7 +77,7 @@ if (!headers_sent()) {
  *   - NEW: Added scheduler heartbeat freshness status to separate current cron heartbeat from scheduler/task configuration.
  */
 
-const RACE_RESULTS_DASHBOARD_VERSION = 'v017';
+const RACE_RESULTS_DASHBOARD_VERSION = 'v018';
 
 // visual id of sandbox/test site only
 $host = strtolower($_SERVER['HTTP_HOST'] ?? '');
@@ -1212,6 +1216,24 @@ function rr_dash_monitor_status_from_state(array $yearState): array
         'found' => ($raceName !== '' || $status !== ''),
         'fetched' => !empty($statusRow),
     ];
+}
+
+
+function rr_dash_safe_race_monitor_output(string $tail, array $autoDecision): string
+{
+    $phase = (string)($autoDecision['phase'] ?? '');
+    $preRacePhases = [
+        'standby_more_than_24h',
+        'race_day_24h_to_6h',
+        'race_day_6h_to_2h',
+        'race_day_2h_to_start',
+    ];
+
+    if (in_array($phase, $preRacePhases, true) && stripos($tail, 'FINAL detected') !== false) {
+        return 'Waiting for race start.';
+    }
+
+    return $tail;
 }
 
 function rr_dash_extract_latest_monitor_url(string $logText, string $lastLine, string $stateRaw): string
@@ -2962,7 +2984,7 @@ $dashCronDetail = (string)$schedulerHeartbeatFreshness['age_text'] !== '' ? (str
                         <th>Monitor Output</th>
                         <td>
                             <?php if (!empty($raceTaskState['last_output_tail'])): ?>
-                                <div class="mono"><?php echo sd_html((string)$raceTaskState['last_output_tail']); ?></div>
+                                <div class="mono"><?php echo sd_html(rr_dash_safe_race_monitor_output((string)$raceTaskState['last_output_tail'], $autoDecision)); ?></div>
                             <?php else: ?>
                                 <span class="small">No monitor output from an auto race-aware run yet.</span>
                             <?php endif; ?>

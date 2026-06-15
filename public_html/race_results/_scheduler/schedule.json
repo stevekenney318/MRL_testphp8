@@ -74,7 +74,7 @@
       ],
       "auto_rules": {
         "post_final_0_to_3h": 5,
-        "post_final_3h_to_12h": 180,
+        "post_final_3h_to_12h": 60,
         "post_final_12h_to_48h": 360
       },
       "description": "Revision-aware schedule. Normal daily checks are used until a new final-result handoff is detected; then revision monitor runs more frequently for post-race stabilization before scaling back."

@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * cron_master_scheduler.php
  *
- * VERSION: v010
- * LAST MODIFIED: 6/8/2026 12:24:11 am
+ * VERSION: v012
+ * LAST MODIFIED: 6/14/2026 3:15:13 pm
  *
  * DESCRIPTION:
  * Basic JSON-driven master scheduler for MRL race-results automation.
@@ -25,6 +25,16 @@ declare(strict_types=1);
  *        -> race_results_classify_revisions.php when revisions are detected
  *
  * CHANGELOG:
+ * v012 (6/14/2026)
+ * - FIX: Race scheduler now applies lap_percent_cadence once lap_current/lap_total are available.
+ * - FIX: Prevents lap-status-active mode from staying at the generic 5-minute cadence after the race passes 50%, 75%, or 90% complete.
+ * - NEW: Stores lap_percent in the race monitor scheduler decision for dashboard/debug review.
+ *
+ * v011 (6/14/2026)
+ * - FIX: Revision scheduler now prefers durable final_handoff.anchor_at metadata written by the race monitor at actual snapshot/email handoff time.
+ * - FIX: Reduces risk of old already-captured FINAL results being re-anchored as fresh handoffs after scheduler state rebuilds.
+ * - NOTE: Keeps one-cron / schedule.json control model.
+ *
  * v010 (6/8/2026)
  * - FIX: Race scheduler advances to next future race immediately after final capture/email instead of waiting for ESPN schedule next-race rollover.
  * - FIX: Revision scheduler recovers/stores a post-final handoff anchor timestamp so post-race cadence can activate.
@@ -97,8 +107,8 @@ declare(strict_types=1);
 
 date_default_timezone_set('America/New_York');
 
-const CMS_VERSION = 'v010';
-const CMS_SIGNATURE = 'CRON_MASTER_SCHEDULER v009';
+const CMS_VERSION = 'v012';
+const CMS_SIGNATURE = 'CRON_MASTER_SCHEDULER v012';
 
 $baseDir = __DIR__;
 $schedulerDir = $baseDir . '/_scheduler';
@@ -755,7 +765,7 @@ function cms_auto_race_select_next_race(array $raceSchedule, array $monitorState
     return $nextRace;
 }
 
-function cms_auto_race_phase(array $task, int $now, int $startTs, bool $lapFound): array
+function cms_auto_race_phase(array $task, int $now, int $startTs, bool $lapFound, $lapCurrent = null, $lapTotal = null): array
 {
     if ($startTs <= 0) {
         return [
@@ -764,6 +774,7 @@ function cms_auto_race_phase(array $task, int $now, int $startTs, bool $lapFound
             'interval_minutes' => 0,
             'reason' => 'No next race start_at/start_ts found in _race_results_schedule.json.',
             'seconds_to_start' => null,
+            'lap_percent' => null,
         ];
     }
 
@@ -776,6 +787,7 @@ function cms_auto_race_phase(array $task, int $now, int $startTs, bool $lapFound
             'interval_minutes' => cms_auto_rule_interval($task, 'more_than_24h_before_start', 0),
             'reason' => 'Race monitor is not needed more than 24 hours before scheduled start.',
             'seconds_to_start' => $seconds,
+            'lap_percent' => null,
         ];
     }
 
@@ -786,6 +798,7 @@ function cms_auto_race_phase(array $task, int $now, int $startTs, bool $lapFound
             'interval_minutes' => cms_auto_rule_interval($task, '24h_to_6h_before_start', 120),
             'reason' => 'Race is within 24 hours; light monitoring.',
             'seconds_to_start' => $seconds,
+            'lap_percent' => null,
         ];
     }
 
@@ -796,6 +809,7 @@ function cms_auto_race_phase(array $task, int $now, int $startTs, bool $lapFound
             'interval_minutes' => cms_auto_rule_interval($task, '6h_to_2h_before_start', 30),
             'reason' => 'Race is within 6 hours.',
             'seconds_to_start' => $seconds,
+            'lap_percent' => null,
         ];
     }
 
@@ -806,16 +820,48 @@ function cms_auto_race_phase(array $task, int $now, int $startTs, bool $lapFound
             'interval_minutes' => cms_auto_rule_interval($task, '2h_to_start', 15),
             'reason' => 'Race is within 2 hours.',
             'seconds_to_start' => $seconds,
+            'lap_percent' => null,
         ];
     }
 
     if ($lapFound) {
+        $current = is_numeric($lapCurrent) ? (float)$lapCurrent : null;
+        $total = is_numeric($lapTotal) ? (float)$lapTotal : null;
+        if ($current !== null && $total !== null && $total > 0) {
+            $percent = ($current / $total) * 100.0;
+            $rules = isset($task['auto_rules']['lap_percent_cadence']) && is_array($task['auto_rules']['lap_percent_cadence'])
+                ? $task['auto_rules']['lap_percent_cadence']
+                : [];
+            foreach ($rules as $rule) {
+                if (!is_array($rule)) continue;
+                $from = isset($rule['from_percent']) && is_numeric($rule['from_percent']) ? (float)$rule['from_percent'] : null;
+                $to = isset($rule['to_percent']) && is_numeric($rule['to_percent']) ? (float)$rule['to_percent'] : null;
+                $interval = isset($rule['interval_minutes']) && is_numeric($rule['interval_minutes']) ? (int)$rule['interval_minutes'] : 0;
+                if ($from === null || $to === null || $interval <= 0) continue;
+                if ($percent >= $from && $percent < $to) {
+                    $label = trim((string)($rule['label'] ?? ''));
+                    if ($label === '') {
+                        $label = rtrim(rtrim(number_format($from, 1), '0'), '.') . '%-' . rtrim(rtrim(number_format($to, 1), '0'), '.') . '% complete';
+                    }
+                    return [
+                        'phase' => 'lap_percent_cadence',
+                        'label' => $label,
+                        'interval_minutes' => $interval,
+                        'reason' => 'Lap-based cadence: ' . $label,
+                        'seconds_to_start' => $seconds,
+                        'lap_percent' => round($percent, 2),
+                    ];
+                }
+            }
+        }
+
         return [
-            'phase' => 'lap_status_active_first_pass',
+            'phase' => 'lap_status_active',
             'label' => 'Lap status active',
             'interval_minutes' => cms_auto_rule_interval($task, 'lap_found', 5),
-            'reason' => 'Lap status has been detected; first pass keeps safe cadence.',
+            'reason' => 'Lap status has been detected; no matching lap-percent cadence bucket was found.',
             'seconds_to_start' => $seconds,
+            'lap_percent' => ($current !== null && $total !== null && $total > 0) ? round(($current / $total) * 100.0, 2) : null,
         ];
     }
 
@@ -825,6 +871,7 @@ function cms_auto_race_phase(array $task, int $now, int $startTs, bool $lapFound
         'interval_minutes' => cms_auto_rule_interval($task, 'start_until_lap_found', 5),
         'reason' => 'Scheduled start has passed but lap status is not detected yet.',
         'seconds_to_start' => $seconds,
+        'lap_percent' => null,
     ];
 }
 
@@ -853,7 +900,7 @@ function cms_auto_race_monitor_task_due(string $taskName, array $task, array $st
     }
 
     $lap = cms_monitor_lap_status($monitorState, $year);
-    $phase = cms_auto_race_phase($task, $now, $startTs, !empty($lap['found']));
+    $phase = cms_auto_race_phase($task, $now, $startTs, !empty($lap['found']), $lap['current'], $lap['total']);
     $interval = (int)$phase['interval_minutes'];
     $lastRunTs = cms_latest_monitor_run_ts($state, $monitorState, $year, $taskName);
 
@@ -923,6 +970,7 @@ function cms_auto_race_monitor_task_due(string $taskName, array $task, array $st
                 'lap_current' => $lap['current'],
                 'lap_total' => $lap['total'],
                 'lap_checked_at' => $lap['checked_at'],
+                'lap_percent' => $phase['lap_percent'] ?? null,
             ],
         ],
     ];
@@ -949,11 +997,15 @@ function cms_monitor_latest_final_info(array $monitorState, int $year): array
         : [];
 
     $raceStatus = isset($yearState['race_status']) && is_array($yearState['race_status']) ? $yearState['race_status'] : [];
+    $handoff = isset($yearState['final_handoff']) && is_array($yearState['final_handoff']) ? $yearState['final_handoff'] : [];
 
-    $url = (string)($yearState['final_sent_for_url'] ?? '');
+    $url = (string)($handoff['final_url'] ?? '');
+    if ($url === '') $url = (string)($handoff['final_key'] ?? '');
+    if ($url === '') $url = (string)($yearState['final_sent_for_url'] ?? '');
     if ($url === '') $url = (string)($raceStatus['latest_final_race_url'] ?? '');
 
-    $name = (string)($raceStatus['latest_final_race_name'] ?? '');
+    $name = (string)($handoff['race_name'] ?? '');
+    if ($name === '') $name = (string)($raceStatus['latest_final_race_name'] ?? '');
     if ($name === '') $name = (string)($yearState['current_race_status']['race_name'] ?? '');
 
     $checkedAt = (string)($yearState['last_checked_at'] ?? '');
@@ -961,8 +1013,9 @@ function cms_monitor_latest_final_info(array $monitorState, int $year): array
         $checkedAt = (string)$yearState['final_check']['checked_at'];
     }
 
-    $raceId = '';
-    if ($url !== '' && preg_match('/raceId\/(\d+)/', $url, $m)) {
+    $handoffAnchorAt = (string)($handoff['anchor_at'] ?? '');
+    $raceId = (string)($handoff['race_id'] ?? '');
+    if ($raceId === '' && $url !== '' && preg_match('/raceId\/(\d+)/', $url, $m)) {
         $raceId = (string)$m[1];
     }
 
@@ -972,6 +1025,8 @@ function cms_monitor_latest_final_info(array $monitorState, int $year): array
         'race_id' => $raceId,
         'race_name' => $name,
         'checked_at' => $checkedAt,
+        'handoff_anchor_at' => $handoffAnchorAt,
+        'handoff_anchor_source' => (string)($handoff['anchor_source'] ?? ''),
     ];
 }
 
@@ -1023,15 +1078,22 @@ function cms_auto_revision_monitor_task_due(string $taskName, array $task, array
 
     $finalCheckedAt = (string)($final['checked_at'] ?? '');
     $finalCheckedTs = cms_parse_ny_datetime($finalCheckedAt);
+    $handoffAnchorAt = (string)($final['handoff_anchor_at'] ?? '');
+    $handoffAnchorTs = cms_parse_ny_datetime($handoffAnchorAt);
     $recentFinal = $finalCheckedTs > 0 && ($now - $finalCheckedTs) >= 0 && ($now - $finalCheckedTs) < 48 * 3600;
-    $anchorFromFinalAt = $finalCheckedTs > 0 ? cms_format_ny_datetime_from_ts($finalCheckedTs) : cms_now_string();
-    $anchorFromFinalTs = $finalCheckedTs > 0 ? $finalCheckedTs : $now;
+    $anchorFromFinalAt = $handoffAnchorTs > 0 ? $handoffAnchorAt : ($finalCheckedTs > 0 ? cms_format_ny_datetime_from_ts($finalCheckedTs) : cms_now_string());
+    $anchorFromFinalTs = $handoffAnchorTs > 0 ? $handoffAnchorTs : ($finalCheckedTs > 0 ? $finalCheckedTs : $now);
 
     if ($finalKey === '') {
         $handoffStatus = 'no_final_known';
     } elseif ($storedKey === '') {
         $storedKey = $finalKey;
-        if ($recentFinal) {
+        if ($handoffAnchorTs > 0) {
+            $handoffStatus = 'handoff_recovered_from_monitor_state';
+            $activePostRace = true;
+            $anchorTs = $anchorFromFinalTs;
+            $anchorAt = $anchorFromFinalAt;
+        } elseif ($recentFinal) {
             $handoffStatus = 'recent_final_handoff_recorded';
             $activePostRace = true;
             $anchorTs = $anchorFromFinalTs;
@@ -1148,6 +1210,7 @@ function cms_auto_revision_monitor_task_due(string $taskName, array $task, array
         'race_id' => (string)($final['race_id'] ?? ''),
         'final_url' => (string)($final['final_url'] ?? ''),
         'final_checked_at' => (string)($final['checked_at'] ?? ''),
+        'anchor_source' => (string)($final['handoff_anchor_source'] ?? ''),
     ];
 
     $revisionSchedule = [

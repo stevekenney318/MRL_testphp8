@@ -4,10 +4,14 @@ declare(strict_types=1);
 /**
  * race_results_monitor.php
  *
- * VERSION: v134
- * LAST MODIFIED: 6/13/2026 6:13:08 pm
+ * VERSION: v135
+ * LAST MODIFIED: 6/14/2026 12:24:50 pm
  *
  * CHANGELOG:
+ *
+ * v135 (6/14/2026)
+ *   - FIX: Race monitor now reports Waiting for race start/current race results when ESPN latest results still points to a prior completed race.
+ *   - NEW: Stores durable final_handoff metadata anchored to the actual snapshot/email event time for revision scheduler handoff.
  *
  * v134 (6/13/2026)
  *   - CHANGE: Removed the temporary 2026 San Diego folder-creation correction now that ESPN is supplying the corrected Cup Series schedule row/name.
@@ -76,7 +80,7 @@ ini_set('log_errors', '1');
 ini_set('error_log', __DIR__ . '/_race_results_monitor_php_errors.log');
 error_reporting(E_ALL);
 
-const RR_MONITOR_SIGNATURE = 'RACE_RESULTS_MONITOR v134';
+const RR_MONITOR_SIGNATURE = 'RACE_RESULTS_MONITOR v135';
 
 // ------------------------- PREFLIGHT HEARTBEAT -------------------------
 // This intentionally happens before helper includes and USER initialization.
@@ -1167,6 +1171,60 @@ function rr_monitor_format_schedule_start(array $race): string
     return '';
 }
 
+
+function rr_monitor_schedule_start_ts(array $race): int
+{
+    $startAt = trim((string)($race['start_at'] ?? ''));
+    if ($startAt === '') return 0;
+
+    try {
+        $dt = new DateTimeImmutable($startAt, new DateTimeZone('America/New_York'));
+        return $dt->getTimestamp();
+    } catch (Exception $e) {
+        return 0;
+    }
+}
+
+function rr_monitor_latest_results_are_prior_to_next(?int $latestRaceNum, array $nextRace): bool
+{
+    if ($latestRaceNum === null || $latestRaceNum <= 0) return false;
+
+    $nextNum = 0;
+    foreach (['mrl_race_number', 'race_number', 'schedule_sequence'] as $key) {
+        if (isset($nextRace[$key]) && (int)$nextRace[$key] > 0) {
+            $nextNum = (int)$nextRace[$key];
+            break;
+        }
+    }
+
+    return ($nextNum > 0 && $latestRaceNum < $nextNum);
+}
+
+function rr_monitor_build_waiting_status(array $nextRace, string $message): array
+{
+    return [
+        'checked_at' => date('c'),
+        'source' => RR_MONITOR_SIGNATURE,
+        'mode' => 'waiting_for_scheduled_race',
+        'label' => 'Next Race',
+        'race_name' => rr_monitor_short_schedule_name($nextRace),
+        'full_race_name' => (string)($nextRace['race_name'] ?? ''),
+        'status' => $message,
+        'race_url' => (string)($nextRace['race_url'] ?? ''),
+        'race_id' => (string)($nextRace['race_id'] ?? ''),
+        'start_at' => (string)($nextRace['start_at'] ?? ''),
+        'start_text' => rr_monitor_format_schedule_start($nextRace),
+        'owned_by' => 'race_results_monitor',
+        'monitor_owned' => true,
+        'final_email_sent' => false,
+        'is_final' => false,
+        'final_reason' => '',
+        'lap_current' => null,
+        'lap_total' => null,
+        'lap_status_found' => false,
+    ];
+}
+
 function rr_monitor_fetch_and_store_schedule(int $year, int $timeoutSeconds, string $scheduleFile, string $logFile, array $yearIndex = []): array
 {
     $result = [
@@ -1517,6 +1575,28 @@ $isExh = $latestRaceMeta ? (bool)$latestRaceMeta['is_exhibition'] : false;
 $raceNum = $latestRaceMeta ? $latestRaceMeta['race_number'] : null;
 rr_monitor_apply_known_race_corrections($year, $raceId, $raceName, $isExh, $raceNum);
 
+$latestResultsArePriorToNext = rr_monitor_latest_results_are_prior_to_next($raceNum !== null ? (int)$raceNum : null, $nextScheduledRace);
+$nextRaceStartTs = rr_monitor_schedule_start_ts($nextScheduledRace);
+
+if (!empty($nextScheduledRace) && $latestResultsArePriorToNext) {
+    $waitingMessage = 'Waiting for race start';
+    if ($nextRaceStartTs > 0 && time() >= $nextRaceStartTs) {
+        $waitingMessage = 'Waiting for current race results';
+    }
+
+    $yearState['race_status'] = rr_monitor_build_waiting_status($nextScheduledRace, $waitingMessage);
+    $yearState['monitor_ownership'] = rr_monitor_build_ownership($yearState['race_status'], (string)($yearState['latest_url'] ?? ''), rr_extract_race_id_from_url((string)($yearState['latest_url'] ?? '')));
+    $state['byYear'][$yKey] = $yearState;
+    rr_save_json($stateFile, $state);
+
+    rr_log_line($logFile, "WAITING for scheduled race " . (string)($nextScheduledRace['mrl_race_code'] ?? '') . ' ' . rr_monitor_short_schedule_name($nextScheduledRace) . " latest_results_prior_url={$latestUrl}");
+    rr_monitor_out($waitingMessage . '.');
+    if (!empty($nextScheduledRace['mrl_race_code']) || !empty($nextScheduledRace['short_name'])) {
+        rr_monitor_out('Race: ' . trim((string)($nextScheduledRace['mrl_race_code'] ?? '') . ' ' . rr_monitor_short_schedule_name($nextScheduledRace)));
+    }
+    exit(0);
+}
+
 $yearFolder = __DIR__ . '/' . $yKey;
 rr_ensure_dir($yearFolder);
 
@@ -1710,6 +1790,24 @@ if ($snapshotsEnabled) {
 
 $yearState['final_sent_for_url'] = $latestUrl;
 $yearState['final_table_hash'] = $finalHashNow;
+$handoffAt = date('c');
+$yearState['final_handoff'] = [
+    'final_key' => $latestUrl,
+    'final_url' => $latestUrl,
+    'race_id' => $raceId,
+    'race_name' => $raceName,
+    'race_number' => $raceNum,
+    'race_folder' => $raceFolderName,
+    'anchor_at' => $handoffAt,
+    'anchor_source' => 'race_results_monitor_snapshot_email',
+    'snapshot_file' => $snapshotPath !== '' ? basename($snapshotPath) : '',
+    'snapshot_path' => $snapshotPath,
+    'email_subject' => '',
+    'email_sent' => false,
+    'email_sent_at' => '',
+    'email_failed_at' => '',
+    'updated_at' => $handoffAt,
+];
 $yearState['race_status'] = rr_monitor_build_race_status($liveRaceStatus, $nextScheduledRace, true, true, $latestUrl, $reason);
 $yearState['monitor_ownership'] = rr_monitor_build_ownership($yearState['race_status'], $latestUrl, $raceId);
 
@@ -1719,6 +1817,7 @@ rr_save_json($stateFile, $state);
 $publicHost = rr_monitor_public_host($docRoot, __DIR__);
 $subjectToken = rr_monitor_subject_token($year, $raceFolderName, $raceName);
 $subject = $subjectPrefix . $subjectToken;
+$yearState['final_handoff']['email_subject'] = $subject;
 
 $raceResultsLink = $latestUrl;
 $mrlSnapshotLink = '';
@@ -1759,7 +1858,20 @@ rr_log_line(
         : "EMAIL FAILED (FINAL) to={$notifyEmail} url={$latestUrl} ({$emailReason})"
 );
 
-rr_monitor_out($sentOk ? "EMAIL SENT (FINAL)." : "EMAIL FAILED (FINAL).");
+rr_monitor_out($sentOk ? "EMAIL SENT (FINAL)." : "EMAIL FAILED (FINAL)." );
+
+if (isset($yearState['final_handoff']) && is_array($yearState['final_handoff'])) {
+    $emailStatusAt = date('c');
+    $yearState['final_handoff']['email_sent'] = $sentOk;
+    if ($sentOk) {
+        $yearState['final_handoff']['email_sent_at'] = $emailStatusAt;
+    } else {
+        $yearState['final_handoff']['email_failed_at'] = $emailStatusAt;
+    }
+    $yearState['final_handoff']['updated_at'] = $emailStatusAt;
+    $state['byYear'][$yKey] = $yearState;
+    rr_save_json($stateFile, $state);
+}
 
 if ($raceNum !== null && $raceNum > 0 && !$isExh) {
     rr_monitor_run_rd_detection(
