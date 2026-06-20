@@ -1,0 +1,2234 @@
+{
+    "signature": "WEEKLY_STANDINGS_AUDIT_BUILDER v001",
+    "version": "v001",
+    "generated_at": "2026-06-19 22:04:03",
+    "timezone": "America/New_York",
+    "source": "weekly_standings_audit_builder.php",
+    "scope": "local_mrl_artifacts_only",
+    "notes": [
+        "This helper does not call ESPN or fetch remote pages.",
+        "Pending review is stored as metadata and does not block audit-chain discovery.",
+        "Direct events come from saved race snapshot pairs. Indirect candidates are projected only from direct events with MRL Impact YES.",
+        "Existing history may have gaps if weekly standings snapshots were not being archived at the time."
+    ],
+    "year": "2026",
+    "base_dir": "/home/u809830586/domains/manliusracingleague.com/public_html/testphp8/race_results",
+    "year_dir": "/home/u809830586/domains/manliusracingleague.com/public_html/testphp8/race_results/2026",
+    "output_file": "_weekly_standings_audit_index.json",
+    "input_files": {
+        "classification_summary": {
+            "path": "_race_results_classification_summary.json",
+            "present": true,
+            "modified": "6/19/2026 10:03:43 pm",
+            "size_bytes": 15246,
+            "size_label": "14.9 KB"
+        },
+        "classification_last_run": {
+            "path": "_race_results_classification_last_run.json",
+            "present": true,
+            "modified": "6/19/2026 10:03:43 pm",
+            "size_bytes": 15246,
+            "size_label": "14.9 KB"
+        },
+        "year_index": {
+            "path": "2026/_year_index.json",
+            "present": true,
+            "modified": "6/14/2026 1:28:01 pm",
+            "size_bytes": 6555,
+            "size_label": "6.4 KB"
+        },
+        "weekly_standings_php": {
+            "path": "weekly_standings.php",
+            "present": true,
+            "modified": "6/11/2026 9:52:53 pm",
+            "size_bytes": 136958,
+            "size_label": "133.7 KB"
+        }
+    },
+    "counts": {
+        "race_folders": 16,
+        "races_with_snapshots": 16,
+        "pending_review": 2,
+        "released_or_captured": 14,
+        "direct_revision_events": 8,
+        "direct_mrl_impact_events": 0,
+        "indirect_candidates": 0,
+        "superseded_snapshots": 8,
+        "gaps": 0
+    },
+    "races": [
+        {
+            "race_code": "R01",
+            "race_number": 1,
+            "race_id": "202602150001",
+            "race_name": "Daytona 500",
+            "short_name": "Daytona 500",
+            "folder": "R01_Daytona_500_202602150001",
+            "folder_rel": "2026/R01_Daytona_500_202602150001",
+            "status": "released_or_captured",
+            "pending_review": false,
+            "under_review_flag": false,
+            "snapshot_count": 1,
+            "snapshots": [
+                {
+                    "snapshot_id": "20260228_062935357",
+                    "snapshot_file": "snapshot_20260228_062935357.html",
+                    "snapshot_display": "2/28/2026 6:29:35 am",
+                    "modified": "2/28/2026 6:29:35 am",
+                    "size_bytes": 87820,
+                    "summary_file": "snapshot_summary_20260228_062935357.txt",
+                    "summary_present": true
+                }
+            ],
+            "first_snapshot": {
+                "snapshot_id": "20260228_062935357",
+                "snapshot_file": "snapshot_20260228_062935357.html",
+                "snapshot_display": "2/28/2026 6:29:35 am",
+                "modified": "2/28/2026 6:29:35 am",
+                "size_bytes": 87820,
+                "summary_file": "snapshot_summary_20260228_062935357.txt",
+                "summary_present": true
+            },
+            "latest_snapshot": {
+                "snapshot_id": "20260228_062935357",
+                "snapshot_file": "snapshot_20260228_062935357.html",
+                "snapshot_display": "2/28/2026 6:29:35 am",
+                "modified": "2/28/2026 6:29:35 am",
+                "size_bytes": 87820,
+                "summary_file": "snapshot_summary_20260228_062935357.txt",
+                "summary_present": true
+            },
+            "current_snapshot": {
+                "snapshot_id": "20260228_062935357",
+                "snapshot_file": "snapshot_20260228_062935357.html",
+                "snapshot_display": "2/28/2026 6:29:35 am",
+                "modified": "2/28/2026 6:29:35 am",
+                "size_bytes": 87820,
+                "summary_file": "snapshot_summary_20260228_062935357.txt",
+                "summary_present": true
+            },
+            "superseded_snapshots": [],
+            "has_classification": false,
+            "has_classification_artifact": false,
+            "classification_pair_valid": false,
+            "classification_stale_or_mismatched": false,
+            "mrl_impact": false,
+            "changed_all_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "change_status": "",
+            "change_status_label": "",
+            "previous_snapshot": "",
+            "classified_current_snapshot": "",
+            "revision_meta_present": false,
+            "revision_meta": [],
+            "artifact_files": {
+                "meta": {
+                    "present": true,
+                    "modified": "3/14/2026 5:54:54 am",
+                    "size_bytes": 334,
+                    "size_label": "334 B"
+                },
+                "final_table_hash": {
+                    "present": true,
+                    "modified": "2/28/2026 6:29:35 am",
+                    "size_bytes": 65,
+                    "size_label": "65 B"
+                },
+                "mrl_impact_summary": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "all_driver_impact_summary": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "revision_meta": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "under_review_flag": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                }
+            }
+        },
+        {
+            "race_code": "R02",
+            "race_number": 2,
+            "race_id": "202602220025",
+            "race_name": "NASCAR Cup Series at Atlanta",
+            "short_name": "Atlanta",
+            "folder": "R02_NASCAR_Cup_Series_at_Atlanta_202602220025",
+            "folder_rel": "2026/R02_NASCAR_Cup_Series_at_Atlanta_202602220025",
+            "status": "released_or_captured",
+            "pending_review": false,
+            "under_review_flag": false,
+            "snapshot_count": 1,
+            "snapshots": [
+                {
+                    "snapshot_id": "20260228_062935485",
+                    "snapshot_file": "snapshot_20260228_062935485.html",
+                    "snapshot_display": "2/28/2026 6:29:35 am",
+                    "modified": "2/28/2026 6:29:35 am",
+                    "size_bytes": 86915,
+                    "summary_file": "snapshot_summary_20260228_062935485.txt",
+                    "summary_present": true
+                }
+            ],
+            "first_snapshot": {
+                "snapshot_id": "20260228_062935485",
+                "snapshot_file": "snapshot_20260228_062935485.html",
+                "snapshot_display": "2/28/2026 6:29:35 am",
+                "modified": "2/28/2026 6:29:35 am",
+                "size_bytes": 86915,
+                "summary_file": "snapshot_summary_20260228_062935485.txt",
+                "summary_present": true
+            },
+            "latest_snapshot": {
+                "snapshot_id": "20260228_062935485",
+                "snapshot_file": "snapshot_20260228_062935485.html",
+                "snapshot_display": "2/28/2026 6:29:35 am",
+                "modified": "2/28/2026 6:29:35 am",
+                "size_bytes": 86915,
+                "summary_file": "snapshot_summary_20260228_062935485.txt",
+                "summary_present": true
+            },
+            "current_snapshot": {
+                "snapshot_id": "20260228_062935485",
+                "snapshot_file": "snapshot_20260228_062935485.html",
+                "snapshot_display": "2/28/2026 6:29:35 am",
+                "modified": "2/28/2026 6:29:35 am",
+                "size_bytes": 86915,
+                "summary_file": "snapshot_summary_20260228_062935485.txt",
+                "summary_present": true
+            },
+            "superseded_snapshots": [],
+            "has_classification": false,
+            "has_classification_artifact": false,
+            "classification_pair_valid": false,
+            "classification_stale_or_mismatched": false,
+            "mrl_impact": false,
+            "changed_all_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "change_status": "",
+            "change_status_label": "",
+            "previous_snapshot": "",
+            "classified_current_snapshot": "",
+            "revision_meta_present": false,
+            "revision_meta": [],
+            "artifact_files": {
+                "meta": {
+                    "present": true,
+                    "modified": "3/14/2026 5:54:54 am",
+                    "size_bytes": 351,
+                    "size_label": "351 B"
+                },
+                "final_table_hash": {
+                    "present": true,
+                    "modified": "2/28/2026 6:29:35 am",
+                    "size_bytes": 65,
+                    "size_label": "65 B"
+                },
+                "mrl_impact_summary": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "all_driver_impact_summary": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "revision_meta": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "under_review_flag": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                }
+            }
+        },
+        {
+            "race_code": "R03",
+            "race_number": 3,
+            "race_id": "202603013998",
+            "race_name": "NASCAR Cup Series at Circuit of the Americas",
+            "short_name": "COTA",
+            "folder": "R03_NASCAR_Cup_Series_at_Circuit_of_the_Americas_202603013998",
+            "folder_rel": "2026/R03_NASCAR_Cup_Series_at_Circuit_of_the_Americas_202603013998",
+            "status": "released_or_captured",
+            "pending_review": false,
+            "under_review_flag": false,
+            "snapshot_count": 1,
+            "snapshots": [
+                {
+                    "snapshot_id": "20260301_191502838",
+                    "snapshot_file": "snapshot_20260301_191502838.html",
+                    "snapshot_display": "3/1/2026 7:15:02 pm",
+                    "modified": "3/1/2026 7:15:02 pm",
+                    "size_bytes": 86596,
+                    "summary_file": "snapshot_summary_20260301_191502838.txt",
+                    "summary_present": true
+                }
+            ],
+            "first_snapshot": {
+                "snapshot_id": "20260301_191502838",
+                "snapshot_file": "snapshot_20260301_191502838.html",
+                "snapshot_display": "3/1/2026 7:15:02 pm",
+                "modified": "3/1/2026 7:15:02 pm",
+                "size_bytes": 86596,
+                "summary_file": "snapshot_summary_20260301_191502838.txt",
+                "summary_present": true
+            },
+            "latest_snapshot": {
+                "snapshot_id": "20260301_191502838",
+                "snapshot_file": "snapshot_20260301_191502838.html",
+                "snapshot_display": "3/1/2026 7:15:02 pm",
+                "modified": "3/1/2026 7:15:02 pm",
+                "size_bytes": 86596,
+                "summary_file": "snapshot_summary_20260301_191502838.txt",
+                "summary_present": true
+            },
+            "current_snapshot": {
+                "snapshot_id": "20260301_191502838",
+                "snapshot_file": "snapshot_20260301_191502838.html",
+                "snapshot_display": "3/1/2026 7:15:02 pm",
+                "modified": "3/1/2026 7:15:02 pm",
+                "size_bytes": 86596,
+                "summary_file": "snapshot_summary_20260301_191502838.txt",
+                "summary_present": true
+            },
+            "superseded_snapshots": [],
+            "has_classification": false,
+            "has_classification_artifact": false,
+            "classification_pair_valid": false,
+            "classification_stale_or_mismatched": false,
+            "mrl_impact": false,
+            "changed_all_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "change_status": "",
+            "change_status_label": "",
+            "previous_snapshot": "",
+            "classified_current_snapshot": "",
+            "revision_meta_present": false,
+            "revision_meta": [],
+            "artifact_files": {
+                "meta": {
+                    "present": true,
+                    "modified": "3/14/2026 5:54:54 am",
+                    "size_bytes": 367,
+                    "size_label": "367 B"
+                },
+                "final_table_hash": {
+                    "present": true,
+                    "modified": "3/1/2026 7:15:02 pm",
+                    "size_bytes": 65,
+                    "size_label": "65 B"
+                },
+                "mrl_impact_summary": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "all_driver_impact_summary": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "revision_meta": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "under_review_flag": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                }
+            }
+        },
+        {
+            "race_code": "R04",
+            "race_number": 4,
+            "race_id": "202603080023",
+            "race_name": "NASCAR Cup Series at Phoenix",
+            "short_name": "Phoenix",
+            "folder": "R04_NASCAR_Cup_Series_at_Phoenix_202603080023",
+            "folder_rel": "2026/R04_NASCAR_Cup_Series_at_Phoenix_202603080023",
+            "status": "released_or_captured",
+            "pending_review": false,
+            "under_review_flag": false,
+            "snapshot_count": 3,
+            "snapshots": [
+                {
+                    "snapshot_id": "20260308_203801892",
+                    "snapshot_file": "snapshot_20260308_203801892.html",
+                    "snapshot_display": "3/8/2026 8:38:01 pm",
+                    "modified": "3/8/2026 8:38:01 pm",
+                    "size_bytes": 86603,
+                    "summary_file": "snapshot_summary_20260308_203801892.txt",
+                    "summary_present": true
+                },
+                {
+                    "snapshot_id": "20260308_204802115",
+                    "snapshot_file": "snapshot_20260308_204802115.html",
+                    "snapshot_display": "3/8/2026 8:48:02 pm",
+                    "modified": "3/8/2026 8:48:02 pm",
+                    "size_bytes": 86620,
+                    "summary_file": "snapshot_summary_20260308_204802115.txt",
+                    "summary_present": true
+                },
+                {
+                    "snapshot_id": "20260308_205601920",
+                    "snapshot_file": "snapshot_20260308_205601920.html",
+                    "snapshot_display": "3/8/2026 8:56:01 pm",
+                    "modified": "3/8/2026 8:56:01 pm",
+                    "size_bytes": 86619,
+                    "summary_file": "snapshot_summary_20260308_205601920.txt",
+                    "summary_present": true
+                }
+            ],
+            "first_snapshot": {
+                "snapshot_id": "20260308_203801892",
+                "snapshot_file": "snapshot_20260308_203801892.html",
+                "snapshot_display": "3/8/2026 8:38:01 pm",
+                "modified": "3/8/2026 8:38:01 pm",
+                "size_bytes": 86603,
+                "summary_file": "snapshot_summary_20260308_203801892.txt",
+                "summary_present": true
+            },
+            "latest_snapshot": {
+                "snapshot_id": "20260308_205601920",
+                "snapshot_file": "snapshot_20260308_205601920.html",
+                "snapshot_display": "3/8/2026 8:56:01 pm",
+                "modified": "3/8/2026 8:56:01 pm",
+                "size_bytes": 86619,
+                "summary_file": "snapshot_summary_20260308_205601920.txt",
+                "summary_present": true
+            },
+            "current_snapshot": {
+                "snapshot_id": "20260308_205601920",
+                "snapshot_file": "snapshot_20260308_205601920.html",
+                "snapshot_display": "3/8/2026 8:56:01 pm",
+                "modified": "3/8/2026 8:56:01 pm",
+                "size_bytes": 86619,
+                "summary_file": "snapshot_summary_20260308_205601920.txt",
+                "summary_present": true
+            },
+            "superseded_snapshots": [
+                {
+                    "snapshot_id": "20260308_203801892",
+                    "snapshot_file": "snapshot_20260308_203801892.html",
+                    "snapshot_display": "3/8/2026 8:38:01 pm",
+                    "modified": "3/8/2026 8:38:01 pm",
+                    "size_bytes": 86603,
+                    "summary_file": "snapshot_summary_20260308_203801892.txt",
+                    "summary_present": true
+                },
+                {
+                    "snapshot_id": "20260308_204802115",
+                    "snapshot_file": "snapshot_20260308_204802115.html",
+                    "snapshot_display": "3/8/2026 8:48:02 pm",
+                    "modified": "3/8/2026 8:48:02 pm",
+                    "size_bytes": 86620,
+                    "summary_file": "snapshot_summary_20260308_204802115.txt",
+                    "summary_present": true
+                }
+            ],
+            "has_classification": true,
+            "has_classification_artifact": true,
+            "classification_pair_valid": true,
+            "classification_stale_or_mismatched": false,
+            "mrl_impact": false,
+            "changed_all_drivers_count": 1,
+            "changed_mrl_listed_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "change_status": "detected_non_mrl_driver_change",
+            "change_status_label": "Non-MRL Driver Change",
+            "previous_snapshot": "snapshot_20260308_204802115.html",
+            "classified_current_snapshot": "snapshot_20260308_205601920.html",
+            "revision_meta_present": false,
+            "revision_meta": [],
+            "artifact_files": {
+                "meta": {
+                    "present": true,
+                    "modified": "3/15/2026 4:12:02 pm",
+                    "size_bytes": 301,
+                    "size_label": "301 B"
+                },
+                "final_table_hash": {
+                    "present": true,
+                    "modified": "3/8/2026 8:56:01 pm",
+                    "size_bytes": 65,
+                    "size_label": "65 B"
+                },
+                "mrl_impact_summary": {
+                    "present": true,
+                    "modified": "6/19/2026 10:03:43 pm",
+                    "size_bytes": 1509,
+                    "size_label": "1.5 KB"
+                },
+                "all_driver_impact_summary": {
+                    "present": true,
+                    "modified": "6/19/2026 10:03:43 pm",
+                    "size_bytes": 1319,
+                    "size_label": "1.3 KB"
+                },
+                "revision_meta": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "under_review_flag": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                }
+            }
+        },
+        {
+            "race_code": "R05",
+            "race_number": 5,
+            "race_id": "202603150028",
+            "race_name": "NASCAR Cup Series at Las Vegas",
+            "short_name": "Las Vegas",
+            "folder": "R05_NASCAR_Cup_Series_at_Las_Vegas_202603150028",
+            "folder_rel": "2026/R05_NASCAR_Cup_Series_at_Las_Vegas_202603150028",
+            "status": "released_or_captured",
+            "pending_review": false,
+            "under_review_flag": false,
+            "snapshot_count": 1,
+            "snapshots": [
+                {
+                    "snapshot_id": "20260315_191201598",
+                    "snapshot_file": "snapshot_20260315_191201598.html",
+                    "snapshot_display": "3/15/2026 7:12:01 pm",
+                    "modified": "3/15/2026 7:12:01 pm",
+                    "size_bytes": 86398,
+                    "summary_file": "snapshot_summary_20260315_191201598.txt",
+                    "summary_present": true
+                }
+            ],
+            "first_snapshot": {
+                "snapshot_id": "20260315_191201598",
+                "snapshot_file": "snapshot_20260315_191201598.html",
+                "snapshot_display": "3/15/2026 7:12:01 pm",
+                "modified": "3/15/2026 7:12:01 pm",
+                "size_bytes": 86398,
+                "summary_file": "snapshot_summary_20260315_191201598.txt",
+                "summary_present": true
+            },
+            "latest_snapshot": {
+                "snapshot_id": "20260315_191201598",
+                "snapshot_file": "snapshot_20260315_191201598.html",
+                "snapshot_display": "3/15/2026 7:12:01 pm",
+                "modified": "3/15/2026 7:12:01 pm",
+                "size_bytes": 86398,
+                "summary_file": "snapshot_summary_20260315_191201598.txt",
+                "summary_present": true
+            },
+            "current_snapshot": {
+                "snapshot_id": "20260315_191201598",
+                "snapshot_file": "snapshot_20260315_191201598.html",
+                "snapshot_display": "3/15/2026 7:12:01 pm",
+                "modified": "3/15/2026 7:12:01 pm",
+                "size_bytes": 86398,
+                "summary_file": "snapshot_summary_20260315_191201598.txt",
+                "summary_present": true
+            },
+            "superseded_snapshots": [],
+            "has_classification": false,
+            "has_classification_artifact": false,
+            "classification_pair_valid": false,
+            "classification_stale_or_mismatched": false,
+            "mrl_impact": false,
+            "changed_all_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "change_status": "",
+            "change_status_label": "",
+            "previous_snapshot": "",
+            "classified_current_snapshot": "",
+            "revision_meta_present": false,
+            "revision_meta": [],
+            "artifact_files": {
+                "meta": {
+                    "present": true,
+                    "modified": "3/18/2026 11:30:02 pm",
+                    "size_bytes": 303,
+                    "size_label": "303 B"
+                },
+                "final_table_hash": {
+                    "present": true,
+                    "modified": "3/15/2026 7:12:01 pm",
+                    "size_bytes": 65,
+                    "size_label": "65 B"
+                },
+                "mrl_impact_summary": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "all_driver_impact_summary": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "revision_meta": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "under_review_flag": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                }
+            }
+        },
+        {
+            "race_code": "R06",
+            "race_number": 6,
+            "race_id": "202603220030",
+            "race_name": "NASCAR Cup Series at Darlington",
+            "short_name": "Darlington",
+            "folder": "R06_NASCAR_Cup_Series_at_Darlington_202603220030",
+            "folder_rel": "2026/R06_NASCAR_Cup_Series_at_Darlington_202603220030",
+            "status": "released_or_captured",
+            "pending_review": false,
+            "under_review_flag": false,
+            "snapshot_count": 1,
+            "snapshots": [
+                {
+                    "snapshot_id": "20260323_013857782",
+                    "snapshot_file": "snapshot_20260323_013857782.html",
+                    "snapshot_display": "3/23/2026 1:38:57 am",
+                    "modified": "3/23/2026 1:38:57 am",
+                    "size_bytes": 85428,
+                    "summary_file": "snapshot_summary_20260323_013857782.txt",
+                    "summary_present": true
+                }
+            ],
+            "first_snapshot": {
+                "snapshot_id": "20260323_013857782",
+                "snapshot_file": "snapshot_20260323_013857782.html",
+                "snapshot_display": "3/23/2026 1:38:57 am",
+                "modified": "3/23/2026 1:38:57 am",
+                "size_bytes": 85428,
+                "summary_file": "snapshot_summary_20260323_013857782.txt",
+                "summary_present": true
+            },
+            "latest_snapshot": {
+                "snapshot_id": "20260323_013857782",
+                "snapshot_file": "snapshot_20260323_013857782.html",
+                "snapshot_display": "3/23/2026 1:38:57 am",
+                "modified": "3/23/2026 1:38:57 am",
+                "size_bytes": 85428,
+                "summary_file": "snapshot_summary_20260323_013857782.txt",
+                "summary_present": true
+            },
+            "current_snapshot": {
+                "snapshot_id": "20260323_013857782",
+                "snapshot_file": "snapshot_20260323_013857782.html",
+                "snapshot_display": "3/23/2026 1:38:57 am",
+                "modified": "3/23/2026 1:38:57 am",
+                "size_bytes": 85428,
+                "summary_file": "snapshot_summary_20260323_013857782.txt",
+                "summary_present": true
+            },
+            "superseded_snapshots": [],
+            "has_classification": false,
+            "has_classification_artifact": true,
+            "classification_pair_valid": false,
+            "classification_stale_or_mismatched": true,
+            "mrl_impact": false,
+            "changed_all_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "change_status": "stale_or_mismatched_classifier_artifact",
+            "change_status_label": "Stale or mismatched classifier artifact",
+            "previous_snapshot": "snapshot_20260323_013857782.html",
+            "classified_current_snapshot": "snapshot_20260323_01385778344.html",
+            "revision_meta_present": false,
+            "revision_meta": [],
+            "artifact_files": {
+                "meta": {
+                    "present": true,
+                    "modified": "3/29/2026 3:43:01 pm",
+                    "size_bytes": 304,
+                    "size_label": "304 B"
+                },
+                "final_table_hash": {
+                    "present": true,
+                    "modified": "3/23/2026 1:38:57 am",
+                    "size_bytes": 65,
+                    "size_label": "65 B"
+                },
+                "mrl_impact_summary": {
+                    "present": true,
+                    "modified": "4/29/2026 12:09:38 am",
+                    "size_bytes": 356,
+                    "size_label": "356 B"
+                },
+                "all_driver_impact_summary": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "revision_meta": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "under_review_flag": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                }
+            }
+        },
+        {
+            "race_code": "R07",
+            "race_number": 7,
+            "race_id": "202603290015",
+            "race_name": "NASCAR Cup Series at Martinsville",
+            "short_name": "Martinsville",
+            "folder": "R07_NASCAR_Cup_Series_at_Martinsville_202603290015",
+            "folder_rel": "2026/R07_NASCAR_Cup_Series_at_Martinsville_202603290015",
+            "status": "released_or_captured",
+            "pending_review": false,
+            "under_review_flag": false,
+            "snapshot_count": 1,
+            "snapshots": [
+                {
+                    "snapshot_id": "20260329_185602347",
+                    "snapshot_file": "snapshot_20260329_185602347.html",
+                    "snapshot_display": "3/29/2026 6:56:02 pm",
+                    "modified": "3/29/2026 6:56:02 pm",
+                    "size_bytes": 86954,
+                    "summary_file": "snapshot_summary_20260329_185602347.txt",
+                    "summary_present": true
+                }
+            ],
+            "first_snapshot": {
+                "snapshot_id": "20260329_185602347",
+                "snapshot_file": "snapshot_20260329_185602347.html",
+                "snapshot_display": "3/29/2026 6:56:02 pm",
+                "modified": "3/29/2026 6:56:02 pm",
+                "size_bytes": 86954,
+                "summary_file": "snapshot_summary_20260329_185602347.txt",
+                "summary_present": true
+            },
+            "latest_snapshot": {
+                "snapshot_id": "20260329_185602347",
+                "snapshot_file": "snapshot_20260329_185602347.html",
+                "snapshot_display": "3/29/2026 6:56:02 pm",
+                "modified": "3/29/2026 6:56:02 pm",
+                "size_bytes": 86954,
+                "summary_file": "snapshot_summary_20260329_185602347.txt",
+                "summary_present": true
+            },
+            "current_snapshot": {
+                "snapshot_id": "20260329_185602347",
+                "snapshot_file": "snapshot_20260329_185602347.html",
+                "snapshot_display": "3/29/2026 6:56:02 pm",
+                "modified": "3/29/2026 6:56:02 pm",
+                "size_bytes": 86954,
+                "summary_file": "snapshot_summary_20260329_185602347.txt",
+                "summary_present": true
+            },
+            "superseded_snapshots": [],
+            "has_classification": false,
+            "has_classification_artifact": false,
+            "classification_pair_valid": false,
+            "classification_stale_or_mismatched": false,
+            "mrl_impact": false,
+            "changed_all_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "change_status": "",
+            "change_status_label": "",
+            "previous_snapshot": "",
+            "classified_current_snapshot": "",
+            "revision_meta_present": false,
+            "revision_meta": [],
+            "artifact_files": {
+                "meta": {
+                    "present": true,
+                    "modified": "4/12/2026 3:11:02 pm",
+                    "size_bytes": 306,
+                    "size_label": "306 B"
+                },
+                "final_table_hash": {
+                    "present": true,
+                    "modified": "3/29/2026 6:56:02 pm",
+                    "size_bytes": 65,
+                    "size_label": "65 B"
+                },
+                "mrl_impact_summary": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "all_driver_impact_summary": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "revision_meta": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "under_review_flag": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                }
+            }
+        },
+        {
+            "race_code": "R08",
+            "race_number": 8,
+            "race_id": "202604120031",
+            "race_name": "NASCAR Cup Series at Bristol",
+            "short_name": "Bristol",
+            "folder": "R08_NASCAR_Cup_Series_at_Bristol_202604120031",
+            "folder_rel": "2026/R08_NASCAR_Cup_Series_at_Bristol_202604120031",
+            "status": "released_or_captured",
+            "pending_review": false,
+            "under_review_flag": false,
+            "snapshot_count": 2,
+            "snapshots": [
+                {
+                    "snapshot_id": "20260412_190002487",
+                    "snapshot_file": "snapshot_20260412_190002487.html",
+                    "snapshot_display": "4/12/2026 7:00:02 pm",
+                    "modified": "4/12/2026 7:00:02 pm",
+                    "size_bytes": 88277,
+                    "summary_file": "snapshot_summary_20260412_190002487.txt",
+                    "summary_present": true
+                },
+                {
+                    "snapshot_id": "20260413_030202493",
+                    "snapshot_file": "snapshot_20260413_030202493.html",
+                    "snapshot_display": "4/13/2026 3:02:02 am",
+                    "modified": "4/13/2026 3:02:02 am",
+                    "size_bytes": 88276,
+                    "summary_file": "snapshot_summary_20260413_030202493.txt",
+                    "summary_present": true
+                }
+            ],
+            "first_snapshot": {
+                "snapshot_id": "20260412_190002487",
+                "snapshot_file": "snapshot_20260412_190002487.html",
+                "snapshot_display": "4/12/2026 7:00:02 pm",
+                "modified": "4/12/2026 7:00:02 pm",
+                "size_bytes": 88277,
+                "summary_file": "snapshot_summary_20260412_190002487.txt",
+                "summary_present": true
+            },
+            "latest_snapshot": {
+                "snapshot_id": "20260413_030202493",
+                "snapshot_file": "snapshot_20260413_030202493.html",
+                "snapshot_display": "4/13/2026 3:02:02 am",
+                "modified": "4/13/2026 3:02:02 am",
+                "size_bytes": 88276,
+                "summary_file": "snapshot_summary_20260413_030202493.txt",
+                "summary_present": true
+            },
+            "current_snapshot": {
+                "snapshot_id": "20260413_030202493",
+                "snapshot_file": "snapshot_20260413_030202493.html",
+                "snapshot_display": "4/13/2026 3:02:02 am",
+                "modified": "4/13/2026 3:02:02 am",
+                "size_bytes": 88276,
+                "summary_file": "snapshot_summary_20260413_030202493.txt",
+                "summary_present": true
+            },
+            "superseded_snapshots": [
+                {
+                    "snapshot_id": "20260412_190002487",
+                    "snapshot_file": "snapshot_20260412_190002487.html",
+                    "snapshot_display": "4/12/2026 7:00:02 pm",
+                    "modified": "4/12/2026 7:00:02 pm",
+                    "size_bytes": 88277,
+                    "summary_file": "snapshot_summary_20260412_190002487.txt",
+                    "summary_present": true
+                }
+            ],
+            "has_classification": true,
+            "has_classification_artifact": true,
+            "classification_pair_valid": true,
+            "classification_stale_or_mismatched": false,
+            "mrl_impact": false,
+            "changed_all_drivers_count": 1,
+            "changed_mrl_listed_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "change_status": "detected_non_mrl_driver_change",
+            "change_status_label": "Non-MRL Driver Change",
+            "previous_snapshot": "snapshot_20260412_190002487.html",
+            "classified_current_snapshot": "snapshot_20260413_030202493.html",
+            "revision_meta_present": false,
+            "revision_meta": [],
+            "artifact_files": {
+                "meta": {
+                    "present": true,
+                    "modified": "4/19/2026 2:19:01 pm",
+                    "size_bytes": 301,
+                    "size_label": "301 B"
+                },
+                "final_table_hash": {
+                    "present": true,
+                    "modified": "4/13/2026 3:02:02 am",
+                    "size_bytes": 65,
+                    "size_label": "65 B"
+                },
+                "mrl_impact_summary": {
+                    "present": true,
+                    "modified": "6/19/2026 10:03:43 pm",
+                    "size_bytes": 1504,
+                    "size_label": "1.5 KB"
+                },
+                "all_driver_impact_summary": {
+                    "present": true,
+                    "modified": "6/19/2026 10:03:43 pm",
+                    "size_bytes": 1314,
+                    "size_label": "1.3 KB"
+                },
+                "revision_meta": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "under_review_flag": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                }
+            }
+        },
+        {
+            "race_code": "R09",
+            "race_number": 9,
+            "race_id": "202604190757",
+            "race_name": "NASCAR Cup Series at Kansas",
+            "short_name": "Kansas",
+            "folder": "R09_NASCAR_Cup_Series_at_Kansas_202604190757",
+            "folder_rel": "2026/R09_NASCAR_Cup_Series_at_Kansas_202604190757",
+            "status": "released_or_captured",
+            "pending_review": false,
+            "under_review_flag": false,
+            "snapshot_count": 1,
+            "snapshots": [
+                {
+                    "snapshot_id": "20260419_190602801",
+                    "snapshot_file": "snapshot_20260419_190602801.html",
+                    "snapshot_display": "4/19/2026 7:06:02 pm",
+                    "modified": "4/19/2026 7:06:02 pm",
+                    "size_bytes": 88317,
+                    "summary_file": "snapshot_summary_20260419_190602801.txt",
+                    "summary_present": true
+                }
+            ],
+            "first_snapshot": {
+                "snapshot_id": "20260419_190602801",
+                "snapshot_file": "snapshot_20260419_190602801.html",
+                "snapshot_display": "4/19/2026 7:06:02 pm",
+                "modified": "4/19/2026 7:06:02 pm",
+                "size_bytes": 88317,
+                "summary_file": "snapshot_summary_20260419_190602801.txt",
+                "summary_present": true
+            },
+            "latest_snapshot": {
+                "snapshot_id": "20260419_190602801",
+                "snapshot_file": "snapshot_20260419_190602801.html",
+                "snapshot_display": "4/19/2026 7:06:02 pm",
+                "modified": "4/19/2026 7:06:02 pm",
+                "size_bytes": 88317,
+                "summary_file": "snapshot_summary_20260419_190602801.txt",
+                "summary_present": true
+            },
+            "current_snapshot": {
+                "snapshot_id": "20260419_190602801",
+                "snapshot_file": "snapshot_20260419_190602801.html",
+                "snapshot_display": "4/19/2026 7:06:02 pm",
+                "modified": "4/19/2026 7:06:02 pm",
+                "size_bytes": 88317,
+                "summary_file": "snapshot_summary_20260419_190602801.txt",
+                "summary_present": true
+            },
+            "superseded_snapshots": [],
+            "has_classification": false,
+            "has_classification_artifact": false,
+            "classification_pair_valid": false,
+            "classification_stale_or_mismatched": false,
+            "mrl_impact": false,
+            "changed_all_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "change_status": "",
+            "change_status_label": "",
+            "previous_snapshot": "",
+            "classified_current_snapshot": "",
+            "revision_meta_present": false,
+            "revision_meta": [],
+            "artifact_files": {
+                "meta": {
+                    "present": true,
+                    "modified": "4/22/2026 5:33:01 pm",
+                    "size_bytes": 300,
+                    "size_label": "300 B"
+                },
+                "final_table_hash": {
+                    "present": true,
+                    "modified": "4/19/2026 7:06:02 pm",
+                    "size_bytes": 65,
+                    "size_label": "65 B"
+                },
+                "mrl_impact_summary": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "all_driver_impact_summary": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "revision_meta": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "under_review_flag": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                }
+            }
+        },
+        {
+            "race_code": "R10",
+            "race_number": 10,
+            "race_id": "202604260022",
+            "race_name": "NASCAR Cup Series at Talladega",
+            "short_name": "Talladega",
+            "folder": "R10_NASCAR_Cup_Series_at_Talladega_202604260022",
+            "folder_rel": "2026/R10_NASCAR_Cup_Series_at_Talladega_202604260022",
+            "status": "released_or_captured",
+            "pending_review": false,
+            "under_review_flag": false,
+            "snapshot_count": 2,
+            "snapshots": [
+                {
+                    "snapshot_id": "20260426_193502287",
+                    "snapshot_file": "snapshot_20260426_193502287.html",
+                    "snapshot_display": "4/26/2026 7:35:02 pm",
+                    "modified": "4/26/2026 7:35:02 pm",
+                    "size_bytes": 89246,
+                    "summary_file": "snapshot_summary_20260426_193502287.txt",
+                    "summary_present": true
+                },
+                {
+                    "snapshot_id": "20260427_040002008",
+                    "snapshot_file": "snapshot_20260427_040002008.html",
+                    "snapshot_display": "4/27/2026 4:00:02 am",
+                    "modified": "4/27/2026 4:00:02 am",
+                    "size_bytes": 89246,
+                    "summary_file": "snapshot_summary_20260427_040002008.txt",
+                    "summary_present": true
+                }
+            ],
+            "first_snapshot": {
+                "snapshot_id": "20260426_193502287",
+                "snapshot_file": "snapshot_20260426_193502287.html",
+                "snapshot_display": "4/26/2026 7:35:02 pm",
+                "modified": "4/26/2026 7:35:02 pm",
+                "size_bytes": 89246,
+                "summary_file": "snapshot_summary_20260426_193502287.txt",
+                "summary_present": true
+            },
+            "latest_snapshot": {
+                "snapshot_id": "20260427_040002008",
+                "snapshot_file": "snapshot_20260427_040002008.html",
+                "snapshot_display": "4/27/2026 4:00:02 am",
+                "modified": "4/27/2026 4:00:02 am",
+                "size_bytes": 89246,
+                "summary_file": "snapshot_summary_20260427_040002008.txt",
+                "summary_present": true
+            },
+            "current_snapshot": {
+                "snapshot_id": "20260427_040002008",
+                "snapshot_file": "snapshot_20260427_040002008.html",
+                "snapshot_display": "4/27/2026 4:00:02 am",
+                "modified": "4/27/2026 4:00:02 am",
+                "size_bytes": 89246,
+                "summary_file": "snapshot_summary_20260427_040002008.txt",
+                "summary_present": true
+            },
+            "superseded_snapshots": [
+                {
+                    "snapshot_id": "20260426_193502287",
+                    "snapshot_file": "snapshot_20260426_193502287.html",
+                    "snapshot_display": "4/26/2026 7:35:02 pm",
+                    "modified": "4/26/2026 7:35:02 pm",
+                    "size_bytes": 89246,
+                    "summary_file": "snapshot_summary_20260426_193502287.txt",
+                    "summary_present": true
+                }
+            ],
+            "has_classification": true,
+            "has_classification_artifact": true,
+            "classification_pair_valid": true,
+            "classification_stale_or_mismatched": false,
+            "mrl_impact": false,
+            "changed_all_drivers_count": 1,
+            "changed_mrl_listed_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "change_status": "detected_non_mrl_driver_change",
+            "change_status_label": "Non-MRL Driver Change",
+            "previous_snapshot": "snapshot_20260426_193502287.html",
+            "classified_current_snapshot": "snapshot_20260427_040002008.html",
+            "revision_meta_present": false,
+            "revision_meta": [],
+            "artifact_files": {
+                "meta": {
+                    "present": true,
+                    "modified": "5/3/2026 3:47:01 pm",
+                    "size_bytes": 304,
+                    "size_label": "304 B"
+                },
+                "final_table_hash": {
+                    "present": true,
+                    "modified": "4/29/2026 2:07:46 pm",
+                    "size_bytes": 64,
+                    "size_label": "64 B"
+                },
+                "mrl_impact_summary": {
+                    "present": true,
+                    "modified": "6/19/2026 10:03:43 pm",
+                    "size_bytes": 1506,
+                    "size_label": "1.5 KB"
+                },
+                "all_driver_impact_summary": {
+                    "present": true,
+                    "modified": "6/19/2026 10:03:43 pm",
+                    "size_bytes": 1316,
+                    "size_label": "1.3 KB"
+                },
+                "revision_meta": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "under_review_flag": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                }
+            }
+        },
+        {
+            "race_code": "R11",
+            "race_number": 11,
+            "race_id": "202605030054",
+            "race_name": "NASCAR Cup Series at Texas",
+            "short_name": "Texas",
+            "folder": "R11_NASCAR_Cup_Series_at_Texas_202605030054",
+            "folder_rel": "2026/R11_NASCAR_Cup_Series_at_Texas_202605030054",
+            "status": "released_or_captured",
+            "pending_review": false,
+            "under_review_flag": false,
+            "snapshot_count": 2,
+            "snapshots": [
+                {
+                    "snapshot_id": "20260503_191501877",
+                    "snapshot_file": "snapshot_20260503_191501877.html",
+                    "snapshot_display": "5/3/2026 7:15:01 pm",
+                    "modified": "5/3/2026 7:15:01 pm",
+                    "size_bytes": 87273,
+                    "summary_file": "snapshot_summary_20260503_191501877.txt",
+                    "summary_present": true
+                },
+                {
+                    "snapshot_id": "20260519_003408137",
+                    "snapshot_file": "snapshot_20260519_003408137.html",
+                    "snapshot_display": "5/19/2026 12:34:08 am",
+                    "modified": "5/19/2026 12:34:08 am",
+                    "size_bytes": 87382,
+                    "summary_file": "snapshot_summary_20260519_003408137.txt",
+                    "summary_present": true
+                }
+            ],
+            "first_snapshot": {
+                "snapshot_id": "20260503_191501877",
+                "snapshot_file": "snapshot_20260503_191501877.html",
+                "snapshot_display": "5/3/2026 7:15:01 pm",
+                "modified": "5/3/2026 7:15:01 pm",
+                "size_bytes": 87273,
+                "summary_file": "snapshot_summary_20260503_191501877.txt",
+                "summary_present": true
+            },
+            "latest_snapshot": {
+                "snapshot_id": "20260519_003408137",
+                "snapshot_file": "snapshot_20260519_003408137.html",
+                "snapshot_display": "5/19/2026 12:34:08 am",
+                "modified": "5/19/2026 12:34:08 am",
+                "size_bytes": 87382,
+                "summary_file": "snapshot_summary_20260519_003408137.txt",
+                "summary_present": true
+            },
+            "current_snapshot": {
+                "snapshot_id": "20260519_003408137",
+                "snapshot_file": "snapshot_20260519_003408137.html",
+                "snapshot_display": "5/19/2026 12:34:08 am",
+                "modified": "5/19/2026 12:34:08 am",
+                "size_bytes": 87382,
+                "summary_file": "snapshot_summary_20260519_003408137.txt",
+                "summary_present": true
+            },
+            "superseded_snapshots": [
+                {
+                    "snapshot_id": "20260503_191501877",
+                    "snapshot_file": "snapshot_20260503_191501877.html",
+                    "snapshot_display": "5/3/2026 7:15:01 pm",
+                    "modified": "5/3/2026 7:15:01 pm",
+                    "size_bytes": 87273,
+                    "summary_file": "snapshot_summary_20260503_191501877.txt",
+                    "summary_present": true
+                }
+            ],
+            "has_classification": true,
+            "has_classification_artifact": true,
+            "classification_pair_valid": true,
+            "classification_stale_or_mismatched": false,
+            "mrl_impact": false,
+            "changed_all_drivers_count": 1,
+            "changed_mrl_listed_drivers_count": 1,
+            "changed_segment_picked_drivers_count": 0,
+            "change_status": "detected_mrl_listed_not_segment_picked",
+            "change_status_label": "MRL-Listed Driver Changed - No Segment Impact",
+            "previous_snapshot": "snapshot_20260503_191501877.html",
+            "classified_current_snapshot": "snapshot_20260519_003408137.html",
+            "revision_meta_present": false,
+            "revision_meta": [],
+            "artifact_files": {
+                "meta": {
+                    "present": true,
+                    "modified": "5/10/2026 3:20:02 pm",
+                    "size_bytes": 300,
+                    "size_label": "300 B"
+                },
+                "final_table_hash": {
+                    "present": true,
+                    "modified": "5/19/2026 12:34:08 am",
+                    "size_bytes": 65,
+                    "size_label": "65 B"
+                },
+                "mrl_impact_summary": {
+                    "present": true,
+                    "modified": "6/19/2026 10:03:43 pm",
+                    "size_bytes": 1538,
+                    "size_label": "1.5 KB"
+                },
+                "all_driver_impact_summary": {
+                    "present": true,
+                    "modified": "6/19/2026 10:03:43 pm",
+                    "size_bytes": 1349,
+                    "size_label": "1.3 KB"
+                },
+                "revision_meta": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "under_review_flag": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                }
+            }
+        },
+        {
+            "race_code": "R12",
+            "race_number": 12,
+            "race_id": "202605100013",
+            "race_name": "NASCAR Cup Series at Watkins Glen",
+            "short_name": "Watkins Glen",
+            "folder": "R12_NASCAR_Cup_Series_at_Watkins_Glen_202605100013",
+            "folder_rel": "2026/R12_NASCAR_Cup_Series_at_Watkins_Glen_202605100013",
+            "status": "released_or_captured",
+            "pending_review": false,
+            "under_review_flag": false,
+            "snapshot_count": 2,
+            "snapshots": [
+                {
+                    "snapshot_id": "20260510_182501732",
+                    "snapshot_file": "snapshot_20260510_182501732.html",
+                    "snapshot_display": "5/10/2026 6:25:01 pm",
+                    "modified": "5/10/2026 6:25:01 pm",
+                    "size_bytes": 87344,
+                    "summary_file": "snapshot_summary_20260510_182501732.txt",
+                    "summary_present": true
+                },
+                {
+                    "snapshot_id": "20260510_183002165",
+                    "snapshot_file": "snapshot_20260510_183002165.html",
+                    "snapshot_display": "5/10/2026 6:30:02 pm",
+                    "modified": "5/10/2026 6:30:02 pm",
+                    "size_bytes": 87344,
+                    "summary_file": "snapshot_summary_20260510_183002165.txt",
+                    "summary_present": true
+                }
+            ],
+            "first_snapshot": {
+                "snapshot_id": "20260510_182501732",
+                "snapshot_file": "snapshot_20260510_182501732.html",
+                "snapshot_display": "5/10/2026 6:25:01 pm",
+                "modified": "5/10/2026 6:25:01 pm",
+                "size_bytes": 87344,
+                "summary_file": "snapshot_summary_20260510_182501732.txt",
+                "summary_present": true
+            },
+            "latest_snapshot": {
+                "snapshot_id": "20260510_183002165",
+                "snapshot_file": "snapshot_20260510_183002165.html",
+                "snapshot_display": "5/10/2026 6:30:02 pm",
+                "modified": "5/10/2026 6:30:02 pm",
+                "size_bytes": 87344,
+                "summary_file": "snapshot_summary_20260510_183002165.txt",
+                "summary_present": true
+            },
+            "current_snapshot": {
+                "snapshot_id": "20260510_183002165",
+                "snapshot_file": "snapshot_20260510_183002165.html",
+                "snapshot_display": "5/10/2026 6:30:02 pm",
+                "modified": "5/10/2026 6:30:02 pm",
+                "size_bytes": 87344,
+                "summary_file": "snapshot_summary_20260510_183002165.txt",
+                "summary_present": true
+            },
+            "superseded_snapshots": [
+                {
+                    "snapshot_id": "20260510_182501732",
+                    "snapshot_file": "snapshot_20260510_182501732.html",
+                    "snapshot_display": "5/10/2026 6:25:01 pm",
+                    "modified": "5/10/2026 6:25:01 pm",
+                    "size_bytes": 87344,
+                    "summary_file": "snapshot_summary_20260510_182501732.txt",
+                    "summary_present": true
+                }
+            ],
+            "has_classification": true,
+            "has_classification_artifact": true,
+            "classification_pair_valid": true,
+            "classification_stale_or_mismatched": false,
+            "mrl_impact": false,
+            "changed_all_drivers_count": 1,
+            "changed_mrl_listed_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "change_status": "detected_non_mrl_driver_change",
+            "change_status_label": "Non-MRL Driver Change",
+            "previous_snapshot": "snapshot_20260510_182501732.html",
+            "classified_current_snapshot": "snapshot_20260510_183002165.html",
+            "revision_meta_present": false,
+            "revision_meta": [],
+            "artifact_files": {
+                "meta": {
+                    "present": true,
+                    "modified": "5/17/2026 3:27:01 pm",
+                    "size_bytes": 307,
+                    "size_label": "307 B"
+                },
+                "final_table_hash": {
+                    "present": true,
+                    "modified": "5/10/2026 6:30:02 pm",
+                    "size_bytes": 65,
+                    "size_label": "65 B"
+                },
+                "mrl_impact_summary": {
+                    "present": true,
+                    "modified": "6/19/2026 10:03:43 pm",
+                    "size_bytes": 1511,
+                    "size_label": "1.5 KB"
+                },
+                "all_driver_impact_summary": {
+                    "present": true,
+                    "modified": "6/19/2026 10:03:43 pm",
+                    "size_bytes": 1321,
+                    "size_label": "1.3 KB"
+                },
+                "revision_meta": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "under_review_flag": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                }
+            }
+        },
+        {
+            "race_code": "R13",
+            "race_number": 13,
+            "race_id": "202605240003",
+            "race_name": "NASCAR Cup Series at Charlotte",
+            "short_name": "Charlotte",
+            "folder": "R13_NASCAR_Cup_Series_at_Charlotte_202605240003",
+            "folder_rel": "2026/R13_NASCAR_Cup_Series_at_Charlotte_202605240003",
+            "status": "released_or_captured",
+            "pending_review": false,
+            "under_review_flag": false,
+            "snapshot_count": 1,
+            "snapshots": [
+                {
+                    "snapshot_id": "20260525_000302005",
+                    "snapshot_file": "snapshot_20260525_000302005.html",
+                    "snapshot_display": "5/25/2026 12:03:02 am",
+                    "modified": "5/25/2026 12:03:02 am",
+                    "size_bytes": 89116,
+                    "summary_file": "snapshot_summary_20260525_000302005.txt",
+                    "summary_present": true
+                }
+            ],
+            "first_snapshot": {
+                "snapshot_id": "20260525_000302005",
+                "snapshot_file": "snapshot_20260525_000302005.html",
+                "snapshot_display": "5/25/2026 12:03:02 am",
+                "modified": "5/25/2026 12:03:02 am",
+                "size_bytes": 89116,
+                "summary_file": "snapshot_summary_20260525_000302005.txt",
+                "summary_present": true
+            },
+            "latest_snapshot": {
+                "snapshot_id": "20260525_000302005",
+                "snapshot_file": "snapshot_20260525_000302005.html",
+                "snapshot_display": "5/25/2026 12:03:02 am",
+                "modified": "5/25/2026 12:03:02 am",
+                "size_bytes": 89116,
+                "summary_file": "snapshot_summary_20260525_000302005.txt",
+                "summary_present": true
+            },
+            "current_snapshot": {
+                "snapshot_id": "20260525_000302005",
+                "snapshot_file": "snapshot_20260525_000302005.html",
+                "snapshot_display": "5/25/2026 12:03:02 am",
+                "modified": "5/25/2026 12:03:02 am",
+                "size_bytes": 89116,
+                "summary_file": "snapshot_summary_20260525_000302005.txt",
+                "summary_present": true
+            },
+            "superseded_snapshots": [],
+            "has_classification": false,
+            "has_classification_artifact": false,
+            "classification_pair_valid": false,
+            "classification_stale_or_mismatched": false,
+            "mrl_impact": false,
+            "changed_all_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "change_status": "",
+            "change_status_label": "",
+            "previous_snapshot": "",
+            "classified_current_snapshot": "",
+            "revision_meta_present": false,
+            "revision_meta": [],
+            "artifact_files": {
+                "meta": {
+                    "present": true,
+                    "modified": "5/31/2026 8:38:01 pm",
+                    "size_bytes": 304,
+                    "size_label": "304 B"
+                },
+                "final_table_hash": {
+                    "present": true,
+                    "modified": "5/25/2026 12:03:02 am",
+                    "size_bytes": 65,
+                    "size_label": "65 B"
+                },
+                "mrl_impact_summary": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "all_driver_impact_summary": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "revision_meta": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "under_review_flag": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                }
+            }
+        },
+        {
+            "race_code": "R14",
+            "race_number": 14,
+            "race_id": "202605314001",
+            "race_name": "NASCAR Cup Series at Nashville",
+            "short_name": "Nashville",
+            "folder": "R14_NASCAR_Cup_Series_at_Nashville_202605314001",
+            "folder_rel": "2026/R14_NASCAR_Cup_Series_at_Nashville_202605314001",
+            "status": "released_or_captured",
+            "pending_review": false,
+            "under_review_flag": false,
+            "snapshot_count": 1,
+            "snapshots": [
+                {
+                    "snapshot_id": "20260601_013601912",
+                    "snapshot_file": "snapshot_20260601_013601912.html",
+                    "snapshot_display": "6/1/2026 1:36:01 am",
+                    "modified": "6/1/2026 1:36:01 am",
+                    "size_bytes": 88822,
+                    "summary_file": "snapshot_summary_20260601_013601912.txt",
+                    "summary_present": true
+                }
+            ],
+            "first_snapshot": {
+                "snapshot_id": "20260601_013601912",
+                "snapshot_file": "snapshot_20260601_013601912.html",
+                "snapshot_display": "6/1/2026 1:36:01 am",
+                "modified": "6/1/2026 1:36:01 am",
+                "size_bytes": 88822,
+                "summary_file": "snapshot_summary_20260601_013601912.txt",
+                "summary_present": true
+            },
+            "latest_snapshot": {
+                "snapshot_id": "20260601_013601912",
+                "snapshot_file": "snapshot_20260601_013601912.html",
+                "snapshot_display": "6/1/2026 1:36:01 am",
+                "modified": "6/1/2026 1:36:01 am",
+                "size_bytes": 88822,
+                "summary_file": "snapshot_summary_20260601_013601912.txt",
+                "summary_present": true
+            },
+            "current_snapshot": {
+                "snapshot_id": "20260601_013601912",
+                "snapshot_file": "snapshot_20260601_013601912.html",
+                "snapshot_display": "6/1/2026 1:36:01 am",
+                "modified": "6/1/2026 1:36:01 am",
+                "size_bytes": 88822,
+                "summary_file": "snapshot_summary_20260601_013601912.txt",
+                "summary_present": true
+            },
+            "superseded_snapshots": [],
+            "has_classification": false,
+            "has_classification_artifact": false,
+            "classification_pair_valid": false,
+            "classification_stale_or_mismatched": false,
+            "mrl_impact": false,
+            "changed_all_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "change_status": "",
+            "change_status_label": "",
+            "previous_snapshot": "",
+            "classified_current_snapshot": "",
+            "revision_meta_present": false,
+            "revision_meta": [],
+            "artifact_files": {
+                "meta": {
+                    "present": true,
+                    "modified": "6/7/2026 3:28:02 pm",
+                    "size_bytes": 304,
+                    "size_label": "304 B"
+                },
+                "final_table_hash": {
+                    "present": true,
+                    "modified": "6/1/2026 1:36:01 am",
+                    "size_bytes": 65,
+                    "size_label": "65 B"
+                },
+                "mrl_impact_summary": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "all_driver_impact_summary": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "revision_meta": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "under_review_flag": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                }
+            }
+        },
+        {
+            "race_code": "R15",
+            "race_number": 15,
+            "race_id": "202606070014",
+            "race_name": "NASCAR Cup Series at Michigan",
+            "short_name": "Michigan",
+            "folder": "R15_NASCAR_Cup_Series_at_Michigan_202606070014",
+            "folder_rel": "2026/R15_NASCAR_Cup_Series_at_Michigan_202606070014",
+            "status": "pending_review",
+            "pending_review": true,
+            "under_review_flag": true,
+            "snapshot_count": 2,
+            "snapshots": [
+                {
+                    "snapshot_id": "20260607_191302206",
+                    "snapshot_file": "snapshot_20260607_191302206.html",
+                    "snapshot_display": "6/7/2026 7:13:02 pm",
+                    "modified": "6/7/2026 7:13:02 pm",
+                    "size_bytes": 88668,
+                    "summary_file": "snapshot_summary_20260607_191302206.txt",
+                    "summary_present": true
+                },
+                {
+                    "snapshot_id": "20260607_193702554",
+                    "snapshot_file": "snapshot_20260607_193702554.html",
+                    "snapshot_display": "6/7/2026 7:37:02 pm",
+                    "modified": "6/7/2026 7:37:02 pm",
+                    "size_bytes": 88668,
+                    "summary_file": "snapshot_summary_20260607_193702554.txt",
+                    "summary_present": true
+                }
+            ],
+            "first_snapshot": {
+                "snapshot_id": "20260607_191302206",
+                "snapshot_file": "snapshot_20260607_191302206.html",
+                "snapshot_display": "6/7/2026 7:13:02 pm",
+                "modified": "6/7/2026 7:13:02 pm",
+                "size_bytes": 88668,
+                "summary_file": "snapshot_summary_20260607_191302206.txt",
+                "summary_present": true
+            },
+            "latest_snapshot": {
+                "snapshot_id": "20260607_193702554",
+                "snapshot_file": "snapshot_20260607_193702554.html",
+                "snapshot_display": "6/7/2026 7:37:02 pm",
+                "modified": "6/7/2026 7:37:02 pm",
+                "size_bytes": 88668,
+                "summary_file": "snapshot_summary_20260607_193702554.txt",
+                "summary_present": true
+            },
+            "current_snapshot": {
+                "snapshot_id": "20260607_193702554",
+                "snapshot_file": "snapshot_20260607_193702554.html",
+                "snapshot_display": "6/7/2026 7:37:02 pm",
+                "modified": "6/7/2026 7:37:02 pm",
+                "size_bytes": 88668,
+                "summary_file": "snapshot_summary_20260607_193702554.txt",
+                "summary_present": true
+            },
+            "superseded_snapshots": [
+                {
+                    "snapshot_id": "20260607_191302206",
+                    "snapshot_file": "snapshot_20260607_191302206.html",
+                    "snapshot_display": "6/7/2026 7:13:02 pm",
+                    "modified": "6/7/2026 7:13:02 pm",
+                    "size_bytes": 88668,
+                    "summary_file": "snapshot_summary_20260607_191302206.txt",
+                    "summary_present": true
+                }
+            ],
+            "has_classification": true,
+            "has_classification_artifact": true,
+            "classification_pair_valid": true,
+            "classification_stale_or_mismatched": false,
+            "mrl_impact": false,
+            "changed_all_drivers_count": 0,
+            "changed_mrl_listed_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "change_status": "pending_review_mrl_impact",
+            "change_status_label": "Pending Review - No MRL Impact",
+            "previous_snapshot": "snapshot_20260607_191302206.html",
+            "classified_current_snapshot": "snapshot_20260607_193702554.html",
+            "revision_meta_present": false,
+            "revision_meta": [],
+            "artifact_files": {
+                "meta": {
+                    "present": true,
+                    "modified": "6/14/2026 12:35:02 pm",
+                    "size_bytes": 303,
+                    "size_label": "303 B"
+                },
+                "final_table_hash": {
+                    "present": true,
+                    "modified": "6/7/2026 7:37:02 pm",
+                    "size_bytes": 65,
+                    "size_label": "65 B"
+                },
+                "mrl_impact_summary": {
+                    "present": true,
+                    "modified": "6/19/2026 10:03:43 pm",
+                    "size_bytes": 916,
+                    "size_label": "916 B"
+                },
+                "all_driver_impact_summary": {
+                    "present": true,
+                    "modified": "6/19/2026 10:03:43 pm",
+                    "size_bytes": 727,
+                    "size_label": "727 B"
+                },
+                "revision_meta": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "under_review_flag": {
+                    "present": true,
+                    "modified": "6/7/2026 7:37:02 pm",
+                    "size_bytes": 0,
+                    "size_label": "0 B"
+                }
+            }
+        },
+        {
+            "race_code": "R16",
+            "race_number": 16,
+            "race_id": "202606140011",
+            "race_name": "NASCAR Cup Series at Pocono",
+            "short_name": "Pocono",
+            "folder": "R16_NASCAR_Cup_Series_at_Pocono_202606140011",
+            "folder_rel": "2026/R16_NASCAR_Cup_Series_at_Pocono_202606140011",
+            "status": "pending_review",
+            "pending_review": true,
+            "under_review_flag": true,
+            "snapshot_count": 2,
+            "snapshots": [
+                {
+                    "snapshot_id": "20260614_164602534",
+                    "snapshot_file": "snapshot_20260614_164602534.html",
+                    "snapshot_display": "6/14/2026 4:46:02 pm",
+                    "modified": "6/14/2026 4:46:02 pm",
+                    "size_bytes": 89035,
+                    "summary_file": "snapshot_summary_20260614_164602534.txt",
+                    "summary_present": true
+                },
+                {
+                    "snapshot_id": "20260614_165202323",
+                    "snapshot_file": "snapshot_20260614_165202323.html",
+                    "snapshot_display": "6/14/2026 4:52:02 pm",
+                    "modified": "6/14/2026 4:52:02 pm",
+                    "size_bytes": 89035,
+                    "summary_file": "snapshot_summary_20260614_165202323.txt",
+                    "summary_present": true
+                }
+            ],
+            "first_snapshot": {
+                "snapshot_id": "20260614_164602534",
+                "snapshot_file": "snapshot_20260614_164602534.html",
+                "snapshot_display": "6/14/2026 4:46:02 pm",
+                "modified": "6/14/2026 4:46:02 pm",
+                "size_bytes": 89035,
+                "summary_file": "snapshot_summary_20260614_164602534.txt",
+                "summary_present": true
+            },
+            "latest_snapshot": {
+                "snapshot_id": "20260614_165202323",
+                "snapshot_file": "snapshot_20260614_165202323.html",
+                "snapshot_display": "6/14/2026 4:52:02 pm",
+                "modified": "6/14/2026 4:52:02 pm",
+                "size_bytes": 89035,
+                "summary_file": "snapshot_summary_20260614_165202323.txt",
+                "summary_present": true
+            },
+            "current_snapshot": {
+                "snapshot_id": "20260614_165202323",
+                "snapshot_file": "snapshot_20260614_165202323.html",
+                "snapshot_display": "6/14/2026 4:52:02 pm",
+                "modified": "6/14/2026 4:52:02 pm",
+                "size_bytes": 89035,
+                "summary_file": "snapshot_summary_20260614_165202323.txt",
+                "summary_present": true
+            },
+            "superseded_snapshots": [
+                {
+                    "snapshot_id": "20260614_164602534",
+                    "snapshot_file": "snapshot_20260614_164602534.html",
+                    "snapshot_display": "6/14/2026 4:46:02 pm",
+                    "modified": "6/14/2026 4:46:02 pm",
+                    "size_bytes": 89035,
+                    "summary_file": "snapshot_summary_20260614_164602534.txt",
+                    "summary_present": true
+                }
+            ],
+            "has_classification": true,
+            "has_classification_artifact": true,
+            "classification_pair_valid": true,
+            "classification_stale_or_mismatched": false,
+            "mrl_impact": false,
+            "changed_all_drivers_count": 1,
+            "changed_mrl_listed_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "change_status": "pending_review_mrl_impact",
+            "change_status_label": "Pending Review - No MRL Impact",
+            "previous_snapshot": "snapshot_20260614_164602534.html",
+            "classified_current_snapshot": "snapshot_20260614_165202323.html",
+            "revision_meta_present": false,
+            "revision_meta": [],
+            "artifact_files": {
+                "meta": {
+                    "present": true,
+                    "modified": "6/14/2026 8:59:02 pm",
+                    "size_bytes": 301,
+                    "size_label": "301 B"
+                },
+                "final_table_hash": {
+                    "present": true,
+                    "modified": "6/14/2026 4:52:02 pm",
+                    "size_bytes": 65,
+                    "size_label": "65 B"
+                },
+                "mrl_impact_summary": {
+                    "present": true,
+                    "modified": "6/19/2026 10:03:43 pm",
+                    "size_bytes": 1503,
+                    "size_label": "1.5 KB"
+                },
+                "all_driver_impact_summary": {
+                    "present": true,
+                    "modified": "6/19/2026 10:03:43 pm",
+                    "size_bytes": 1313,
+                    "size_label": "1.3 KB"
+                },
+                "revision_meta": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "under_review_flag": {
+                    "present": true,
+                    "modified": "6/14/2026 4:52:02 pm",
+                    "size_bytes": 0,
+                    "size_label": "0 B"
+                }
+            }
+        }
+    ],
+    "direct_revision_events": [
+        {
+            "event_id": "20260308_204802115",
+            "event_display": "3/8/2026 8:48:02 pm",
+            "event_type": "direct_race_result_revision",
+            "source_type": "direct",
+            "race_code": "R04",
+            "race_number": 4,
+            "race_name": "NASCAR Cup Series at Phoenix",
+            "short_name": "Phoenix",
+            "race_status": "released_or_captured",
+            "previous_snapshot": "snapshot_20260308_203801892.html",
+            "current_snapshot": "snapshot_20260308_204802115.html",
+            "previous_snapshot_id": "20260308_203801892",
+            "current_snapshot_id": "20260308_204802115",
+            "classification_matched": false,
+            "mrl_impact": false,
+            "standings_effect": "none_detected_for_mrl_standings",
+            "changed_all_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "change_status": "snapshot_pair_only_no_classifier_row",
+            "change_status_label": "No classifier row for this pair",
+            "pending_review": false,
+            "changed_driver_details": [],
+            "notes": [
+                "Snapshot pair exists, but the current classifier summary does not include this exact older pair."
+            ]
+        },
+        {
+            "event_id": "20260308_205601920",
+            "event_display": "3/8/2026 8:56:01 pm",
+            "event_type": "direct_race_result_revision",
+            "source_type": "direct",
+            "race_code": "R04",
+            "race_number": 4,
+            "race_name": "NASCAR Cup Series at Phoenix",
+            "short_name": "Phoenix",
+            "race_status": "released_or_captured",
+            "previous_snapshot": "snapshot_20260308_204802115.html",
+            "current_snapshot": "snapshot_20260308_205601920.html",
+            "previous_snapshot_id": "20260308_204802115",
+            "current_snapshot_id": "20260308_205601920",
+            "classification_matched": true,
+            "mrl_impact": false,
+            "standings_effect": "none_detected_for_mrl_standings",
+            "changed_all_drivers_count": 1,
+            "changed_mrl_listed_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "change_status": "detected_non_mrl_driver_change",
+            "change_status_label": "Non-MRL Driver Change",
+            "pending_review": false,
+            "changed_driver_details": [
+                {
+                    "driver": "Austin Hill",
+                    "mrl_listed": false,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 16,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 16
+                    },
+                    "new": {
+                        "pts": 0,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 0
+                    },
+                    "delta": {
+                        "pts": -16,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -16
+                    }
+                }
+            ],
+            "notes": []
+        },
+        {
+            "event_id": "20260413_030202493",
+            "event_display": "4/13/2026 3:02:02 am",
+            "event_type": "direct_race_result_revision",
+            "source_type": "direct",
+            "race_code": "R08",
+            "race_number": 8,
+            "race_name": "NASCAR Cup Series at Bristol",
+            "short_name": "Bristol",
+            "race_status": "released_or_captured",
+            "previous_snapshot": "snapshot_20260412_190002487.html",
+            "current_snapshot": "snapshot_20260413_030202493.html",
+            "previous_snapshot_id": "20260412_190002487",
+            "current_snapshot_id": "20260413_030202493",
+            "classification_matched": true,
+            "mrl_impact": false,
+            "standings_effect": "none_detected_for_mrl_standings",
+            "changed_all_drivers_count": 1,
+            "changed_mrl_listed_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "change_status": "detected_non_mrl_driver_change",
+            "change_status_label": "Non-MRL Driver Change",
+            "pending_review": false,
+            "changed_driver_details": [
+                {
+                    "driver": "Chad Finchum",
+                    "mrl_listed": false,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 0,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 0
+                    },
+                    "new": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    },
+                    "delta": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    }
+                }
+            ],
+            "notes": []
+        },
+        {
+            "event_id": "20260427_040002008",
+            "event_display": "4/27/2026 4:00:02 am",
+            "event_type": "direct_race_result_revision",
+            "source_type": "direct",
+            "race_code": "R10",
+            "race_number": 10,
+            "race_name": "NASCAR Cup Series at Talladega",
+            "short_name": "Talladega",
+            "race_status": "released_or_captured",
+            "previous_snapshot": "snapshot_20260426_193502287.html",
+            "current_snapshot": "snapshot_20260427_040002008.html",
+            "previous_snapshot_id": "20260426_193502287",
+            "current_snapshot_id": "20260427_040002008",
+            "classification_matched": true,
+            "mrl_impact": false,
+            "standings_effect": "none_detected_for_mrl_standings",
+            "changed_all_drivers_count": 1,
+            "changed_mrl_listed_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "change_status": "detected_non_mrl_driver_change",
+            "change_status_label": "Non-MRL Driver Change",
+            "pending_review": false,
+            "changed_driver_details": [
+                {
+                    "driver": "Chad Finchum",
+                    "mrl_listed": false,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 0,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 0
+                    },
+                    "new": {
+                        "pts": 9,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 9
+                    },
+                    "delta": {
+                        "pts": 9,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 9
+                    }
+                }
+            ],
+            "notes": []
+        },
+        {
+            "event_id": "20260510_183002165",
+            "event_display": "5/10/2026 6:30:02 pm",
+            "event_type": "direct_race_result_revision",
+            "source_type": "direct",
+            "race_code": "R12",
+            "race_number": 12,
+            "race_name": "NASCAR Cup Series at Watkins Glen",
+            "short_name": "Watkins Glen",
+            "race_status": "released_or_captured",
+            "previous_snapshot": "snapshot_20260510_182501732.html",
+            "current_snapshot": "snapshot_20260510_183002165.html",
+            "previous_snapshot_id": "20260510_182501732",
+            "current_snapshot_id": "20260510_183002165",
+            "classification_matched": true,
+            "mrl_impact": false,
+            "standings_effect": "none_detected_for_mrl_standings",
+            "changed_all_drivers_count": 1,
+            "changed_mrl_listed_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "change_status": "detected_non_mrl_driver_change",
+            "change_status_label": "Non-MRL Driver Change",
+            "pending_review": false,
+            "changed_driver_details": [
+                {
+                    "driver": "Josh Bilicki",
+                    "mrl_listed": false,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 3,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 3
+                    },
+                    "new": {
+                        "pts": 0,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 0
+                    },
+                    "delta": {
+                        "pts": -3,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -3
+                    }
+                }
+            ],
+            "notes": []
+        },
+        {
+            "event_id": "20260519_003408137",
+            "event_display": "5/19/2026 12:34:08 am",
+            "event_type": "direct_race_result_revision",
+            "source_type": "direct",
+            "race_code": "R11",
+            "race_number": 11,
+            "race_name": "NASCAR Cup Series at Texas",
+            "short_name": "Texas",
+            "race_status": "released_or_captured",
+            "previous_snapshot": "snapshot_20260503_191501877.html",
+            "current_snapshot": "snapshot_20260519_003408137.html",
+            "previous_snapshot_id": "20260503_191501877",
+            "current_snapshot_id": "20260519_003408137",
+            "classification_matched": true,
+            "mrl_impact": false,
+            "standings_effect": "none_detected_for_mrl_standings",
+            "changed_all_drivers_count": 1,
+            "changed_mrl_listed_drivers_count": 1,
+            "changed_segment_picked_drivers_count": 0,
+            "change_status": "detected_mrl_listed_not_segment_picked",
+            "change_status_label": "MRL-Listed Driver Changed - No Segment Impact",
+            "pending_review": false,
+            "changed_driver_details": [
+                {
+                    "driver": "Ryan Preece",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 29,
+                        "bonus": 6,
+                        "penalty": 0,
+                        "net": 29
+                    },
+                    "new": {
+                        "pts": 29,
+                        "bonus": 6,
+                        "penalty": 25,
+                        "net": 4
+                    },
+                    "delta": {
+                        "pts": 0,
+                        "bonus": 0,
+                        "penalty": 25,
+                        "net": -25
+                    }
+                }
+            ],
+            "notes": []
+        },
+        {
+            "event_id": "20260607_193702554",
+            "event_display": "6/7/2026 7:37:02 pm",
+            "event_type": "direct_race_result_revision",
+            "source_type": "direct",
+            "race_code": "R15",
+            "race_number": 15,
+            "race_name": "NASCAR Cup Series at Michigan",
+            "short_name": "Michigan",
+            "race_status": "pending_review",
+            "previous_snapshot": "snapshot_20260607_191302206.html",
+            "current_snapshot": "snapshot_20260607_193702554.html",
+            "previous_snapshot_id": "20260607_191302206",
+            "current_snapshot_id": "20260607_193702554",
+            "classification_matched": true,
+            "mrl_impact": false,
+            "standings_effect": "none_detected_for_mrl_standings",
+            "changed_all_drivers_count": 0,
+            "changed_mrl_listed_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "change_status": "pending_review_mrl_impact",
+            "change_status_label": "Pending Review - No MRL Impact",
+            "pending_review": true,
+            "changed_driver_details": [],
+            "notes": []
+        },
+        {
+            "event_id": "20260614_165202323",
+            "event_display": "6/14/2026 4:52:02 pm",
+            "event_type": "direct_race_result_revision",
+            "source_type": "direct",
+            "race_code": "R16",
+            "race_number": 16,
+            "race_name": "NASCAR Cup Series at Pocono",
+            "short_name": "Pocono",
+            "race_status": "pending_review",
+            "previous_snapshot": "snapshot_20260614_164602534.html",
+            "current_snapshot": "snapshot_20260614_165202323.html",
+            "previous_snapshot_id": "20260614_164602534",
+            "current_snapshot_id": "20260614_165202323",
+            "classification_matched": true,
+            "mrl_impact": false,
+            "standings_effect": "none_detected_for_mrl_standings",
+            "changed_all_drivers_count": 1,
+            "changed_mrl_listed_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "change_status": "pending_review_mrl_impact",
+            "change_status_label": "Pending Review - No MRL Impact",
+            "pending_review": true,
+            "changed_driver_details": [
+                {
+                    "driver": "Daniel Dye",
+                    "mrl_listed": false,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 8,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 8
+                    },
+                    "new": {
+                        "pts": 0,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 0
+                    },
+                    "delta": {
+                        "pts": -8,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -8
+                    }
+                }
+            ],
+            "notes": []
+        }
+    ],
+    "indirect_candidates": [],
+    "gaps": []
+}
