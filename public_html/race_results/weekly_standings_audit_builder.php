@@ -3,7 +3,7 @@
  * weekly_standings_audit_builder.php
  *
  * VERSION: v001
- * LAST MODIFIED: 6/19/2026 4:58:15 am
+ * LAST MODIFIED: 6/20/2026 8:06:44 pm
  *
  * DESCRIPTION:
  * First-pass local MRL weekly standings audit/index helper.
@@ -19,6 +19,11 @@
  *   - NEW: Adds browser UI with summary cards, race inventory, direct revision event table, indirect candidate table, file gap table, and raw JSON preview/download.
  *   - NEW: Optional ?write=1 mode writes _weekly_standings_audit_index.json without changing any existing files.
  *   - NEW: Optional ?format=json mode returns the generated index as JSON.
+ *   - NEW: Reads pair-level classifier history when _race_results_pair_classification_history.json or per-race mrl_impact_pair_history.json exists.
+ *   - CHANGE: Direct Revision Events now prefer exact adjacent-pair rows over the legacy latest-pair-only classifier summary.
+ *   - FIX: Stale revision_meta.json cannot override the real under_review.flag pending state.
+ *   - CHANGE: Indirect candidate projection now skips pending-review weeks entirely; pending review means unreleased/not eligible for revision-chain purposes.
+   - NEW: Added a plain-language timeline explainer to define direct events, indirect candidates, pending review, released/captured, and renamed/bad snapshots.
  *
  * PHP: 7.3 compatible.
  */
@@ -189,6 +194,67 @@ function wsa_find_summary_row(array $classificationSummary, string $raceCode): a
     return array();
 }
 
+function wsa_build_pair_history_index(array $pairHistory): array
+{
+    $index = array();
+
+    if (!isset($pairHistory['rows']) || !is_array($pairHistory['rows'])) {
+        return $index;
+    }
+
+    foreach ($pairHistory['rows'] as $row) {
+        if (!is_array($row)) continue;
+        $raceCode = (string)($row['race_code'] ?? '');
+        $previous = (string)($row['previous_snapshot'] ?? '');
+        $current = (string)($row['current_snapshot'] ?? '');
+        if ($raceCode === '' || $previous === '' || $current === '') continue;
+        $index[$raceCode . '|' . $previous . '|' . $current] = $row;
+    }
+
+    return $index;
+}
+
+function wsa_find_pair_history_row(array $pairHistoryIndex, string $raceCode, string $previousSnapshot, string $currentSnapshot): array
+{
+    $key = $raceCode . '|' . $previousSnapshot . '|' . $currentSnapshot;
+    if (isset($pairHistoryIndex[$key]) && is_array($pairHistoryIndex[$key])) {
+        return $pairHistoryIndex[$key];
+    }
+    return array();
+}
+
+function wsa_load_race_pair_history_rows(string $raceDir): array
+{
+    $data = wsa_read_json($raceDir . '/mrl_impact_pair_history.json');
+    if (!is_array($data) || !isset($data['rows']) || !is_array($data['rows'])) {
+        return array();
+    }
+    return $data['rows'];
+}
+
+function wsa_add_race_pair_history_to_index(array &$pairHistoryIndex, string $raceCode, array $rows): void
+{
+    foreach ($rows as $row) {
+        if (!is_array($row)) continue;
+        $previous = (string)($row['previous_snapshot'] ?? '');
+        $current = (string)($row['current_snapshot'] ?? '');
+        if ($raceCode === '' || $previous === '' || $current === '') continue;
+        $pairHistoryIndex[$raceCode . '|' . $previous . '|' . $current] = $row;
+    }
+}
+
+function wsa_pair_history_latest_row(array $pairHistoryIndex, string $raceCode, array $snapshots): array
+{
+    $count = count($snapshots);
+    if ($count < 2) {
+        return array();
+    }
+
+    $previous = (string)($snapshots[$count - 2]['snapshot_file'] ?? '');
+    $current = (string)($snapshots[$count - 1]['snapshot_file'] ?? '');
+    return wsa_find_pair_history_row($pairHistoryIndex, $raceCode, $previous, $current);
+}
+
 function wsa_normalize_snapshot_list(string $raceDir): array
 {
     $items = array();
@@ -265,7 +331,7 @@ function wsa_normalize_change_status_label(string $label, bool $mrlImpact, bool 
     return $label;
 }
 
-function wsa_build_adjacent_revision_events(array $race, array $summary): array
+function wsa_build_adjacent_revision_events(array $race, array $summary, array $pairHistoryIndex): array
 {
     $events = array();
     $snapshots = $race['snapshots'];
@@ -283,14 +349,19 @@ function wsa_build_adjacent_revision_events(array $race, array $summary): array
         $new = $snapshots[$i];
         $oldFile = (string)$old['snapshot_file'];
         $newFile = (string)$new['snapshot_file'];
-        $matched = ($summaryPrev !== '' && $summaryCur !== '' && $summaryPrev === $oldFile && $summaryCur === $newFile);
+        $pairSummary = wsa_find_pair_history_row($pairHistoryIndex, (string)$race['race_code'], $oldFile, $newFile);
+        if (empty($pairSummary) && $summaryPrev !== '' && $summaryCur !== '' && $summaryPrev === $oldFile && $summaryCur === $newFile) {
+            $pairSummary = $summary;
+        }
 
-        $mrlImpact = $matched ? wsa_bool($summary['mrl_impact'] ?? $summary['impact'] ?? false) : false;
-        $changedAll = $matched ? (int)($summary['changed_all_drivers_count'] ?? 0) : null;
-        $changedMrlListed = $matched ? (int)($summary['changed_mrl_listed_drivers_count'] ?? 0) : null;
-        $changedSegmentPicked = $matched ? (int)($summary['changed_segment_picked_drivers_count'] ?? 0) : null;
-        $changeStatus = $matched ? (string)($summary['change_status'] ?? '') : 'snapshot_pair_only_no_classifier_row';
-        $changeStatusLabel = $matched ? (string)($summary['change_status_label'] ?? '') : 'No classifier row for this pair';
+        $matched = !empty($pairSummary);
+
+        $mrlImpact = $matched ? wsa_bool($pairSummary['mrl_impact'] ?? $pairSummary['impact'] ?? false) : false;
+        $changedAll = $matched ? (int)($pairSummary['changed_all_drivers_count'] ?? 0) : null;
+        $changedMrlListed = $matched ? (int)($pairSummary['changed_mrl_listed_drivers_count'] ?? 0) : null;
+        $changedSegmentPicked = $matched ? (int)($pairSummary['changed_segment_picked_drivers_count'] ?? 0) : null;
+        $changeStatus = $matched ? (string)($pairSummary['change_status'] ?? '') : 'snapshot_pair_only_no_classifier_row';
+        $changeStatusLabel = $matched ? (string)($pairSummary['change_status_label'] ?? '') : 'No classifier row for this pair';
         $changeStatusLabel = wsa_normalize_change_status_label($changeStatusLabel, $mrlImpact, (string)$race['status'] === 'pending_review');
 
         $events[] = array(
@@ -316,8 +387,8 @@ function wsa_build_adjacent_revision_events(array $race, array $summary): array
             'change_status' => $changeStatus,
             'change_status_label' => $changeStatusLabel,
             'pending_review' => (string)$race['status'] === 'pending_review',
-            'changed_driver_details' => $matched && isset($summary['changed_driver_details']) && is_array($summary['changed_driver_details']) ? $summary['changed_driver_details'] : array(),
-            'notes' => $matched ? array() : array('Snapshot pair exists, but the current classifier summary does not include this exact older pair.'),
+            'changed_driver_details' => $matched && isset($pairSummary['changed_driver_details']) && is_array($pairSummary['changed_driver_details']) ? $pairSummary['changed_driver_details'] : array(),
+            'notes' => $matched ? array() : array('Snapshot pair exists, but no pair-level classifier history row was found for this exact pair.'),
         );
     }
 
@@ -345,6 +416,15 @@ function wsa_build_indirect_candidates(array $directEvents, array $races): array
                 continue;
             }
 
+            // League/audit convention: pending-review weeks are not released yet, so they
+            // do not exist for revision-chain purposes and should not be listed as
+            // downstream indirect candidates.
+            $raceStatus = (string)($race['status'] ?? '');
+            $isPendingReview = $raceStatus === 'pending_review' || wsa_bool($race['pending_review'] ?? false) || wsa_bool($race['under_review_flag'] ?? false);
+            if ($isPendingReview) {
+                continue;
+            }
+
             $sourceType = ($raceNumber === $sourceRaceNumber) ? 'direct' : 'indirect';
             $effectLabel = ($sourceType === 'direct') ? 'Direct source week' : 'Indirect downstream week';
 
@@ -358,8 +438,8 @@ function wsa_build_indirect_candidates(array $directEvents, array $races): array
                 'affected_race_name' => (string)($race['short_name'] ?? ''),
                 'source_type' => $sourceType,
                 'effect_label' => $effectLabel,
-                'affected_status' => (string)($race['status'] ?? ''),
-                'pending_review' => (string)($race['status'] ?? '') === 'pending_review',
+                'affected_status' => $raceStatus,
+                'pending_review' => false,
                 'generated_snapshot_needed' => true,
                 'generated_snapshot_id_suggestion' => $sourceEventId !== '' ? $sourceEventId . '_' . (string)($race['race_code'] ?? '') : '',
             );
@@ -378,6 +458,13 @@ function wsa_scan_year(string $baseDir, string $year): array
     if (!is_array($classificationSummary)) {
         $classificationSummary = array();
     }
+
+    $pairHistoryPath = $baseDir . '/_race_results_pair_classification_history.json';
+    $pairHistory = wsa_read_json($pairHistoryPath);
+    if (!is_array($pairHistory)) {
+        $pairHistory = array();
+    }
+    $pairHistoryIndex = wsa_build_pair_history_index($pairHistory);
 
     $folderPaths = glob($yearDir . '/R[0-9][0-9]_*', GLOB_ONLYDIR);
     if (!is_array($folderPaths)) {
@@ -418,6 +505,13 @@ function wsa_scan_year(string $baseDir, string $year): array
         $localMrlImpact = wsa_read_json($raceDir . '/mrl_impact_summary.json');
         $localAllImpact = wsa_read_json($raceDir . '/all_driver_impact_summary.json');
         $revisionMeta = wsa_read_json($raceDir . '/revision_meta.json');
+        $localPairHistoryRows = wsa_load_race_pair_history_rows($raceDir);
+        wsa_add_race_pair_history_to_index($pairHistoryIndex, $raceCode, $localPairHistoryRows);
+        $latestPairHistoryRow = wsa_pair_history_latest_row($pairHistoryIndex, $raceCode, $snapshots);
+
+        if (!empty($latestPairHistoryRow)) {
+            $summary = $latestPairHistoryRow;
+        }
 
         if (empty($summary) && is_array($localMrlImpact)) {
             $summary = $localMrlImpact;
@@ -426,7 +520,7 @@ function wsa_scan_year(string $baseDir, string $year): array
             }
         }
 
-        $hasClassificationArtifact = !empty($summary) || is_array($localMrlImpact) || is_array($localAllImpact);
+        $hasClassificationArtifact = !empty($summary) || is_array($localMrlImpact) || is_array($localAllImpact) || !empty($localPairHistoryRows);
         $classificationPairValid = !empty($summary) && wsa_summary_pair_is_valid($summary, $snapshots);
         $classificationStale = $hasClassificationArtifact && !$classificationPairValid && !empty($summary);
 
@@ -480,6 +574,7 @@ function wsa_scan_year(string $baseDir, string $year): array
                 'final_table_hash' => wsa_file_info($raceDir . '/final_table_hash.txt'),
                 'mrl_impact_summary' => wsa_file_info($raceDir . '/mrl_impact_summary.json'),
                 'all_driver_impact_summary' => wsa_file_info($raceDir . '/all_driver_impact_summary.json'),
+                'mrl_impact_pair_history' => wsa_file_info($raceDir . '/mrl_impact_pair_history.json'),
                 'revision_meta' => wsa_file_info($raceDir . '/revision_meta.json'),
                 'under_review_flag' => wsa_file_info($raceDir . '/under_review.flag'),
             ),
@@ -503,7 +598,7 @@ function wsa_scan_year(string $baseDir, string $year): array
             );
         }
 
-        $events = wsa_build_adjacent_revision_events($race, $summary);
+        $events = wsa_build_adjacent_revision_events($race, $summary, $pairHistoryIndex);
         foreach ($events as $event) {
             $directEvents[] = $event;
         }
@@ -562,7 +657,8 @@ function wsa_scan_year(string $baseDir, string $year): array
         'notes' => array(
             'This helper does not call ESPN or fetch remote pages.',
             'Pending review is stored as metadata and does not block audit-chain discovery.',
-            'Direct events come from saved race snapshot pairs. Indirect candidates are projected only from direct events with MRL Impact YES.',
+            'Direct events come from saved race snapshot pairs. Pair-level classifier history is preferred when present.',
+            'Indirect candidates are projected only from direct events with MRL Impact YES.',
             'Existing history may have gaps if weekly standings snapshots were not being archived at the time.',
         ),
         'year' => $year,
@@ -572,6 +668,7 @@ function wsa_scan_year(string $baseDir, string $year): array
         'input_files' => array(
             'classification_summary' => array_merge(array('path' => basename($classificationSummaryPath)), wsa_file_info($classificationSummaryPath)),
             'classification_last_run' => array_merge(array('path' => basename($classificationLastRunPath)), wsa_file_info($classificationLastRunPath)),
+            'pair_classification_history' => array_merge(array('path' => basename($pairHistoryPath)), wsa_file_info($pairHistoryPath)),
             'year_index' => array_merge(array('path' => $year . '/_year_index.json'), wsa_file_info($yearDir . '/_year_index.json')),
             'weekly_standings_php' => array_merge(array('path' => 'weekly_standings.php'), wsa_file_info($baseDir . '/weekly_standings.php')),
         ),
@@ -737,6 +834,19 @@ h3 { color: var(--gold); margin: 0 0 8px; font-size: 18px; }
 }
 .notice.good { border-color: var(--green-border); background: rgba(31,75,52,.35); }
 .notice.bad { border-color: var(--red-border); background: rgba(92,30,30,.45); }
+.explainer {
+    border: 1px solid rgba(255,210,138,.28);
+    background: linear-gradient(180deg, rgba(45,38,22,.62), rgba(24,24,24,.96));
+    border-radius: 16px;
+    padding: 14px 16px;
+    margin: 16px 0 18px;
+}
+.explainer-title { color: var(--gold); font-size: 20px; font-weight: 900; margin: 0 0 8px; }
+.explainer-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+.explainer-item { background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.08); border-radius: 12px; padding: 10px; }
+.explainer-item strong { color: #fff; display: block; margin-bottom: 4px; }
+.explainer-item span { color: var(--muted); font-size: 13px; }
+.timeline-rule { color: var(--muted); margin-top: 10px; }
 .tablebox {
     border: 1px solid var(--line);
     border-radius: 16px;
@@ -783,6 +893,9 @@ pre {
     font-size: 12px;
 }
 .footer { color: var(--muted); font-size: 13px; margin: 30px 0 10px; }
+@media (max-width: 1100px) {
+    .explainer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 @media (max-width: 900px) {
     .wrap { padding: 12px; }
     h1 { font-size: 28px; }
@@ -792,6 +905,7 @@ pre {
 }
 @media (max-width: 560px) {
     .cards { grid-template-columns: 1fr; }
+    .explainer-grid { grid-template-columns: 1fr; }
     .header { padding: 18px; }
 }
 </style>
@@ -839,6 +953,19 @@ pre {
 
     <div class="notice">
         This first pass builds the audit foundation. Existing race revisions are discovered from saved snapshot pairs and classifier files. Weekly standings historical snapshots are expected to be sparse or missing until we add the future snapshot package process.
+    </div>
+
+    <div class="explainer">
+        <div class="explainer-title">What this means</div>
+        <div class="muted">Use this as the audit/timeline glossary before chasing alternate timelines.</div>
+        <div class="explainer-grid">
+            <div class="explainer-item"><strong>Direct event</strong><span>The race-result snapshot pair changed. This is the source event.</span></div>
+            <div class="explainer-item"><strong>MRL Impact</strong><span>A segment-picked driver changed net scoring, so standings may need revision.</span></div>
+            <div class="explainer-item"><strong>Indirect candidate</strong><span>A released downstream weekly standings page may need regeneration because an earlier direct event had MRL impact.</span></div>
+            <div class="explainer-item"><strong>Pending Review</strong><span>Unreleased. For revision-chain purposes, this week does not exist yet and is skipped.</span></div>
+            <div class="explainer-item"><strong>Renamed bad snapshots</strong><span>Files no longer matching snapshot_*.html are ignored and removed from the audit timeline.</span></div>
+        </div>
+        <div class="timeline-rule">Timeline rule: released/captured snapshots are part of the official timeline; pending-review snapshots are not; direct MRL-impact events can project indirect candidates only into released downstream weeks.</div>
     </div>
 
     <h2>Race Inventory</h2>
@@ -892,7 +1019,7 @@ pre {
     </div>
 
     <div class="notice">
-        Snapshot counts greater than 1 are highlighted because they create snapshot-pair history. A "Snapshot pair only" event means the files exist, but the current classifier summary does not include that exact older pair. This is expected when a race has multiple snapshot pairs but the summary only keeps the latest classified pair.
+        Snapshot counts greater than 1 are highlighted because they create snapshot-pair history. A "Snapshot pair only" event means the files exist, but no pair-level classifier history row was found for that exact pair. After running the pair-history backfill, this should disappear for existing saved pairs.
     </div>
 
     <h2>Direct Revision Events</h2>

@@ -1,14 +1,15 @@
 {
     "signature": "WEEKLY_STANDINGS_AUDIT_BUILDER v001",
     "version": "v001",
-    "generated_at": "2026-06-20 11:35:35",
+    "generated_at": "2026-06-21 02:45:29",
     "timezone": "America/New_York",
     "source": "weekly_standings_audit_builder.php",
     "scope": "local_mrl_artifacts_only",
     "notes": [
         "This helper does not call ESPN or fetch remote pages.",
         "Pending review is stored as metadata and does not block audit-chain discovery.",
-        "Direct events come from saved race snapshot pairs. Indirect candidates are projected only from direct events with MRL Impact YES.",
+        "Direct events come from saved race snapshot pairs. Pair-level classifier history is preferred when present.",
+        "Indirect candidates are projected only from direct events with MRL Impact YES.",
         "Existing history may have gaps if weekly standings snapshots were not being archived at the time."
     ],
     "year": "2026",
@@ -19,16 +20,23 @@
         "classification_summary": {
             "path": "_race_results_classification_summary.json",
             "present": true,
-            "modified": "6/20/2026 6:00:06 am",
-            "size_bytes": 15246,
+            "modified": "6/21/2026 2:44:39 am",
+            "size_bytes": 15259,
             "size_label": "14.9 KB"
         },
         "classification_last_run": {
             "path": "_race_results_classification_last_run.json",
             "present": true,
-            "modified": "6/20/2026 6:00:06 am",
-            "size_bytes": 15246,
+            "modified": "6/21/2026 2:44:39 am",
+            "size_bytes": 15259,
             "size_label": "14.9 KB"
+        },
+        "pair_classification_history": {
+            "path": "_race_results_pair_classification_history.json",
+            "present": true,
+            "modified": "6/21/2026 2:44:39 am",
+            "size_bytes": 31083,
+            "size_label": "30.4 KB"
         },
         "year_index": {
             "path": "2026/_year_index.json",
@@ -51,8 +59,8 @@
         "pending_review": 2,
         "released_or_captured": 14,
         "direct_revision_events": 8,
-        "direct_mrl_impact_events": 0,
-        "indirect_candidates": 0,
+        "direct_mrl_impact_events": 1,
+        "indirect_candidates": 11,
         "superseded_snapshots": 8,
         "gaps": 0
     },
@@ -142,6 +150,12 @@
                     "size_label": ""
                 },
                 "all_driver_impact_summary": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "mrl_impact_pair_history": {
                     "present": false,
                     "modified": "",
                     "size_bytes": 0,
@@ -251,6 +265,12 @@
                     "size_bytes": 0,
                     "size_label": ""
                 },
+                "mrl_impact_pair_history": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
                 "revision_meta": {
                     "present": false,
                     "modified": "",
@@ -350,6 +370,12 @@
                     "size_label": ""
                 },
                 "all_driver_impact_summary": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "mrl_impact_pair_history": {
                     "present": false,
                     "modified": "",
                     "size_bytes": 0,
@@ -486,15 +512,21 @@
                 },
                 "mrl_impact_summary": {
                     "present": true,
-                    "modified": "6/20/2026 6:00:05 am",
-                    "size_bytes": 1509,
-                    "size_label": "1.5 KB"
+                    "modified": "6/21/2026 2:44:39 am",
+                    "size_bytes": 1766,
+                    "size_label": "1.7 KB"
                 },
                 "all_driver_impact_summary": {
                     "present": true,
-                    "modified": "6/20/2026 6:00:05 am",
-                    "size_bytes": 1319,
-                    "size_label": "1.3 KB"
+                    "modified": "6/21/2026 2:44:39 am",
+                    "size_bytes": 1576,
+                    "size_label": "1.5 KB"
+                },
+                "mrl_impact_pair_history": {
+                    "present": true,
+                    "modified": "6/21/2026 2:44:39 am",
+                    "size_bytes": 16675,
+                    "size_label": "16.3 KB"
                 },
                 "revision_meta": {
                     "present": false,
@@ -595,6 +627,12 @@
                     "size_label": ""
                 },
                 "all_driver_impact_summary": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "mrl_impact_pair_history": {
                     "present": false,
                     "modified": "",
                     "size_bytes": 0,
@@ -704,6 +742,12 @@
                     "size_bytes": 0,
                     "size_label": ""
                 },
+                "mrl_impact_pair_history": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
                 "revision_meta": {
                     "present": false,
                     "modified": "",
@@ -803,6 +847,12 @@
                     "size_label": ""
                 },
                 "all_driver_impact_summary": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "mrl_impact_pair_history": {
                     "present": false,
                     "modified": "",
                     "size_bytes": 0,
@@ -921,15 +971,21 @@
                 },
                 "mrl_impact_summary": {
                     "present": true,
-                    "modified": "6/20/2026 6:00:05 am",
-                    "size_bytes": 1504,
-                    "size_label": "1.5 KB"
+                    "modified": "6/21/2026 2:44:39 am",
+                    "size_bytes": 1761,
+                    "size_label": "1.7 KB"
                 },
                 "all_driver_impact_summary": {
                     "present": true,
-                    "modified": "6/20/2026 6:00:05 am",
-                    "size_bytes": 1314,
-                    "size_label": "1.3 KB"
+                    "modified": "6/21/2026 2:44:39 am",
+                    "size_bytes": 1571,
+                    "size_label": "1.5 KB"
+                },
+                "mrl_impact_pair_history": {
+                    "present": true,
+                    "modified": "6/21/2026 2:44:39 am",
+                    "size_bytes": 2876,
+                    "size_label": "2.8 KB"
                 },
                 "revision_meta": {
                     "present": false,
@@ -1030,6 +1086,12 @@
                     "size_label": ""
                 },
                 "all_driver_impact_summary": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "mrl_impact_pair_history": {
                     "present": false,
                     "modified": "",
                     "size_bytes": 0,
@@ -1148,15 +1210,21 @@
                 },
                 "mrl_impact_summary": {
                     "present": true,
-                    "modified": "6/20/2026 6:00:05 am",
-                    "size_bytes": 1506,
-                    "size_label": "1.5 KB"
+                    "modified": "6/21/2026 2:44:39 am",
+                    "size_bytes": 1763,
+                    "size_label": "1.7 KB"
                 },
                 "all_driver_impact_summary": {
                     "present": true,
-                    "modified": "6/20/2026 6:00:05 am",
-                    "size_bytes": 1316,
-                    "size_label": "1.3 KB"
+                    "modified": "6/21/2026 2:44:39 am",
+                    "size_bytes": 1573,
+                    "size_label": "1.5 KB"
+                },
+                "mrl_impact_pair_history": {
+                    "present": true,
+                    "modified": "6/21/2026 2:44:39 am",
+                    "size_bytes": 2884,
+                    "size_label": "2.8 KB"
                 },
                 "revision_meta": {
                     "present": false,
@@ -1271,15 +1339,21 @@
                 },
                 "mrl_impact_summary": {
                     "present": true,
-                    "modified": "6/20/2026 6:00:05 am",
-                    "size_bytes": 1538,
-                    "size_label": "1.5 KB"
+                    "modified": "6/21/2026 2:44:39 am",
+                    "size_bytes": 1795,
+                    "size_label": "1.8 KB"
                 },
                 "all_driver_impact_summary": {
                     "present": true,
-                    "modified": "6/20/2026 6:00:05 am",
-                    "size_bytes": 1349,
-                    "size_label": "1.3 KB"
+                    "modified": "6/21/2026 2:44:39 am",
+                    "size_bytes": 1606,
+                    "size_label": "1.6 KB"
+                },
+                "mrl_impact_pair_history": {
+                    "present": true,
+                    "modified": "6/21/2026 2:44:39 am",
+                    "size_bytes": 2908,
+                    "size_label": "2.8 KB"
                 },
                 "revision_meta": {
                     "present": false,
@@ -1394,15 +1468,21 @@
                 },
                 "mrl_impact_summary": {
                     "present": true,
-                    "modified": "6/20/2026 6:00:06 am",
-                    "size_bytes": 1511,
-                    "size_label": "1.5 KB"
+                    "modified": "6/21/2026 2:44:39 am",
+                    "size_bytes": 1768,
+                    "size_label": "1.7 KB"
                 },
                 "all_driver_impact_summary": {
                     "present": true,
-                    "modified": "6/20/2026 6:00:06 am",
-                    "size_bytes": 1321,
-                    "size_label": "1.3 KB"
+                    "modified": "6/21/2026 2:44:39 am",
+                    "size_bytes": 1578,
+                    "size_label": "1.5 KB"
+                },
+                "mrl_impact_pair_history": {
+                    "present": true,
+                    "modified": "6/21/2026 2:44:39 am",
+                    "size_bytes": 2895,
+                    "size_label": "2.8 KB"
                 },
                 "revision_meta": {
                     "present": false,
@@ -1503,6 +1583,12 @@
                     "size_label": ""
                 },
                 "all_driver_impact_summary": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "mrl_impact_pair_history": {
                     "present": false,
                     "modified": "",
                     "size_bytes": 0,
@@ -1612,6 +1698,12 @@
                     "size_bytes": 0,
                     "size_label": ""
                 },
+                "mrl_impact_pair_history": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
                 "revision_meta": {
                     "present": false,
                     "modified": "",
@@ -1704,7 +1796,7 @@
             "changed_all_drivers_count": 0,
             "changed_mrl_listed_drivers_count": 0,
             "changed_segment_picked_drivers_count": 0,
-            "change_status": "pending_review_mrl_impact",
+            "change_status": "pending_review_no_mrl_impact",
             "change_status_label": "Pending Review - No MRL Impact",
             "previous_snapshot": "snapshot_20260607_191302206.html",
             "classified_current_snapshot": "snapshot_20260607_193702554.html",
@@ -1725,15 +1817,21 @@
                 },
                 "mrl_impact_summary": {
                     "present": true,
-                    "modified": "6/20/2026 6:00:06 am",
-                    "size_bytes": 916,
-                    "size_label": "916 B"
+                    "modified": "6/21/2026 2:44:39 am",
+                    "size_bytes": 1201,
+                    "size_label": "1.2 KB"
                 },
                 "all_driver_impact_summary": {
                     "present": true,
-                    "modified": "6/20/2026 6:00:06 am",
-                    "size_bytes": 727,
-                    "size_label": "727 B"
+                    "modified": "6/21/2026 2:44:39 am",
+                    "size_bytes": 1012,
+                    "size_label": "1012 B"
+                },
+                "mrl_impact_pair_history": {
+                    "present": true,
+                    "modified": "6/21/2026 2:44:39 am",
+                    "size_bytes": 2130,
+                    "size_label": "2.1 KB"
                 },
                 "revision_meta": {
                     "present": false,
@@ -1827,7 +1925,7 @@
             "changed_all_drivers_count": 1,
             "changed_mrl_listed_drivers_count": 0,
             "changed_segment_picked_drivers_count": 0,
-            "change_status": "pending_review_mrl_impact",
+            "change_status": "pending_review_no_mrl_impact",
             "change_status_label": "Pending Review - No MRL Impact",
             "previous_snapshot": "snapshot_20260614_164602534.html",
             "classified_current_snapshot": "snapshot_20260614_165202323.html",
@@ -1848,15 +1946,21 @@
                 },
                 "mrl_impact_summary": {
                     "present": true,
-                    "modified": "6/20/2026 6:00:06 am",
-                    "size_bytes": 1503,
-                    "size_label": "1.5 KB"
+                    "modified": "6/21/2026 2:44:39 am",
+                    "size_bytes": 1766,
+                    "size_label": "1.7 KB"
                 },
                 "all_driver_impact_summary": {
                     "present": true,
-                    "modified": "6/20/2026 6:00:06 am",
-                    "size_bytes": 1313,
-                    "size_label": "1.3 KB"
+                    "modified": "6/21/2026 2:44:39 am",
+                    "size_bytes": 1576,
+                    "size_label": "1.5 KB"
+                },
+                "mrl_impact_pair_history": {
+                    "present": true,
+                    "modified": "6/21/2026 2:44:39 am",
+                    "size_bytes": 2882,
+                    "size_label": "2.8 KB"
                 },
                 "revision_meta": {
                     "present": false,
@@ -1888,19 +1992,386 @@
             "current_snapshot": "snapshot_20260308_204802115.html",
             "previous_snapshot_id": "20260308_203801892",
             "current_snapshot_id": "20260308_204802115",
-            "classification_matched": false,
-            "mrl_impact": false,
-            "standings_effect": "none_detected_for_mrl_standings",
-            "changed_all_drivers_count": null,
-            "changed_mrl_listed_drivers_count": null,
-            "changed_segment_picked_drivers_count": null,
-            "change_status": "snapshot_pair_only_no_classifier_row",
-            "change_status_label": "No classifier row for this pair",
+            "classification_matched": true,
+            "mrl_impact": true,
+            "standings_effect": "direct_week_and_downstream_indirect",
+            "changed_all_drivers_count": 16,
+            "changed_mrl_listed_drivers_count": 15,
+            "changed_segment_picked_drivers_count": 12,
+            "change_status": "mrl_impact_revision_required",
+            "change_status_label": "MRL Impact - Revision Required",
             "pending_review": false,
-            "changed_driver_details": [],
-            "notes": [
-                "Snapshot pair exists, but the current classifier summary does not include this exact older pair."
-            ]
+            "changed_driver_details": [
+                {
+                    "driver": "Austin Cindric",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 3,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 3
+                    },
+                    "new": {
+                        "pts": 13,
+                        "bonus": 10,
+                        "penalty": 0,
+                        "net": 13
+                    },
+                    "delta": {
+                        "pts": 10,
+                        "bonus": 10,
+                        "penalty": 0,
+                        "net": 10
+                    }
+                },
+                {
+                    "driver": "Austin Hill",
+                    "mrl_listed": false,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 0,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 0
+                    },
+                    "new": {
+                        "pts": 16,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 16
+                    },
+                    "delta": {
+                        "pts": 16,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 16
+                    }
+                },
+                {
+                    "driver": "Bubba Wallace",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 31,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 31
+                    },
+                    "new": {
+                        "pts": 37,
+                        "bonus": 6,
+                        "penalty": 0,
+                        "net": 37
+                    },
+                    "delta": {
+                        "pts": 6,
+                        "bonus": 6,
+                        "penalty": 0,
+                        "net": 6
+                    }
+                },
+                {
+                    "driver": "Carson Hocevar",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 17,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 17
+                    },
+                    "new": {
+                        "pts": 21,
+                        "bonus": 4,
+                        "penalty": 0,
+                        "net": 21
+                    },
+                    "delta": {
+                        "pts": 4,
+                        "bonus": 4,
+                        "penalty": 0,
+                        "net": 4
+                    }
+                },
+                {
+                    "driver": "Chris Buescher",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 23,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 23
+                    },
+                    "new": {
+                        "pts": 30,
+                        "bonus": 7,
+                        "penalty": 0,
+                        "net": 30
+                    },
+                    "delta": {
+                        "pts": 7,
+                        "bonus": 7,
+                        "penalty": 0,
+                        "net": 7
+                    }
+                },
+                {
+                    "driver": "Christopher Bell",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 35,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 35
+                    },
+                    "new": {
+                        "pts": 54,
+                        "bonus": 19,
+                        "penalty": 0,
+                        "net": 54
+                    },
+                    "delta": {
+                        "pts": 19,
+                        "bonus": 19,
+                        "penalty": 0,
+                        "net": 19
+                    }
+                },
+                {
+                    "driver": "Daniel Suarez",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 7,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 7
+                    },
+                    "new": {
+                        "pts": 11,
+                        "bonus": 4,
+                        "penalty": 0,
+                        "net": 11
+                    },
+                    "delta": {
+                        "pts": 4,
+                        "bonus": 4,
+                        "penalty": 0,
+                        "net": 4
+                    }
+                },
+                {
+                    "driver": "Denny Hamlin",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 32,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 32
+                    },
+                    "new": {
+                        "pts": 47,
+                        "bonus": 15,
+                        "penalty": 0,
+                        "net": 47
+                    },
+                    "delta": {
+                        "pts": 15,
+                        "bonus": 15,
+                        "penalty": 0,
+                        "net": 15
+                    }
+                },
+                {
+                    "driver": "Joey Logano",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 6,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 6
+                    },
+                    "new": {
+                        "pts": 23,
+                        "bonus": 17,
+                        "penalty": 0,
+                        "net": 23
+                    },
+                    "delta": {
+                        "pts": 17,
+                        "bonus": 17,
+                        "penalty": 0,
+                        "net": 17
+                    }
+                },
+                {
+                    "driver": "Kyle Larson",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 34,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 34
+                    },
+                    "new": {
+                        "pts": 36,
+                        "bonus": 2,
+                        "penalty": 0,
+                        "net": 36
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 2,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Ross Chastain",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 9,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 9
+                    },
+                    "new": {
+                        "pts": 10,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 10
+                    },
+                    "delta": {
+                        "pts": 1,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 1
+                    }
+                },
+                {
+                    "driver": "Ryan Blaney",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 55,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 55
+                    },
+                    "new": {
+                        "pts": 65,
+                        "bonus": 10,
+                        "penalty": 0,
+                        "net": 65
+                    },
+                    "delta": {
+                        "pts": 10,
+                        "bonus": 10,
+                        "penalty": 0,
+                        "net": 10
+                    }
+                },
+                {
+                    "driver": "Todd Gilliland",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 25,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 25
+                    },
+                    "new": {
+                        "pts": 26,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 26
+                    },
+                    "delta": {
+                        "pts": 1,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 1
+                    }
+                },
+                {
+                    "driver": "Ty Gibbs",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 33,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 33
+                    },
+                    "new": {
+                        "pts": 36,
+                        "bonus": 3,
+                        "penalty": 0,
+                        "net": 36
+                    },
+                    "delta": {
+                        "pts": 3,
+                        "bonus": 3,
+                        "penalty": 0,
+                        "net": 3
+                    }
+                },
+                {
+                    "driver": "Tyler Reddick",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 29,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 29
+                    },
+                    "new": {
+                        "pts": 39,
+                        "bonus": 10,
+                        "penalty": 0,
+                        "net": 39
+                    },
+                    "delta": {
+                        "pts": 10,
+                        "bonus": 10,
+                        "penalty": 0,
+                        "net": 10
+                    }
+                },
+                {
+                    "driver": "William Byron",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 30,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 30
+                    },
+                    "new": {
+                        "pts": 32,
+                        "bonus": 2,
+                        "penalty": 0,
+                        "net": 32
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 2,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                }
+            ],
+            "notes": []
         },
         {
             "event_id": "20260308_205601920",
@@ -2172,7 +2643,7 @@
             "changed_all_drivers_count": 0,
             "changed_mrl_listed_drivers_count": 0,
             "changed_segment_picked_drivers_count": 0,
-            "change_status": "pending_review_mrl_impact",
+            "change_status": "pending_review_no_mrl_impact",
             "change_status_label": "Pending Review - No MRL Impact",
             "pending_review": true,
             "changed_driver_details": [],
@@ -2198,7 +2669,7 @@
             "changed_all_drivers_count": 1,
             "changed_mrl_listed_drivers_count": 0,
             "changed_segment_picked_drivers_count": 0,
-            "change_status": "pending_review_mrl_impact",
+            "change_status": "pending_review_no_mrl_impact",
             "change_status_label": "Pending Review - No MRL Impact",
             "pending_review": true,
             "changed_driver_details": [
@@ -2229,6 +2700,172 @@
             "notes": []
         }
     ],
-    "indirect_candidates": [],
+    "indirect_candidates": [
+        {
+            "event_id": "20260308_204802115_R04",
+            "caused_by_event_id": "20260308_204802115",
+            "caused_by_race_code": "R04",
+            "caused_by_race_name": "Phoenix",
+            "affected_race_code": "R04",
+            "affected_race_number": 4,
+            "affected_race_name": "Phoenix",
+            "source_type": "direct",
+            "effect_label": "Direct source week",
+            "affected_status": "released_or_captured",
+            "pending_review": false,
+            "generated_snapshot_needed": true,
+            "generated_snapshot_id_suggestion": "20260308_204802115_R04"
+        },
+        {
+            "event_id": "20260308_204802115_R05",
+            "caused_by_event_id": "20260308_204802115",
+            "caused_by_race_code": "R04",
+            "caused_by_race_name": "Phoenix",
+            "affected_race_code": "R05",
+            "affected_race_number": 5,
+            "affected_race_name": "Las Vegas",
+            "source_type": "indirect",
+            "effect_label": "Indirect downstream week",
+            "affected_status": "released_or_captured",
+            "pending_review": false,
+            "generated_snapshot_needed": true,
+            "generated_snapshot_id_suggestion": "20260308_204802115_R05"
+        },
+        {
+            "event_id": "20260308_204802115_R06",
+            "caused_by_event_id": "20260308_204802115",
+            "caused_by_race_code": "R04",
+            "caused_by_race_name": "Phoenix",
+            "affected_race_code": "R06",
+            "affected_race_number": 6,
+            "affected_race_name": "Darlington",
+            "source_type": "indirect",
+            "effect_label": "Indirect downstream week",
+            "affected_status": "released_or_captured",
+            "pending_review": false,
+            "generated_snapshot_needed": true,
+            "generated_snapshot_id_suggestion": "20260308_204802115_R06"
+        },
+        {
+            "event_id": "20260308_204802115_R07",
+            "caused_by_event_id": "20260308_204802115",
+            "caused_by_race_code": "R04",
+            "caused_by_race_name": "Phoenix",
+            "affected_race_code": "R07",
+            "affected_race_number": 7,
+            "affected_race_name": "Martinsville",
+            "source_type": "indirect",
+            "effect_label": "Indirect downstream week",
+            "affected_status": "released_or_captured",
+            "pending_review": false,
+            "generated_snapshot_needed": true,
+            "generated_snapshot_id_suggestion": "20260308_204802115_R07"
+        },
+        {
+            "event_id": "20260308_204802115_R08",
+            "caused_by_event_id": "20260308_204802115",
+            "caused_by_race_code": "R04",
+            "caused_by_race_name": "Phoenix",
+            "affected_race_code": "R08",
+            "affected_race_number": 8,
+            "affected_race_name": "Bristol",
+            "source_type": "indirect",
+            "effect_label": "Indirect downstream week",
+            "affected_status": "released_or_captured",
+            "pending_review": false,
+            "generated_snapshot_needed": true,
+            "generated_snapshot_id_suggestion": "20260308_204802115_R08"
+        },
+        {
+            "event_id": "20260308_204802115_R09",
+            "caused_by_event_id": "20260308_204802115",
+            "caused_by_race_code": "R04",
+            "caused_by_race_name": "Phoenix",
+            "affected_race_code": "R09",
+            "affected_race_number": 9,
+            "affected_race_name": "Kansas",
+            "source_type": "indirect",
+            "effect_label": "Indirect downstream week",
+            "affected_status": "released_or_captured",
+            "pending_review": false,
+            "generated_snapshot_needed": true,
+            "generated_snapshot_id_suggestion": "20260308_204802115_R09"
+        },
+        {
+            "event_id": "20260308_204802115_R10",
+            "caused_by_event_id": "20260308_204802115",
+            "caused_by_race_code": "R04",
+            "caused_by_race_name": "Phoenix",
+            "affected_race_code": "R10",
+            "affected_race_number": 10,
+            "affected_race_name": "Talladega",
+            "source_type": "indirect",
+            "effect_label": "Indirect downstream week",
+            "affected_status": "released_or_captured",
+            "pending_review": false,
+            "generated_snapshot_needed": true,
+            "generated_snapshot_id_suggestion": "20260308_204802115_R10"
+        },
+        {
+            "event_id": "20260308_204802115_R11",
+            "caused_by_event_id": "20260308_204802115",
+            "caused_by_race_code": "R04",
+            "caused_by_race_name": "Phoenix",
+            "affected_race_code": "R11",
+            "affected_race_number": 11,
+            "affected_race_name": "Texas",
+            "source_type": "indirect",
+            "effect_label": "Indirect downstream week",
+            "affected_status": "released_or_captured",
+            "pending_review": false,
+            "generated_snapshot_needed": true,
+            "generated_snapshot_id_suggestion": "20260308_204802115_R11"
+        },
+        {
+            "event_id": "20260308_204802115_R12",
+            "caused_by_event_id": "20260308_204802115",
+            "caused_by_race_code": "R04",
+            "caused_by_race_name": "Phoenix",
+            "affected_race_code": "R12",
+            "affected_race_number": 12,
+            "affected_race_name": "Watkins Glen",
+            "source_type": "indirect",
+            "effect_label": "Indirect downstream week",
+            "affected_status": "released_or_captured",
+            "pending_review": false,
+            "generated_snapshot_needed": true,
+            "generated_snapshot_id_suggestion": "20260308_204802115_R12"
+        },
+        {
+            "event_id": "20260308_204802115_R13",
+            "caused_by_event_id": "20260308_204802115",
+            "caused_by_race_code": "R04",
+            "caused_by_race_name": "Phoenix",
+            "affected_race_code": "R13",
+            "affected_race_number": 13,
+            "affected_race_name": "Charlotte",
+            "source_type": "indirect",
+            "effect_label": "Indirect downstream week",
+            "affected_status": "released_or_captured",
+            "pending_review": false,
+            "generated_snapshot_needed": true,
+            "generated_snapshot_id_suggestion": "20260308_204802115_R13"
+        },
+        {
+            "event_id": "20260308_204802115_R14",
+            "caused_by_event_id": "20260308_204802115",
+            "caused_by_race_code": "R04",
+            "caused_by_race_name": "Phoenix",
+            "affected_race_code": "R14",
+            "affected_race_number": 14,
+            "affected_race_name": "Nashville",
+            "source_type": "indirect",
+            "effect_label": "Indirect downstream week",
+            "affected_status": "released_or_captured",
+            "pending_review": false,
+            "generated_snapshot_needed": true,
+            "generated_snapshot_id_suggestion": "20260308_204802115_R14"
+        }
+    ],
     "gaps": []
 }
