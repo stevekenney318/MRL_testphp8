@@ -28,10 +28,24 @@ if ($isTestSite) {
 /**
  * weekly_standings.php
  *
- * VERSION: v057sk
- * LAST MODIFIED: 6/11/2026 9:51:58 pm
+ * VERSION: v058
+ * LAST MODIFIED: 6/21/2026 7:46:06 am
  *
  * CHANGELOG:
+ *
+ * v058 (6/21/26 7:46:06 am)
+ *   - CHANGE: Release-history ladder now shows current/newest releases first, matching revision-block reading order.
+ *   - FIX: Audit ladder table wraps long change/status text within the audit panel instead of running past the panel edge.
+ *
+ * v058 (6/21/26 7:27:49 am)
+ *   - CHANGE: Audit panel now shows a release-history ladder for the selected race/week so initial and updated releases are visible together.
+ *   - CHANGE: Dropped the temporary sk suffix while continuing the v058 weekly audit-panel work.
+ *   - CHANGE: Audit panel now supports multi-snapshot release history records with updated-release, supersedes, and change-summary metadata.
+ *
+ * v058sk (6/21/26)
+ *   - CHANGE: Added an Audit button and expandable public audit trail panel beside Validation.
+ *   - CHANGE: Weekly audit panel reads _weekly_standings_release_history.json when present and falls back to selected snapshot release metadata.
+ *   - CHANGE: Public audit wording uses league-friendly release/update/supersedes language while keeping technical IDs hidden unless available.
  *
  * v057sk (6/11/26)
  *   - CHANGE: Added environment check to show sandbox text.
@@ -814,6 +828,297 @@ function rrsg_format_snapshot_timestamp(string $snapshotFile): string
     }
 
     return $dt->format('n/j/y g:ia');
+}
+
+function rrsg_snapshot_id_from_file(string $snapshotFile): string
+{
+    $base = basename($snapshotFile);
+    if (!preg_match('/^snapshot_(\d{8}_\d{6}\d*)\.html$/', $base, $m)) {
+        return '';
+    }
+
+    return (string)$m[1];
+}
+
+function rrsg_snapshot_raw_datetime_from_id(string $snapshotId): string
+{
+    if (!preg_match('/^(\d{8})_(\d{6})/', $snapshotId, $m)) {
+        return '';
+    }
+
+    $dt = DateTime::createFromFormat('Ymd His', $m[1] . ' ' . $m[2], new DateTimeZone('America/New_York'));
+    if (!$dt) {
+        return '';
+    }
+
+    return $dt->format('Y-m-d H:i:s');
+}
+
+function rrsg_format_public_datetime(string $raw): string
+{
+    $raw = trim($raw);
+    if ($raw === '') {
+        return '';
+    }
+
+    $tz = new DateTimeZone('America/New_York');
+    $formats = [
+        'Y-m-d H:i:s',
+        'Y-m-d\TH:i:sP',
+        'Y-m-d\TH:i:s',
+        'm/d/Y H:i:s',
+        'n/j/Y g:i:s a',
+        'n/j/Y g:i a',
+    ];
+
+    foreach ($formats as $format) {
+        $dt = DateTime::createFromFormat($format, $raw, $tz);
+        if ($dt instanceof DateTime) {
+            return $dt->format('M j, Y g:i A');
+        }
+    }
+
+    try {
+        $dt = new DateTime($raw, $tz);
+        return $dt->format('M j, Y g:i A');
+    } catch (Exception $e) {
+        return $raw;
+    }
+}
+
+function rrsg_load_weekly_release_history(string $yearFolder): array
+{
+    $path = rtrim($yearFolder, '/\\') . '/_weekly_standings_release_history.json';
+    if (!is_file($path)) {
+        return [];
+    }
+
+    $data = rr_load_json($path);
+    return is_array($data) ? $data : [];
+}
+
+function rrsg_release_history_rows(array $history): array
+{
+    if (isset($history['releases']) && is_array($history['releases'])) {
+        return $history['releases'];
+    }
+
+    if (isset($history['rows']) && is_array($history['rows'])) {
+        return $history['rows'];
+    }
+
+    return [];
+}
+
+function rrsg_find_release_meta_for_race(array $history, string $raceCode, string $snapshotId): array
+{
+    $rows = rrsg_release_history_rows($history);
+    $fallback = [];
+    $exact = [];
+
+    foreach ($rows as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+
+        if ((string)($row['race_code'] ?? '') !== $raceCode) {
+            continue;
+        }
+
+        $fallback = $row;
+        $rowSnapshotId = (string)($row['snapshot_id'] ?? '');
+        $rowSourceSnapshotId = (string)($row['source_snapshot_id'] ?? '');
+        $rowGeneratedId = (string)($row['generated_id'] ?? '');
+        $rowReleaseId = (string)($row['release_id'] ?? '');
+
+        if ($snapshotId !== '' && (
+            $rowSnapshotId === $snapshotId ||
+            $rowSourceSnapshotId === $snapshotId ||
+            strpos($rowGeneratedId, $snapshotId . '_') === 0 ||
+            strpos($rowReleaseId, $snapshotId . '_') === 0
+        )) {
+            $exact = $row;
+        }
+    }
+
+    return !empty($exact) ? $exact : $fallback;
+}
+
+
+function rrsg_release_history_rows_for_race(array $history, string $raceCode): array
+{
+    $rows = [];
+
+    foreach (rrsg_release_history_rows($history) as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+
+        if ((string)($row['race_code'] ?? '') !== $raceCode) {
+            continue;
+        }
+
+        $rows[] = $row;
+    }
+
+    usort($rows, function (array $a, array $b): int {
+        $aTime = strtotime((string)($a['released_at'] ?? '')) ?: 0;
+        $bTime = strtotime((string)($b['released_at'] ?? '')) ?: 0;
+
+        if ($aTime !== $bTime) {
+            return $aTime <=> $bTime;
+        }
+
+        $aSnapshot = (string)($a['snapshot_id'] ?? $a['generated_id'] ?? $a['release_id'] ?? '');
+        $bSnapshot = (string)($b['snapshot_id'] ?? $b['generated_id'] ?? $b['release_id'] ?? '');
+        return strcmp($aSnapshot, $bSnapshot);
+    });
+
+    return $rows;
+}
+
+function rrsg_release_history_current_id(array $meta): string
+{
+    return (string)($meta['generated_id'] ?? $meta['release_id'] ?? '');
+}
+
+function rrsg_release_history_ladder_rows(array $history, string $raceCode, string $currentReleaseId = ''): array
+{
+    $ladder = [];
+
+    foreach (rrsg_release_history_rows_for_race($history, $raceCode) as $index => $row) {
+        $releaseId = rrsg_release_history_current_id($row);
+        $releasedDisplay = (string)($row['released_at_display'] ?? '');
+        if ($releasedDisplay === '') {
+            $releasedDisplay = rrsg_format_public_datetime((string)($row['released_at'] ?? ''));
+        }
+
+        $ladder[] = [
+            'number' => $index + 1,
+            'release_id' => $releaseId,
+            'is_current' => ($currentReleaseId !== '' && $releaseId === $currentReleaseId),
+            'release_type_label' => rrsg_audit_release_type_label($row),
+            'released_display' => $releasedDisplay,
+            'status_label' => (string)($row['public_status'] ?? $row['status_label'] ?? ''),
+            'supersedes_label' => rrsg_audit_supersedes_label($row['supersedes'] ?? ''),
+            'mrl_impact_label' => rrsg_audit_mrl_impact_label($row),
+            'change_summary_label' => (string)($row['change_status_label'] ?? ''),
+        ];
+    }
+
+    return array_reverse($ladder);
+}
+
+function rrsg_audit_release_type_label(array $meta): string
+{
+    $releaseType = strtolower(trim((string)($meta['release_type'] ?? '')));
+    $sourceType = strtolower(trim((string)($meta['source_type'] ?? '')));
+
+    if ($releaseType === 'revised' || $releaseType === 'updated' || $sourceType === 'indirect_revision' || $sourceType === 'direct_revision') {
+        return 'Updated release';
+    }
+
+    if ($releaseType === 'pending_review') {
+        return 'Pending review';
+    }
+
+    return 'Initial release';
+}
+
+function rrsg_audit_mrl_impact_label(array $meta): string
+{
+    if (!array_key_exists('mrl_impact', $meta) || $meta['mrl_impact'] === null || $meta['mrl_impact'] === '') {
+        return 'Not applicable';
+    }
+
+    return !empty($meta['mrl_impact']) ? 'Yes' : 'No';
+}
+
+function rrsg_audit_supersedes_label($supersedes): string
+{
+    if (is_array($supersedes)) {
+        $display = (string)($supersedes['released_at_display'] ?? '');
+        if ($display !== '') {
+            return $display . ' release';
+        }
+
+        $raw = (string)($supersedes['released_at'] ?? '');
+        if ($raw !== '') {
+            return rrsg_format_public_datetime($raw) . ' release';
+        }
+
+        $id = (string)($supersedes['release_id'] ?? $supersedes['generated_id'] ?? '');
+        return $id !== '' ? $id : 'Prior release';
+    }
+
+    $text = trim((string)$supersedes);
+    return $text !== '' ? $text : 'None';
+}
+
+function rrsg_build_public_audit_meta(array $selectedRaceMeta, ?array $selectedRace, bool $underReview, array $releaseHistory): array
+{
+    if ($selectedRace === null || (string)($selectedRaceMeta['raceCode'] ?? '') === '') {
+        return [];
+    }
+
+    $snapshotFile = (string)($selectedRaceMeta['snapshotFile'] ?? '');
+    $snapshotId = rrsg_snapshot_id_from_file($snapshotFile);
+    $raceCode = (string)($selectedRaceMeta['raceCode'] ?? '');
+    $raceLabel = (string)($selectedRaceMeta['raceLabel'] ?? '');
+    $existing = rrsg_find_release_meta_for_race($releaseHistory, $raceCode, $snapshotId);
+
+    if (!empty($existing)) {
+        $releaseTypeLabel = rrsg_audit_release_type_label($existing);
+        $releasedDisplay = (string)($existing['released_at_display'] ?? '');
+        if ($releasedDisplay === '') {
+            $releasedDisplay = rrsg_format_public_datetime((string)($existing['released_at'] ?? ''));
+        }
+
+        $reason = trim((string)($existing['reason_public'] ?? $existing['reason'] ?? ''));
+        if ($reason === '') {
+            $reason = ($releaseTypeLabel === 'Updated release')
+                ? 'Earlier race results changed after this week was released.'
+                : 'Official standings release.';
+        }
+
+        return [
+            'release_type_label' => $releaseTypeLabel,
+            'released_display' => $releasedDisplay,
+            'status_label' => (string)($existing['public_status'] ?? $existing['status_label'] ?? ($underReview ? 'Pending league review' : 'Official standings release')),
+            'reason' => $reason,
+            'supersedes_label' => rrsg_audit_supersedes_label($existing['supersedes'] ?? ''),
+            'mrl_impact_label' => rrsg_audit_mrl_impact_label($existing),
+            'change_summary_label' => (string)($existing['change_status_label'] ?? ''),
+            'generated_id' => (string)($existing['generated_id'] ?? $existing['release_id'] ?? ''),
+            'caused_by' => (string)($existing['caused_by_public'] ?? $existing['caused_by_event_id'] ?? ''),
+            'source_type' => (string)($existing['source_type'] ?? 'initial'),
+            'changed_driver_details' => (isset($existing['changed_driver_details']) && is_array($existing['changed_driver_details'])) ? $existing['changed_driver_details'] : [],
+            'release_ladder' => rrsg_release_history_ladder_rows($releaseHistory, $raceCode, (string)($existing['generated_id'] ?? $existing['release_id'] ?? '')),
+        ];
+    }
+
+    $releasedRaw = rrsg_snapshot_raw_datetime_from_id($snapshotId);
+    $releasedDisplay = rrsg_format_public_datetime($releasedRaw);
+    if ($releasedDisplay === '') {
+        $releasedDisplay = (string)($selectedRaceMeta['snapshotDisplay'] ?? '');
+    }
+
+    return [
+        'release_type_label' => ($underReview ? 'Pending review' : 'Initial release'),
+        'released_display' => $releasedDisplay,
+        'status_label' => ($underReview ? 'Pending league review' : 'Official standings release'),
+        'reason' => ($underReview
+            ? 'Results generated automatically and awaiting league release.'
+            : 'Initial standings release for ' . $raceCode . ($raceLabel !== '' ? ' ' . $raceLabel : '') . '.'),
+        'supersedes_label' => 'None',
+        'mrl_impact_label' => 'Not applicable',
+        'change_summary_label' => '',
+        'generated_id' => ($snapshotId !== '' ? $snapshotId . '_' . $raceCode : ''),
+        'caused_by' => '',
+        'source_type' => 'initial',
+        'changed_driver_details' => [],
+        'release_ladder' => rrsg_release_history_ladder_rows($releaseHistory, $raceCode, ($snapshotId !== '' ? $snapshotId . '_' . $raceCode : '')),
+    ];
 }
 
 function rrsg_build_weekly_rows(array $teamRows, array $driverPoints): array
@@ -2077,6 +2382,9 @@ if ($selectedRace !== null) {
     $underReview = rrsg_race_is_pending_review((string)$selectedRace['raceFolder']);
 }
 
+$weeklyReleaseHistory = rrsg_load_weekly_release_history($yearFolder);
+$auditMeta = rrsg_build_public_audit_meta($selectedRaceMeta, $selectedRace, $underReview, $weeklyReleaseHistory);
+
 $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
 
 $weeklySummaryRows = rrsg_ranked_summary_rows(
@@ -2307,6 +2615,8 @@ if ($exportMode === 'xlsx') {
             overflow: hidden;
             text-overflow: ellipsis;
             vertical-align: top;
+            overflow-wrap: anywhere;
+            word-break: normal;
         }
 
         .details-content {
@@ -2384,6 +2694,115 @@ if ($exportMode === 'xlsx') {
             color: #444;
             border-radius: 8px;
             max-width: 560px;
+        }
+
+        .audit-btn {
+            font-weight: bold;
+            min-width: 82px;
+            border-radius: 25px;
+            background: #d9ecff;
+            color: #084298;
+            border: 3px solid #7db7ff;
+        }
+
+        .audit-btn:hover {
+            filter: brightness(0.96);
+        }
+
+        .audit-btn[disabled] {
+            cursor: default;
+            opacity: 0.5;
+            filter: none;
+        }
+
+        .audit-panel {
+            display: none;
+            margin: 6px 0 8px 0;
+            padding: 8px 10px;
+            font-size: 13px;
+            line-height: 1.35;
+            background: #eef6ff;
+            border: 2px solid #9ec5fe;
+            color: #25364a;
+            border-radius: 8px;
+            max-width: 980px;
+            box-sizing: border-box;
+            overflow-x: auto;
+        }
+
+        .audit-panel-title {
+            font-weight: bold;
+            font-size: 15px;
+            margin: 0 0 6px 0;
+        }
+
+        .audit-grid {
+            display: grid;
+            grid-template-columns: max-content minmax(0, 1fr);
+            gap: 3px 10px;
+        }
+
+        .audit-label {
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .audit-value {
+            min-width: 0;
+        }
+
+        .audit-debug {
+            margin-top: 6px;
+            font-size: 11px;
+            color: #4f5f70;
+        }
+
+        .audit-ladder {
+            margin-top: 10px;
+            border-top: 1px solid #bfd9ff;
+            padding-top: 8px;
+        }
+
+        .audit-ladder-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .audit-ladder-table {
+            width: 100%;
+            table-layout: fixed;
+            border-collapse: collapse;
+            font-size: 12px;
+            background: rgba(255,255,255,0.45);
+        }
+
+        .audit-ladder-table th,
+        .audit-ladder-table td {
+            border: 1px solid #bfd9ff;
+            padding: 4px 6px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .audit-ladder-table th {
+            background: #ddecff;
+            font-weight: bold;
+        }
+
+        .audit-ladder-current {
+            outline: 2px solid #7db7ff;
+            background: #f7fbff;
+        }
+
+        .audit-current-pill {
+            display: inline-block;
+            margin-left: 5px;
+            padding: 1px 6px;
+            border-radius: 12px;
+            background: #cfe2ff;
+            color: #084298;
+            font-size: 11px;
+            font-weight: bold;
         }
 
         .race-placeholder {
@@ -2681,6 +3100,7 @@ if ($exportMode === 'xlsx') {
 
             .top-controls,
             .pending-review-panel,
+            .audit-panel,
             .race-placeholder,
             .details-content,
             .team-detail-row {
@@ -2861,6 +3281,14 @@ if ($exportMode === 'xlsx') {
                 Show Validation
             </button>
 
+            <button type="button"
+                    class="details-toggle audit-btn"
+                    id="auditToggle"
+                    onclick="toggleAuditPanel()"
+                    <?php echo ($selectedRace === null ? 'disabled' : ''); ?>>
+                Audit
+            </button>
+
             <?php if ($underReview): ?>
                 <button type="button"
                         class="details-toggle pending-review-btn"
@@ -2890,6 +3318,76 @@ if ($exportMode === 'xlsx') {
     <?php if ($underReview): ?>
         <div class="pending-review-panel" id="reviewPanel">
             Results generated automatically. Pending league review.
+        </div>
+    <?php endif; ?>
+
+    <?php if ($selectedRace !== null): ?>
+        <div class="audit-panel" id="auditPanel">
+            <div class="audit-panel-title">Audit Trail</div>
+            <div class="audit-grid">
+                <div class="audit-label">Release:</div>
+                <div class="audit-value"><?php echo rrsg_h((string)($auditMeta['release_type_label'] ?? 'Initial release')); ?></div>
+
+                <div class="audit-label">Released:</div>
+                <div class="audit-value"><?php echo rrsg_h((string)($auditMeta['released_display'] ?? '')); ?></div>
+
+                <div class="audit-label">Status:</div>
+                <div class="audit-value"><?php echo rrsg_h((string)($auditMeta['status_label'] ?? 'Official standings release')); ?></div>
+
+                <div class="audit-label">Reason:</div>
+                <div class="audit-value"><?php echo rrsg_h((string)($auditMeta['reason'] ?? 'Initial standings release.')); ?></div>
+
+                <div class="audit-label">Supersedes:</div>
+                <div class="audit-value"><?php echo rrsg_h((string)($auditMeta['supersedes_label'] ?? 'None')); ?></div>
+
+                <div class="audit-label">MRL Impact:</div>
+                <div class="audit-value"><?php echo rrsg_h((string)($auditMeta['mrl_impact_label'] ?? 'Not applicable')); ?></div>
+
+                <?php if (!empty($auditMeta['change_summary_label'])): ?>
+                    <div class="audit-label">Change:</div>
+                    <div class="audit-value"><?php echo rrsg_h((string)$auditMeta['change_summary_label']); ?></div>
+                <?php endif; ?>
+            </div>
+
+            <?php if (!empty($auditMeta['generated_id'])): ?>
+                <div class="audit-debug">Release ID: <?php echo rrsg_h((string)$auditMeta['generated_id']); ?></div>
+            <?php endif; ?>
+
+            <?php if (!empty($auditMeta['release_ladder']) && is_array($auditMeta['release_ladder']) && count($auditMeta['release_ladder']) > 1): ?>
+                <div class="audit-ladder">
+                    <div class="audit-ladder-title">Release history for <?php echo rrsg_h($selectedRaceCode . ($selectedRaceMeta['raceLabel'] !== '' ? ' ' . $selectedRaceMeta['raceLabel'] : '')); ?></div>
+                    <table class="audit-ladder-table">
+                        <thead>
+                            <tr>
+                                <th>Version</th>
+                                <th>Released</th>
+                                <th>Status</th>
+                                <th>MRL Impact</th>
+                                <th>Supersedes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($auditMeta['release_ladder'] as $ladderRow): ?>
+                                <tr class="<?php echo (!empty($ladderRow['is_current']) ? 'audit-ladder-current' : ''); ?>">
+                                    <td>
+                                        <?php echo rrsg_h((string)($ladderRow['release_type_label'] ?? 'Release')); ?>
+                                        <?php if (!empty($ladderRow['is_current'])): ?>
+                                            <span class="audit-current-pill">current</span>
+                                        <?php endif; ?>
+                                        <?php if (!empty($ladderRow['change_summary_label'])): ?>
+                                            <br><small><?php echo rrsg_h((string)$ladderRow['change_summary_label']); ?></small>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td><?php echo rrsg_h((string)($ladderRow['released_display'] ?? '')); ?></td>
+                                    <td><?php echo rrsg_h((string)($ladderRow['status_label'] ?? '')); ?></td>
+                                    <td><?php echo rrsg_h((string)($ladderRow['mrl_impact_label'] ?? 'Not applicable')); ?></td>
+                                    <td><?php echo rrsg_h((string)($ladderRow['supersedes_label'] ?? 'None')); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
         </div>
     <?php endif; ?>
 
@@ -3448,6 +3946,8 @@ function repopulateRaceOptions() {
 function setNoRaceSelectedState() {
     var detailsEl = document.getElementById('detailsContent');
     var detailsBtn = document.getElementById('detailsToggle');
+    var auditBtn = document.getElementById('auditToggle');
+    var auditPanel = document.getElementById('auditPanel');
     var resultsArea = document.getElementById('resultsArea');
     var placeholderEl = document.getElementById('racePlaceholder');
     var noteEl = document.getElementById('historicalNoteSlot');
@@ -3461,6 +3961,14 @@ function setNoRaceSelectedState() {
         detailsBtn.disabled = true;
         detailsBtn.classList.remove('status-pass', 'status-warn', 'status-fail');
         detailsBtn.classList.add('status-neutral');
+    }
+
+    if (auditPanel) {
+        auditPanel.style.display = 'none';
+    }
+
+    if (auditBtn) {
+        auditBtn.disabled = true;
     }
 
     if (resultsArea) {
@@ -3555,6 +4063,20 @@ function navigateRace(direction) {
     formEl.submit();
 }
 
+function toggleAuditPanel() {
+    var panel = document.getElementById('auditPanel');
+
+    if (!panel) {
+        return;
+    }
+
+    if (panel.style.display === 'none' || panel.style.display === '') {
+        panel.style.display = 'block';
+    } else {
+        panel.style.display = 'none';
+    }
+}
+
 function toggleReviewPanel() {
     var panel = document.getElementById('reviewPanel');
 
@@ -3613,6 +4135,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var detailsEl = document.getElementById('detailsContent');
     var detailsBtn = document.getElementById('detailsToggle');
     var reviewPanel = document.getElementById('reviewPanel');
+    var auditPanel = document.getElementById('auditPanel');
 
     if (yearEl) {
         yearEl.addEventListener('change', function () {
@@ -3637,6 +4160,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 detailsEl.style.display = 'none';
             }
 
+            if (auditPanel) {
+                auditPanel.style.display = 'none';
+            }
+
             if (detailsBtn) {
                 detailsBtn.textContent = 'Show Validation';
             }
@@ -3656,6 +4183,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (reviewPanel) {
         reviewPanel.style.display = 'none';
+    }
+
+    if (auditPanel) {
+        auditPanel.style.display = 'none';
     }
 
     updateNavButtons();

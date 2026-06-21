@@ -122,3 +122,4 @@ public_html/race_results/_scheduler/schedule - *.json
 public_html/race_results/_scheduler/schedule *.json
 public_html/race_results/_scheduler/schedule_*.json
 public_html/race_results/_weekly_standings_audit_index.json
+public_html/race_results/_weekly_standings_audit_index.json
