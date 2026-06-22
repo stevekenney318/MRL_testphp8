@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * cron_master_scheduler.php
  *
- * VERSION: v013
- * LAST MODIFIED: 6/21/2026 5:44:47 pm
+ * VERSION: v012
+ * LAST MODIFIED: 6/14/2026 3:15:13 pm
  *
  * DESCRIPTION:
  * Basic JSON-driven master scheduler for MRL race-results automation.
@@ -25,10 +25,6 @@ declare(strict_types=1);
  *        -> race_results_classify_revisions.php when revisions are detected
  *
  * CHANGELOG:
- * v013 (6/21/2026)
- * - NEW: Updates optional NASCAR At a Glance cache after race_results_monitor runs.
- * - NOTE: NASCAR data remains info-only and does not drive MRL scoring/final/revision logic.
- *
  * v012 (6/14/2026)
  * - FIX: Race scheduler now applies lap_percent_cadence once lap_current/lap_total are available.
  * - FIX: Prevents lap-status-active mode from staying at the generic 5-minute cadence after the race passes 50%, 75%, or 90% complete.
@@ -111,8 +107,8 @@ declare(strict_types=1);
 
 date_default_timezone_set('America/New_York');
 
-const CMS_VERSION = 'v013';
-const CMS_SIGNATURE = 'CRON_MASTER_SCHEDULER v013';
+const CMS_VERSION = 'v012';
+const CMS_SIGNATURE = 'CRON_MASTER_SCHEDULER v012';
 
 $baseDir = __DIR__;
 $schedulerDir = $baseDir . '/_scheduler';
@@ -381,10 +377,6 @@ foreach ($tasks as $taskName => $task) {
         cms_out("ERROR {$taskName}: exit " . (string)$result['exit_code']);
     }
 
-    if ($taskName === 'race_results_monitor' && (int)$result['exit_code'] === 0) {
-        cms_mrl_nascar_cache_after_monitor_run($baseDir, $year, $state, $taskName, $logFile);
-    }
-
     cms_release_lock($lockHandle, $lockPath);
 }
 
@@ -474,48 +466,6 @@ function cms_log(string $logFile, string $line): void
 {
     $entry = '[' . cms_now_string() . '] ' . $line . "\n";
     @file_put_contents($logFile, $entry, FILE_APPEND | LOCK_EX);
-}
-
-function cms_mrl_nascar_cache_after_monitor_run(string $baseDir, int $year, array &$state, string $taskName, string $logFile): void
-{
-    $helper = rtrim($baseDir, '/\\') . '/mrl_nascar_live_helper.php';
-    if (!is_file($helper)) {
-        $state['tasks'][$taskName]['nascar_live_cache'] = [
-            'ok' => false,
-            'updated_at' => cms_now_string(),
-            'message' => 'mrl_nascar_live_helper.php not found.',
-        ];
-        cms_log($logFile, 'NASCAR CACHE skipped helper missing');
-        return;
-    }
-
-    try {
-        require_once $helper;
-        if (!function_exists('mrl_nascar_live_update_cache')) {
-            throw new RuntimeException('mrl_nascar_live_update_cache() not available.');
-        }
-
-        $status = mrl_nascar_live_update_cache($baseDir, $year, 6);
-        $state['tasks'][$taskName]['nascar_live_cache'] = [
-            'ok' => !empty($status['ok']),
-            'updated_at' => cms_now_string(),
-            'race_id' => (int)($status['race_id'] ?? 0),
-            'race_name' => (string)($status['race_name'] ?? ''),
-            'flag_label' => (string)($status['flag_label'] ?? ''),
-            'stage_label' => (string)($status['stage_label'] ?? ''),
-            'lap_label' => (string)($status['lap_label'] ?? ''),
-            'elapsed_label' => (string)($status['elapsed_label'] ?? ''),
-            'message' => (string)($status['message'] ?? ''),
-        ];
-        cms_log($logFile, 'NASCAR CACHE updated ok=' . (!empty($status['ok']) ? 'YES' : 'NO') . ' race_id=' . (string)($status['race_id'] ?? '') . ' lap=' . (string)($status['lap_label'] ?? ''));
-    } catch (Throwable $e) {
-        $state['tasks'][$taskName]['nascar_live_cache'] = [
-            'ok' => false,
-            'updated_at' => cms_now_string(),
-            'message' => $e->getMessage(),
-        ];
-        cms_log($logFile, 'NASCAR CACHE error=' . cms_compact_log_text($e->getMessage()));
-    }
 }
 
 function cms_load_json(string $path): array

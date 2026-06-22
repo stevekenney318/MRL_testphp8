@@ -4,10 +4,14 @@ declare(strict_types=1);
 /**
  * race_results_revision_monitor.php
  *
- * VERSION: v009
- * LAST MODIFIED: 6/6/2026 3:44:59 am
+ * VERSION: v010
+ * LAST MODIFIED: 6/21/2026 3:19:00 pm
  *
  * CHANGELOG:
+ * v010 (6/21/2026)
+ *   - NEW: Adds weekly standings release-history helper integration for direct updated release records after saved revision snapshots.
+ *   - NEW: Updated release records include supersedes links, MRL impact, change labels, and driver-change counts.
+ *
  * v009 (6/6/2026)
  *   - CHANGE: Revision monitor now skips only the race actively owned by the live monitor, not automatically the latest results page.
  *   - CHANGE: Completed/final-email races are allowed to enter revision-monitor ownership and scanning.
@@ -73,7 +77,7 @@ ini_set('log_errors', '1');
 ini_set('error_log', __DIR__ . '/_race_results_revision_monitor_php_errors.log');
 error_reporting(E_ALL);
 
-const RR_REVISION_MONITOR_SIGNATURE = 'RACE_RESULTS_REVISION_MONITOR v009';
+const RR_REVISION_MONITOR_SIGNATURE = 'RACE_RESULTS_REVISION_MONITOR v010';
 
 require_once __DIR__ . '/race_results_engine.php';
 
@@ -89,6 +93,7 @@ require_once $docRoot . '/config.php';
 require_once $docRoot . '/config_mrl.php';
 require_once $docRoot . '/class.user.php';
 require_once __DIR__ . '/race_results_classify_revisions.php';
+require_once __DIR__ . '/weekly_standings_release_history_helper.php';
 
 $user_home = new USER();
 
@@ -879,6 +884,57 @@ foreach ($completedRaces as $race) {
     rr_log_line($logFile, "REVISION META WRITTEN folder={$folderName} path={$revisionMetaPath} status={$status} pending=" . ($reviewRequired ? 'YES' : 'NO'));
     rrrev_out("  revision_meta.json updated.");
     rrrev_out("  Status: {$statusLine}");
+
+    // 6b. Record/update weekly standings release-history metadata for this direct result update.
+    if ($currentSnapshotBase !== '' && $raceCode !== '' && function_exists('wsrel_record_snapshot_release')) {
+        $snapshotIndexForRelease = 0;
+        $snapshotCountForRelease = 0;
+        if (is_array($snapshotFiles) && !empty($snapshotFiles)) {
+            $snapshotCountForRelease = count($snapshotFiles);
+            foreach ($snapshotFiles as $iRelease => $fileRelease) {
+                if (basename((string)$fileRelease) === $currentSnapshotBase) {
+                    $snapshotIndexForRelease = (int)$iRelease + 1;
+                    break;
+                }
+            }
+        }
+
+        $releaseWrite = wsrel_record_snapshot_release(__DIR__, (string)$year, [
+            'race_code' => (string)$raceCode,
+            'race_number' => (int)($race['race_number'] ?? 0),
+            'race_id' => (string)$raceId,
+            'race_name' => (string)$raceName,
+            'race_folder' => (string)$folderName,
+            'race_folder_rel' => (string)$year . '/' . (string)$folderName,
+            'release_type' => 'updated',
+            'source_type' => 'direct_revision',
+            'status' => $reviewRequired ? 'pending_review' : 'released',
+            'snapshot_file' => (string)$currentSnapshotBase,
+            'previous_snapshot' => (string)($revisionMeta['previous_snapshot'] ?? $previousSnapshotBase),
+            'snapshot_index' => $snapshotIndexForRelease,
+            'snapshot_count' => $snapshotCountForRelease,
+            'is_current_snapshot' => true,
+            'under_review' => $reviewRequired,
+            'mrl_impact' => $mrlImpact,
+            'change_status' => $status,
+            'change_status_label' => $statusLine,
+            'changed_mrl_drivers_count' => $changedMrlDrivers,
+            'changed_segment_picked_drivers_count' => $changedSegmentPickedDrivers,
+            'changed_mrl_listed_drivers_count' => $changedMrlListedDrivers,
+            'changed_all_drivers_count' => $changedAllDrivers,
+            'changed_driver_details' => isset($classification['changed_driver_details']) && is_array($classification['changed_driver_details']) ? $classification['changed_driver_details'] : (isset($classification['changedDriverDetails']) && is_array($classification['changedDriverDetails']) ? $classification['changedDriverDetails'] : []),
+            'classification' => $classification,
+            'builder_note' => 'Automatically recorded by race_results_revision_monitor after changed race-result snapshot classification.',
+        ]);
+
+        rr_log_line(
+            $logFile,
+            'RELEASE HISTORY ' . (!empty($releaseWrite['ok']) ? 'OK' : 'WARN')
+            . ' release_id=' . (string)($releaseWrite['release_id'] ?? '')
+            . ' message=' . (string)($releaseWrite['message'] ?? '')
+        );
+        rrrev_out('  Release history: ' . (!empty($releaseWrite['ok']) ? 'updated.' : 'warning - ' . (string)($releaseWrite['message'] ?? 'not updated')));
+    }
 
     // 7. Send email only when useful.
     $raceLabel = $raceName !== '' ? $raceName : $folderName;

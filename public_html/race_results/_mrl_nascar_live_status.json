@@ -1,0 +1,38 @@
+{
+    "signature": "MRL_NASCAR_LIVE_HELPER v001",
+    "version": "v001",
+    "generated_at": "2026-06-21 21:20:02",
+    "ok": true,
+    "message": "Live feed loaded.",
+    "source_url": "https://cf.nascar.com/live/feeds/live-feed.json",
+    "weekend_source_url": "https://cf.nascar.com/cacher/2026/1/5613/weekend-feed.json",
+    "year": 2026,
+    "race_id": 5613,
+    "series_id": 1,
+    "run_id": 11,
+    "track_id": 221,
+    "race_name": "Anduril 250",
+    "track_name": "San Diego Street Course",
+    "flag_state": 9,
+    "flag_label": "FLAG 9",
+    "flag_class": "warn",
+    "lap_number": 75,
+    "laps_in_race": 75,
+    "laps_to_go": 0,
+    "lap_label": "75/75",
+    "elapsed_seconds": 13008,
+    "elapsed_label": "03:36:48",
+    "stage_number": 3,
+    "stage_current": 0,
+    "stage_total": 75,
+    "stage_label": "Stage 3: 75",
+    "attempts": [
+        {
+            "url": "https://cf.nascar.com/live/feeds/live-feed.json",
+            "ok": true,
+            "http_code": 200,
+            "content_type": "application/json",
+            "error": ""
+        }
+    ]
+}

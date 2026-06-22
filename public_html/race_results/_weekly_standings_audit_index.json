@@ -1,7 +1,7 @@
 {
     "signature": "WEEKLY_STANDINGS_AUDIT_BUILDER v001",
     "version": "v001",
-    "generated_at": "2026-06-21 06:58:38",
+    "generated_at": "2026-06-21 18:10:00",
     "timezone": "America/New_York",
     "source": "weekly_standings_audit_builder.php",
     "scope": "local_mrl_artifacts_only",
@@ -20,41 +20,41 @@
         "classification_summary": {
             "path": "_race_results_classification_summary.json",
             "present": true,
-            "modified": "6/21/2026 6:56:54 am",
+            "modified": "6/21/2026 6:00:04 pm",
             "size_bytes": 15259,
             "size_label": "14.9 KB"
         },
         "classification_last_run": {
             "path": "_race_results_classification_last_run.json",
             "present": true,
-            "modified": "6/21/2026 6:56:54 am",
+            "modified": "6/21/2026 6:00:04 pm",
             "size_bytes": 15259,
             "size_label": "14.9 KB"
         },
         "pair_classification_history": {
             "path": "_race_results_pair_classification_history.json",
             "present": true,
-            "modified": "6/21/2026 6:56:54 am",
+            "modified": "6/21/2026 6:00:04 pm",
             "size_bytes": 31083,
             "size_label": "30.4 KB"
         },
         "year_index": {
             "path": "2026/_year_index.json",
             "present": true,
-            "modified": "6/14/2026 1:28:01 pm",
-            "size_bytes": 6555,
-            "size_label": "6.4 KB"
+            "modified": "6/21/2026 4:35:03 pm",
+            "size_bytes": 6886,
+            "size_label": "6.7 KB"
         },
         "weekly_standings_php": {
             "path": "weekly_standings.php",
             "present": true,
-            "modified": "6/21/2026 6:53:16 am",
-            "size_bytes": 149820,
-            "size_label": "146.3 KB"
+            "modified": "6/21/2026 7:49:48 am",
+            "size_bytes": 156594,
+            "size_label": "152.9 KB"
         }
     },
     "counts": {
-        "race_folders": 16,
+        "race_folders": 17,
         "races_with_snapshots": 16,
         "pending_review": 2,
         "released_or_captured": 14,
@@ -62,7 +62,7 @@
         "direct_mrl_impact_events": 1,
         "indirect_candidates": 11,
         "superseded_snapshots": 8,
-        "gaps": 0
+        "gaps": 1
     },
     "races": [
         {
@@ -512,19 +512,19 @@
                 },
                 "mrl_impact_summary": {
                     "present": true,
-                    "modified": "6/21/2026 6:56:54 am",
+                    "modified": "6/21/2026 6:00:04 pm",
                     "size_bytes": 1766,
                     "size_label": "1.7 KB"
                 },
                 "all_driver_impact_summary": {
                     "present": true,
-                    "modified": "6/21/2026 6:56:54 am",
+                    "modified": "6/21/2026 6:00:04 pm",
                     "size_bytes": 1576,
                     "size_label": "1.5 KB"
                 },
                 "mrl_impact_pair_history": {
                     "present": true,
-                    "modified": "6/21/2026 6:56:54 am",
+                    "modified": "6/21/2026 6:00:04 pm",
                     "size_bytes": 16675,
                     "size_label": "16.3 KB"
                 },
@@ -971,19 +971,19 @@
                 },
                 "mrl_impact_summary": {
                     "present": true,
-                    "modified": "6/21/2026 6:56:54 am",
+                    "modified": "6/21/2026 6:00:04 pm",
                     "size_bytes": 1761,
                     "size_label": "1.7 KB"
                 },
                 "all_driver_impact_summary": {
                     "present": true,
-                    "modified": "6/21/2026 6:56:54 am",
+                    "modified": "6/21/2026 6:00:04 pm",
                     "size_bytes": 1571,
                     "size_label": "1.5 KB"
                 },
                 "mrl_impact_pair_history": {
                     "present": true,
-                    "modified": "6/21/2026 6:56:54 am",
+                    "modified": "6/21/2026 6:00:04 pm",
                     "size_bytes": 2876,
                     "size_label": "2.8 KB"
                 },
@@ -1210,19 +1210,19 @@
                 },
                 "mrl_impact_summary": {
                     "present": true,
-                    "modified": "6/21/2026 6:56:54 am",
+                    "modified": "6/21/2026 6:00:04 pm",
                     "size_bytes": 1763,
                     "size_label": "1.7 KB"
                 },
                 "all_driver_impact_summary": {
                     "present": true,
-                    "modified": "6/21/2026 6:56:54 am",
+                    "modified": "6/21/2026 6:00:04 pm",
                     "size_bytes": 1573,
                     "size_label": "1.5 KB"
                 },
                 "mrl_impact_pair_history": {
                     "present": true,
-                    "modified": "6/21/2026 6:56:54 am",
+                    "modified": "6/21/2026 6:00:04 pm",
                     "size_bytes": 2884,
                     "size_label": "2.8 KB"
                 },
@@ -1339,19 +1339,19 @@
                 },
                 "mrl_impact_summary": {
                     "present": true,
-                    "modified": "6/21/2026 6:56:54 am",
+                    "modified": "6/21/2026 6:00:04 pm",
                     "size_bytes": 1795,
                     "size_label": "1.8 KB"
                 },
                 "all_driver_impact_summary": {
                     "present": true,
-                    "modified": "6/21/2026 6:56:54 am",
+                    "modified": "6/21/2026 6:00:04 pm",
                     "size_bytes": 1606,
                     "size_label": "1.6 KB"
                 },
                 "mrl_impact_pair_history": {
                     "present": true,
-                    "modified": "6/21/2026 6:56:54 am",
+                    "modified": "6/21/2026 6:00:04 pm",
                     "size_bytes": 2908,
                     "size_label": "2.8 KB"
                 },
@@ -1468,19 +1468,19 @@
                 },
                 "mrl_impact_summary": {
                     "present": true,
-                    "modified": "6/21/2026 6:56:54 am",
+                    "modified": "6/21/2026 6:00:04 pm",
                     "size_bytes": 1768,
                     "size_label": "1.7 KB"
                 },
                 "all_driver_impact_summary": {
                     "present": true,
-                    "modified": "6/21/2026 6:56:54 am",
+                    "modified": "6/21/2026 6:00:04 pm",
                     "size_bytes": 1578,
                     "size_label": "1.5 KB"
                 },
                 "mrl_impact_pair_history": {
                     "present": true,
-                    "modified": "6/21/2026 6:56:54 am",
+                    "modified": "6/21/2026 6:00:04 pm",
                     "size_bytes": 2895,
                     "size_label": "2.8 KB"
                 },
@@ -1817,19 +1817,19 @@
                 },
                 "mrl_impact_summary": {
                     "present": true,
-                    "modified": "6/21/2026 6:56:54 am",
+                    "modified": "6/21/2026 6:00:04 pm",
                     "size_bytes": 1201,
                     "size_label": "1.2 KB"
                 },
                 "all_driver_impact_summary": {
                     "present": true,
-                    "modified": "6/21/2026 6:56:54 am",
+                    "modified": "6/21/2026 6:00:04 pm",
                     "size_bytes": 1012,
                     "size_label": "1012 B"
                 },
                 "mrl_impact_pair_history": {
                     "present": true,
-                    "modified": "6/21/2026 6:56:54 am",
+                    "modified": "6/21/2026 6:00:04 pm",
                     "size_bytes": 2130,
                     "size_label": "2.1 KB"
                 },
@@ -1946,19 +1946,19 @@
                 },
                 "mrl_impact_summary": {
                     "present": true,
-                    "modified": "6/21/2026 6:56:54 am",
+                    "modified": "6/21/2026 6:00:04 pm",
                     "size_bytes": 1766,
                     "size_label": "1.7 KB"
                 },
                 "all_driver_impact_summary": {
                     "present": true,
-                    "modified": "6/21/2026 6:56:54 am",
+                    "modified": "6/21/2026 6:00:04 pm",
                     "size_bytes": 1576,
                     "size_label": "1.5 KB"
                 },
                 "mrl_impact_pair_history": {
                     "present": true,
-                    "modified": "6/21/2026 6:56:54 am",
+                    "modified": "6/21/2026 6:00:04 pm",
                     "size_bytes": 2882,
                     "size_label": "2.8 KB"
                 },
@@ -1973,6 +1973,82 @@
                     "modified": "6/14/2026 4:52:02 pm",
                     "size_bytes": 0,
                     "size_label": "0 B"
+                }
+            }
+        },
+        {
+            "race_code": "R17",
+            "race_number": 17,
+            "race_id": "202606214266",
+            "race_name": "NASCAR Cup Series at San Diego",
+            "short_name": "San Diego",
+            "folder": "R17_NASCAR_Cup_Series_at_San_Diego_202606214266",
+            "folder_rel": "2026/R17_NASCAR_Cup_Series_at_San_Diego_202606214266",
+            "status": "no_snapshot",
+            "pending_review": false,
+            "under_review_flag": false,
+            "snapshot_count": 0,
+            "snapshots": [],
+            "first_snapshot": [],
+            "latest_snapshot": [],
+            "current_snapshot": [],
+            "superseded_snapshots": [],
+            "has_classification": false,
+            "has_classification_artifact": false,
+            "classification_pair_valid": false,
+            "classification_stale_or_mismatched": false,
+            "mrl_impact": false,
+            "changed_all_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "change_status": "",
+            "change_status_label": "",
+            "previous_snapshot": "",
+            "classified_current_snapshot": "",
+            "revision_meta_present": false,
+            "revision_meta": [],
+            "artifact_files": {
+                "meta": {
+                    "present": true,
+                    "modified": "6/21/2026 6:09:03 pm",
+                    "size_bytes": 304,
+                    "size_label": "304 B"
+                },
+                "final_table_hash": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "mrl_impact_summary": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "all_driver_impact_summary": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "mrl_impact_pair_history": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "revision_meta": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
+                },
+                "under_review_flag": {
+                    "present": false,
+                    "modified": "",
+                    "size_bytes": 0,
+                    "size_label": ""
                 }
             }
         }
@@ -2867,5 +2943,12 @@
             "generated_snapshot_id_suggestion": "20260308_204802115_R14"
         }
     ],
-    "gaps": []
+    "gaps": [
+        {
+            "race_code": "R17",
+            "race_name": "San Diego",
+            "gap_type": "missing_snapshot",
+            "message": "Race folder exists but no saved snapshot_*.html was found."
+        }
+    ]
 }

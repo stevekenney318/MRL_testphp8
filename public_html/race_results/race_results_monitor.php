@@ -4,10 +4,14 @@ declare(strict_types=1);
 /**
  * race_results_monitor.php
  *
- * VERSION: v135
- * LAST MODIFIED: 6/14/2026 12:24:50 pm
+ * VERSION: v136
+ * LAST MODIFIED: 6/21/2026 3:19:00 pm
  *
  * CHANGELOG:
+ *
+ * v136 (6/21/2026)
+ *   - NEW: Adds weekly standings release-history helper integration for initial race result snapshots.
+ *   - NEW: First legitimate snapshot writes/updates _weekly_standings_release_history.json using safe atomic helper write.
  *
  * v135 (6/14/2026)
  *   - FIX: Race monitor now reports Waiting for race start/current race results when ESPN latest results still points to a prior completed race.
@@ -80,7 +84,7 @@ ini_set('log_errors', '1');
 ini_set('error_log', __DIR__ . '/_race_results_monitor_php_errors.log');
 error_reporting(E_ALL);
 
-const RR_MONITOR_SIGNATURE = 'RACE_RESULTS_MONITOR v135';
+const RR_MONITOR_SIGNATURE = 'RACE_RESULTS_MONITOR v136';
 
 // ------------------------- PREFLIGHT HEARTBEAT -------------------------
 // This intentionally happens before helper includes and USER initialization.
@@ -126,6 +130,7 @@ require_once __DIR__ . '/race_results_engine.php';
 require_once __DIR__ . '/race_results_snapshot_helper.php';
 require_once __DIR__ . '/race_results_team_helper.php';
 require_once __DIR__ . '/race_results_rd_helper.php';
+require_once __DIR__ . '/weekly_standings_release_history_helper.php';
 
 // ------------------------- DOCUMENT ROOT + INCLUDES -------------------------
 $docRoot = rr_docroot_from_script_dir(__DIR__);
@@ -1783,9 +1788,49 @@ if ($snapshotsEnabled) {
     $tsFile = rr_preferred_timestamp(true);
     $snapshotPath = rr_save_snapshot_html($raceFolder, $tsFile, $html2, $snapshotMaxBytes);
     rr_save_snapshot_summary($raceFolder, $tsFile, $html2);
-    rr_atomic_write($hashFilePath, $finalHashNow . "\n");
+    rr_atomic_write($hashFilePath, $finalHashNow . "
+");
     touch($raceFolder . '/under_review.flag');
     rr_log_line($logFile, "SNAPSHOT SAVED in " . basename($raceFolder));
+
+    if ($snapshotPath !== '' && !$isExh && $raceNum !== null && (int)$raceNum > 0 && function_exists('wsrel_record_snapshot_release')) {
+        $snapshotFilesForRelease = glob($raceFolder . '/snapshot_*.html');
+        $snapshotIndexForRelease = 0;
+        $snapshotCountForRelease = 0;
+        if (is_array($snapshotFilesForRelease)) {
+            sort($snapshotFilesForRelease, SORT_STRING);
+            $snapshotCountForRelease = count($snapshotFilesForRelease);
+            $snapshotBaseForRelease = basename($snapshotPath);
+            foreach ($snapshotFilesForRelease as $iRelease => $fileRelease) {
+                if (basename((string)$fileRelease) === $snapshotBaseForRelease) {
+                    $snapshotIndexForRelease = (int)$iRelease + 1;
+                    break;
+                }
+            }
+        }
+
+        $releaseWrite = wsrel_record_snapshot_release(__DIR__, (string)$year, [
+            'race_number' => (int)$raceNum,
+            'race_id' => (string)$raceId,
+            'race_name' => (string)$raceName,
+            'race_folder' => (string)$raceFolderName,
+            'race_folder_rel' => (string)$yKey . '/' . (string)$raceFolderName,
+            'snapshot_file' => basename($snapshotPath),
+            'snapshot_index' => $snapshotIndexForRelease,
+            'snapshot_count' => $snapshotCountForRelease,
+            'is_current_snapshot' => true,
+            'under_review' => is_file($raceFolder . '/under_review.flag'),
+            'source_type' => 'initial',
+            'builder_note' => 'Automatically recorded by race_results_monitor after first final-result snapshot capture.',
+        ]);
+
+        rr_log_line(
+            $logFile,
+            'RELEASE HISTORY ' . (!empty($releaseWrite['ok']) ? 'OK' : 'WARN')
+            . ' release_id=' . (string)($releaseWrite['release_id'] ?? '')
+            . ' message=' . (string)($releaseWrite['message'] ?? '')
+        );
+    }
 }
 
 $yearState['final_sent_for_url'] = $latestUrl;

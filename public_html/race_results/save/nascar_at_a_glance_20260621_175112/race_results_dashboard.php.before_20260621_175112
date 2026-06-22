@@ -11,14 +11,10 @@ if (!headers_sent()) {
 /**
  * race_results_dashboard.php
  *
- * VERSION: v019
- * LAST MODIFIED: 6/21/2026 5:44:47 pm
+ * VERSION: v018
+ * LAST MODIFIED: 6/14/2026 12:24:50 pm
  *
  * CHANGELOG:
- *
- * v019 (6/21/2026)
- *   - NEW: Adds NASCAR At a Glance info-only panel inside Monitor tab Race Status.
- *   - NOTE: NASCAR cache is display-only and does not drive scoring/final/revision logic.
  *
  * v018 (6/14/2026)
  *   - FIX: Race Scheduler monitor output now suppresses stale prior-final wording while waiting for the scheduled race.
@@ -81,7 +77,7 @@ if (!headers_sent()) {
  *   - NEW: Added scheduler heartbeat freshness status to separate current cron heartbeat from scheduler/task configuration.
  */
 
-const RACE_RESULTS_DASHBOARD_VERSION = 'v019';
+const RACE_RESULTS_DASHBOARD_VERSION = 'v018';
 
 // visual id of sandbox/test site only
 $host = strtolower($_SERVER['HTTP_HOST'] ?? '');
@@ -3269,7 +3265,6 @@ $dashCronDetail = (string)$schedulerHeartbeatFreshness['age_text'] !== '' ? (str
     <?php else: ?>
         <div class="empty">No stored race status found yet. It should appear after race_results_monitor.php runs.</div>
     <?php endif; ?>
-    <?php if (is_file(__DIR__ . '/mrl_nascar_at_a_glance_panel.php')) { require __DIR__ . '/mrl_nascar_at_a_glance_panel.php'; } ?>
 </div>
 
 <div class="grid race-grid">
