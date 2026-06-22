@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * mrl_nascar_live_helper.php
  *
- * VERSION: v002
- * LAST MODIFIED: 6/21/2026 9:41:10 pm
+ * VERSION: v001
+ * LAST MODIFIED: 6/21/2026 5:44:47 pm
  *
  * DESCRIPTION:
  * Helper functions for MRL's optional, info-only NASCAR At a Glance panel.
@@ -19,17 +19,13 @@ declare(strict_types=1);
  * - This does not replace ESPN/source-site snapshot logic.
  * - It is display/cache only.
  *
- * CHANGELOG:
- * v002 (6/21/2026)
- * - FIX: Maps NASCAR flag_state 9 as CHECKERED instead of displaying FLAG 9 at race finish.
- *
  * PHP: 7.3 compatible.
  */
 
 date_default_timezone_set('America/New_York');
 
-const MRL_NASCAR_LIVE_HELPER_VERSION = 'v002';
-const MRL_NASCAR_LIVE_HELPER_SIGNATURE = 'MRL_NASCAR_LIVE_HELPER v002';
+const MRL_NASCAR_LIVE_HELPER_VERSION = 'v001';
+const MRL_NASCAR_LIVE_HELPER_SIGNATURE = 'MRL_NASCAR_LIVE_HELPER v001';
 
 function mrl_nascar_live_cache_path(string $baseDir): string
 {
@@ -205,7 +201,6 @@ function mrl_nascar_live_flag_label(int $flagState): string
         case 4:
             return 'WHITE';
         case 5:
-        case 9:
             return 'CHECKERED';
         default:
             return $flagState > 0 ? 'FLAG ' . (string)$flagState : 'UNKNOWN';

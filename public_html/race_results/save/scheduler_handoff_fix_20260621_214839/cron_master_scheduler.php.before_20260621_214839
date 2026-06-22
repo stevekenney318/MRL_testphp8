@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * cron_master_scheduler.php
  *
- * VERSION: v014
- * LAST MODIFIED: 6/21/2026 9:41:10 pm
+ * VERSION: v013
+ * LAST MODIFIED: 6/21/2026 5:44:47 pm
  *
  * DESCRIPTION:
  * Basic JSON-driven master scheduler for MRL race-results automation.
@@ -111,8 +111,8 @@ declare(strict_types=1);
 
 date_default_timezone_set('America/New_York');
 
-const CMS_VERSION = 'v014';
-const CMS_SIGNATURE = 'CRON_MASTER_SCHEDULER v014';
+const CMS_VERSION = 'v013';
+const CMS_SIGNATURE = 'CRON_MASTER_SCHEDULER v013';
 
 $baseDir = __DIR__;
 $schedulerDir = $baseDir . '/_scheduler';
@@ -714,19 +714,10 @@ function cms_monitor_final_complete_info(array $monitorState, int $year): array
     $finalCheck = isset($yearState['final_check']) && is_array($yearState['final_check'])
         ? $yearState['final_check']
         : [];
-    $handoff = isset($yearState['final_handoff']) && is_array($yearState['final_handoff'])
-        ? $yearState['final_handoff']
-        : [];
 
-    $isFinal = !empty($finalCheck['is_final'])
-        || !empty($raceStatus['is_final'])
-        || !empty($currentRaceStatus['is_final'])
-        || !empty($yearState['final_sent_for_url'])
-        || !empty($handoff['email_sent'])
-        || !empty($handoff['snapshot_file']);
+    $isFinal = !empty($finalCheck['is_final']) || !empty($raceStatus['is_final']) || !empty($currentRaceStatus['is_final']) || !empty($yearState['final_sent_for_url']);
 
-    $url = (string)($handoff['final_url'] ?? '');
-    if ($url === '') $url = (string)($yearState['final_sent_for_url'] ?? '');
+    $url = (string)($yearState['final_sent_for_url'] ?? '');
     if ($url === '') $url = (string)($currentRaceStatus['race_url'] ?? '');
     if ($url === '') $url = (string)($raceStatus['latest_final_race_url'] ?? '');
 
@@ -734,22 +725,13 @@ function cms_monitor_final_complete_info(array $monitorState, int $year): array
     if ($url !== '' && preg_match('/raceId\/(\d+)/', $url, $m)) {
         $raceId = (string)$m[1];
     }
-    if ($raceId === '') $raceId = (string)($handoff['race_id'] ?? '');
     if ($raceId === '') $raceId = (string)($currentRaceStatus['race_id'] ?? '');
 
-    $raceName = (string)($handoff['race_name'] ?? '');
-    if ($raceName === '') $raceName = (string)($currentRaceStatus['full_race_name'] ?? '');
-    if ($raceName === '') $raceName = (string)($currentRaceStatus['race_name'] ?? '');
-    if ($raceName === '') $raceName = (string)($raceStatus['full_race_name'] ?? '');
+    $raceName = (string)($currentRaceStatus['race_name'] ?? '');
     if ($raceName === '') $raceName = (string)($raceStatus['race_name'] ?? '');
     if ($raceName === '') $raceName = (string)($raceStatus['latest_final_race_name'] ?? '');
 
-    $raceFolder = (string)($handoff['race_folder'] ?? '');
-    $raceNumber = (string)($handoff['race_number'] ?? '');
-
-    $checkedAt = (string)($handoff['anchor_at'] ?? '');
-    if ($checkedAt === '') $checkedAt = (string)($handoff['email_sent_at'] ?? '');
-    if ($checkedAt === '') $checkedAt = (string)($finalCheck['checked_at'] ?? '');
+    $checkedAt = (string)($finalCheck['checked_at'] ?? '');
     if ($checkedAt === '') $checkedAt = (string)($currentRaceStatus['checked_at'] ?? '');
     if ($checkedAt === '') $checkedAt = (string)($raceStatus['checked_at'] ?? '');
     if ($checkedAt === '') $checkedAt = (string)($yearState['last_checked_at'] ?? '');
@@ -759,8 +741,6 @@ function cms_monitor_final_complete_info(array $monitorState, int $year): array
         'final_url' => $url,
         'race_id' => $raceId,
         'race_name' => $raceName,
-        'race_folder' => $raceFolder,
-        'race_number' => $raceNumber,
         'checked_at' => $checkedAt,
     ];
 }
@@ -814,18 +794,7 @@ function cms_schedule_first_future_mrl_race(array $raceSchedule, int $now): arra
 
 function cms_auto_race_select_next_race(array $raceSchedule, array $monitorState, int $year, int $now): array
 {
-    $nextRace = isset($raceSchedule['next_race']) && is_array($raceSchedule['next_race'])
-        ? $raceSchedule['next_race']
-        : [];
-
-    if (empty($nextRace)) {
-        $yearStateForSchedule = isset($monitorState['byYear'][(string)$year]) && is_array($monitorState['byYear'][(string)$year])
-            ? $monitorState['byYear'][(string)$year]
-            : [];
-        if (isset($yearStateForSchedule['schedule_status']['next_race']) && is_array($yearStateForSchedule['schedule_status']['next_race'])) {
-            $nextRace = $yearStateForSchedule['schedule_status']['next_race'];
-        }
-    }
+    $nextRace = cms_auto_race_select_next_race($raceSchedule, $monitorState, $year, $now);
 
     $final = cms_monitor_final_complete_info($monitorState, $year);
     if (!empty($nextRace) && cms_race_entry_matches_final($nextRace, $final)) {
@@ -836,22 +805,9 @@ function cms_auto_race_select_next_race(array $raceSchedule, array $monitorState
                 'race_name' => (string)($nextRace['race_name'] ?? ''),
                 'short_name' => (string)($nextRace['short_name'] ?? ''),
                 'mrl_race_code' => (string)($nextRace['mrl_race_code'] ?? ''),
-                'mrl_race_number' => $nextRace['mrl_race_number'] ?? null,
                 'race_id' => (string)($nextRace['race_id'] ?? ''),
-                'race_url' => (string)($nextRace['race_url'] ?? ''),
-                'mrl_race_url' => (string)($nextRace['mrl_race_url'] ?? ''),
                 'start_at' => (string)($nextRace['start_at'] ?? ''),
-                'final_race_id' => (string)($final['race_id'] ?? ''),
-                'final_url' => (string)($final['final_url'] ?? ''),
             ];
-            return $futureRace;
-        }
-    }
-
-    if (empty($nextRace)) {
-        $futureRace = cms_schedule_first_future_mrl_race($raceSchedule, $now);
-        if (!empty($futureRace)) {
-            $futureRace['_scheduler_override_reason'] = 'no stored next race found; selected next future MRL race from schedule list';
             return $futureRace;
         }
     }
@@ -976,7 +932,15 @@ function cms_auto_race_monitor_task_due(string $taskName, array $task, array $st
     $raceSchedule = cms_load_json($schedulePath);
     $monitorState = cms_load_json($monitorStatePath);
 
-    $nextRace = cms_auto_race_select_next_race($raceSchedule, $monitorState, $year, $now);
+    $nextRace = isset($raceSchedule['next_race']) && is_array($raceSchedule['next_race']) ? $raceSchedule['next_race'] : [];
+    if (empty($nextRace)) {
+        $yearStateForSchedule = isset($monitorState['byYear'][(string)$year]) && is_array($monitorState['byYear'][(string)$year])
+            ? $monitorState['byYear'][(string)$year]
+            : [];
+        if (isset($yearStateForSchedule['schedule_status']['next_race']) && is_array($yearStateForSchedule['schedule_status']['next_race'])) {
+            $nextRace = $yearStateForSchedule['schedule_status']['next_race'];
+        }
+    }
     $startTs = 0;
     if (!empty($nextRace['start_ts'])) {
         $startTs = (int)$nextRace['start_ts'];

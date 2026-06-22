@@ -11,18 +11,10 @@ if (!headers_sent()) {
 /**
  * race_results_dashboard.php
  *
- * VERSION: v021
- * LAST MODIFIED: 6/21/2026 10:42:17 pm
+ * VERSION: v019
+ * LAST MODIFIED: 6/21/2026 5:44:47 pm
  *
  * CHANGELOG:
- *
- * v021 (6/21/2026)
- *   - CHANGE: System Snapshot now shows Revision Monitor Watching handoff status instead of latest revision/classification snapshot pair.
- *   - FIX: Confirms the most recently completed race is under revision-monitor watch after FINAL email handoff.
- *
- * v020 (6/21/2026)
- *   - FIX: Dashboard next-run pills now use auto_race_monitor/auto_revision_monitor schedule state instead of falling back to a generic 60-minute interval.
- *   - FIX: Monitor tab can display the scheduler-selected next race after a final handoff, even when the stored monitor state still reflects the just-finished race.
  *
  * v019 (6/21/2026)
  *   - NEW: Adds NASCAR At a Glance info-only panel inside Monitor tab Race Status.
@@ -89,7 +81,7 @@ if (!headers_sent()) {
  *   - NEW: Added scheduler heartbeat freshness status to separate current cron heartbeat from scheduler/task configuration.
  */
 
-const RACE_RESULTS_DASHBOARD_VERSION = 'v021';
+const RACE_RESULTS_DASHBOARD_VERSION = 'v019';
 
 // visual id of sandbox/test site only
 $host = strtolower($_SERVER['HTTP_HOST'] ?? '');
@@ -707,16 +699,9 @@ foreach ($tasks as $taskNameForStatus => $taskForStatus) {
 
     $taskStateForStatus = isset($stateTasks[$taskNameForStatus]) && is_array($stateTasks[$taskNameForStatus]) ? $stateTasks[$taskNameForStatus] : [];
     $typeForStatus = isset($taskForStatus['type']) ? (string)$taskForStatus['type'] : 'interval';
-
-    if ($typeForStatus === 'daily_times') {
-        $taskStatusRows[$taskNameForStatus] = sd_daily_task_status($taskForStatus, $taskStateForStatus, $now, $tz);
-    } elseif ($typeForStatus === 'auto_race_monitor') {
-        $taskStatusRows[$taskNameForStatus] = sd_auto_race_task_status($taskForStatus, $taskStateForStatus, $now, $tz);
-    } elseif ($typeForStatus === 'auto_revision_monitor') {
-        $taskStatusRows[$taskNameForStatus] = sd_auto_revision_task_status($taskForStatus, $taskStateForStatus, $now, $tz);
-    } else {
-        $taskStatusRows[$taskNameForStatus] = sd_interval_task_status($taskForStatus, $taskStateForStatus, $now, $tz);
-    }
+    $taskStatusRows[$taskNameForStatus] = ($typeForStatus === 'daily_times')
+        ? sd_daily_task_status($taskForStatus, $taskStateForStatus, $now, $tz)
+        : sd_interval_task_status($taskForStatus, $taskStateForStatus, $now, $tz);
 }
 
 $monitorNextRunRaw = isset($taskStatusRows['race_results_monitor']['next_run'])
@@ -1232,10 +1217,6 @@ function rr_dash_monitor_status_from_state(array $yearState): array
         'mode' => $mode,
         'can_open_race_page' => $canOpenRacePage,
         'owned_by' => (string)($statusRow['owned_by'] ?? ''),
-        'is_final' => !empty($statusRow['is_final']) || !empty($statusRow['final_email_sent']),
-        'final_email_sent' => !empty($statusRow['final_email_sent']),
-        'latest_final_race_url' => (string)($statusRow['latest_final_race_url'] ?? ''),
-        'latest_final_race_name' => (string)($statusRow['latest_final_race_name'] ?? ''),
         'found' => ($raceName !== '' || $status !== ''),
         'fetched' => !empty($statusRow),
     ];
@@ -1659,70 +1640,6 @@ function rr_dash_last_revision_snapshot(array $rows): array
     ];
 }
 
-
-function rr_dash_revision_watching_summary(string $baseDir, int $year, array $revisionSchedule): array
-{
-    $handoff = isset($revisionSchedule['handoff']) && is_array($revisionSchedule['handoff']) ? $revisionSchedule['handoff'] : [];
-
-    $raceId = trim((string)($handoff['race_id'] ?? ''));
-    $raceName = trim((string)($handoff['race_name'] ?? ''));
-    $anchorAt = trim((string)($handoff['anchor_at'] ?? ''));
-    if ($anchorAt === '') $anchorAt = trim((string)($handoff['final_checked_at'] ?? ''));
-
-    $raceCode = '';
-    $displayName = $raceName !== '' ? rr_dash_simplify_race_name($raceName) : '';
-
-    $yearDir = rtrim($baseDir, '/\\') . '/' . (string)$year;
-    if ($raceId !== '' && is_dir($yearDir)) {
-        $folders = glob($yearDir . '/R*_*');
-        if (is_array($folders)) {
-            foreach ($folders as $folder) {
-                if (!is_dir($folder)) continue;
-                $metaPath = rtrim($folder, '/\\') . '/_meta.json';
-                $meta = rr_dash_load_json_file($metaPath);
-                $metaRaceId = trim((string)($meta['race_id'] ?? ''));
-                if ($metaRaceId !== $raceId) continue;
-
-                $baseName = basename($folder);
-                if (preg_match('/^(R\d+)/i', $baseName, $m)) {
-                    $raceCode = strtoupper($m[1]);
-                }
-
-                if ($displayName === '') {
-                    $metaRaceName = trim((string)($meta['race_name'] ?? ''));
-                    $displayName = $metaRaceName !== '' ? rr_dash_simplify_race_name($metaRaceName) : '';
-                }
-                break;
-            }
-        }
-    }
-
-    if ($raceCode === '' && preg_match('/\bR(\d{1,2})\b/i', $raceName, $m)) {
-        $raceCode = 'R' . str_pad((string)((int)$m[1]), 2, '0', STR_PAD_LEFT);
-    }
-
-    $raceText = trim($raceCode . ' ' . $displayName);
-    if ($raceText === '') {
-        $raceText = 'Latest completed race';
-    }
-
-    $timeText = 'handoff time unknown';
-    if ($anchorAt !== '') {
-        try {
-            $dt = new DateTimeImmutable($anchorAt, new DateTimeZone('America/New_York'));
-            $timeText = $dt->format('n/j/Y g:i A');
-        } catch (Exception $e) {
-            $display = rr_dash_display_datetime($anchorAt);
-            $timeText = $display !== '' ? $display : $anchorAt;
-        }
-    }
-
-    return [
-        'summary' => 'All completed races including',
-        'race' => $raceText,
-        'time' => $timeText,
-    ];
-}
 function rr_dash_trusted_revision_classification_summary(string $summaryFile, string $lastRunFile, int $year): array
 {
     $summary = rr_dash_load_json_file($summaryFile);
@@ -1823,30 +1740,6 @@ $monitorStatusUrl = (string)($monitorCurrentRaceStatus['url'] ?? '');
 if ($monitorStatusUrl === '') {
     $monitorStatusUrl = rr_dash_extract_latest_monitor_url(rr_dash_tail_lines($logFile, 80), $lastLogLine, $stateRaw);
     $monitorCurrentRaceStatus['url'] = $monitorStatusUrl;
-}
-
-if (!empty($monitorCurrentRaceStatus['is_final'])) {
-    $raceTaskStateForDisplay = isset($stateTasks['race_results_monitor']) && is_array($stateTasks['race_results_monitor']) ? $stateTasks['race_results_monitor'] : [];
-    $raceAutoForDisplay = isset($raceTaskStateForDisplay['auto_schedule']) && is_array($raceTaskStateForDisplay['auto_schedule']) ? $raceTaskStateForDisplay['auto_schedule'] : [];
-    $nextRaceForDisplay = isset($raceAutoForDisplay['next_race']) && is_array($raceAutoForDisplay['next_race']) ? $raceAutoForDisplay['next_race'] : [];
-    $nextRaceLabelForDisplay = trim((string)($nextRaceForDisplay['mrl_race_code'] ?? '') . ' ' . (string)($nextRaceForDisplay['short_name'] ?? $nextRaceForDisplay['race_name'] ?? ''));
-    $nextRaceStartForDisplay = (string)($nextRaceForDisplay['start_at'] ?? '');
-    $nextRaceStartTsForDisplay = 0;
-    if ($nextRaceStartForDisplay !== '') {
-        $nextRaceStartParsedForDisplay = strtotime($nextRaceStartForDisplay);
-        $nextRaceStartTsForDisplay = $nextRaceStartParsedForDisplay === false ? 0 : (int)$nextRaceStartParsedForDisplay;
-    }
-
-    if ($nextRaceLabelForDisplay !== '' && $nextRaceStartTsForDisplay > $now->getTimestamp()) {
-        $monitorCurrentRaceStatus['label'] = 'Next Race';
-        $monitorCurrentRaceStatus['race_name'] = $nextRaceLabelForDisplay;
-        $monitorCurrentRaceStatus['status'] = 'Scheduled - ' . (string)($nextRaceForDisplay['start_text'] ?? $nextRaceStartForDisplay);
-        $monitorCurrentRaceStatus['checked_at'] = rr_dash_display_datetime((string)($raceAutoForDisplay['generated_at'] ?? ''));
-        $monitorCurrentRaceStatus['url'] = '';
-        $monitorCurrentRaceStatus['can_open_race_page'] = false;
-        $monitorCurrentRaceStatus['owned_by'] = 'cron_master_scheduler';
-        $monitorCurrentRaceStatus['found'] = true;
-    }
 }
 
 // -----------------------------------------------------------------------------
@@ -2979,7 +2872,6 @@ $dashRevisionStatus = rr_dash_revision_operational_status($dashRevisionDecision)
 $dashRevisionCounts = rr_dash_revision_scan_counts((string)($dashRevisionTaskState['last_output_tail'] ?? ''));
 $dashRevisionNext = rr_dash_next_run_sentence((string)($dashRevisionDecision['next_due_at'] ?? ''), $now);
 $dashLastSnapshot = rr_dash_last_revision_snapshot(isset($classSummary['rows']) && is_array($classSummary['rows']) ? $classSummary['rows'] : []);
-$dashRevisionWatching = rr_dash_revision_watching_summary($baseDir, (int)$classYear, $dashRevisionSchedule);
 $dashCronMain = (string)$schedulerHeartbeatFreshness['label'] === 'running' ? 'Scheduler firing every minute' : 'Scheduler ' . (string)$schedulerHeartbeatFreshness['label'];
 $dashCronDetail = (string)$schedulerHeartbeatFreshness['age_text'] !== '' ? (string)$schedulerHeartbeatFreshness['age_text'] : 'heartbeat unknown';
 ?>
@@ -3005,11 +2897,11 @@ $dashCronDetail = (string)$schedulerHeartbeatFreshness['age_text'] !== '' ? (str
             <div class="snapshot-main"><?php echo sd_html(rr_dash_scan_summary_text($dashRevisionCounts)); ?></div>
             <div class="snapshot-detail">Last run: <?php echo sd_html(rr_dash_display_datetime((string)($dashRevisionTaskState['last_completed_at'] ?? ''))); ?></div>
         </div>
-        <div class="snapshot-tile">
-            <div class="snapshot-label">Revision Monitor Watching</div>
-            <div class="snapshot-main"><?php echo sd_html((string)$dashRevisionWatching['summary']); ?></div>
-            <div class="snapshot-detail"><?php echo sd_html((string)$dashRevisionWatching['race']); ?></div>
-            <div class="snapshot-impact-line"><span class="badge ok"><?php echo sd_html((string)$dashRevisionWatching['time']); ?></span></div>
+        <div class="snapshot-tile <?php echo sd_html((string)$dashLastSnapshot['tile_class']); ?>">
+            <div class="snapshot-label">Last Revision Snapshot</div>
+            <div class="snapshot-main"><?php echo sd_html((string)$dashLastSnapshot['race']); ?></div>
+            <div class="snapshot-detail"><?php echo sd_html((string)$dashLastSnapshot['time']); ?></div>
+            <div class="snapshot-impact-line"><span class="badge <?php echo sd_html((string)$dashLastSnapshot['impact_class']); ?>"><?php echo sd_html((string)$dashLastSnapshot['impact_text']); ?></span></div>
         </div>
         <div class="snapshot-tile">
             <div class="snapshot-label">Next Revision</div>

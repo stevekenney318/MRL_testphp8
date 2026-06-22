@@ -1,6 +1,6 @@
 {
-    "signature": "MRL_NASCAR_LIVE_HELPER v001 RAW",
-    "generated_at": "2026-06-21 21:20:02",
+    "signature": "MRL_NASCAR_LIVE_HELPER v002 RAW",
+    "generated_at": "2026-06-21 21:48:39",
     "source_url": "https://cf.nascar.com/live/feeds/live-feed.json",
     "data": {
         "lap_number": 75,
@@ -4449,8 +4449,8 @@
         "run_id": 11,
         "run_name": "Anduril 250",
         "series_id": 1,
-        "time_of_day": 65981,
-        "time_of_day_os": "2026-06-21T18:19:41.0205237-07:00",
+        "time_of_day": 67690,
+        "time_of_day_os": "2026-06-21T18:48:10.5721378-07:00",
         "track_id": 221,
         "track_length": 3.4,
         "track_name": "San Diego Street Course",
