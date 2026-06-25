@@ -1,0 +1,325 @@
+<!--
+  S3 deadline.html
+
+  VERSION: v001
+  LAST MODIFIED: 6/24/2026
+
+  Purpose:
+  - WordPress post snippet for Segment 3 Picks Due countdown.
+  - Reads /race_results/_race_results_schedule.json.
+  - Finds MRL Race 18.
+  - Uses Race 18 start time as the Segment 3 picks deadline.
+  - Displays only: Segment 3 Picks Due.
+-->
+
+<div class="mrl-s3-picks-due-root" data-schedule-url="/race_results/_race_results_schedule.json">
+  <div class="mrl-s3-countdown-status">Loading Segment 3 picks deadline...</div>
+</div>
+
+<script>
+(function () {
+  const roots = document.querySelectorAll('.mrl-s3-picks-due-root');
+  if (!roots.length) return;
+
+  function pad(n) {
+    n = Math.floor(Math.abs(Number(n) || 0));
+    return n < 10 ? '0' + n : String(n);
+  }
+
+  function htmlEscape(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function parseStartDate(race) {
+    if (!race || !race.start_at) return null;
+
+    // MRL schedule start_at is local New York time: YYYY-MM-DD HH:MM:SS
+    const m = String(race.start_at).match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+    if (!m) return null;
+
+    return new Date(
+      Number(m[1]),
+      Number(m[2]) - 1,
+      Number(m[3]),
+      Number(m[4]),
+      Number(m[5]),
+      Number(m[6] || 0)
+    );
+  }
+
+  function raceNumber(race) {
+    return Number(race.mrl_race_number || race.race_number || race.schedule_sequence || 0);
+  }
+
+  function raceDateLabel(date) {
+    return date.toLocaleString('en-US', {
+      timeZone: 'America/New_York',
+      month: 'numeric',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    }).toLowerCase().replace(',', '');
+  }
+
+  function normalizeRaces(schedule) {
+    const source = Array.isArray(schedule && schedule.mrl_points_races)
+      ? schedule.mrl_points_races
+      : (Array.isArray(schedule && schedule.races) ? schedule.races : []);
+
+    return source
+      .filter(function (race) {
+        if (!race || race.mrl_points_eligible === false || race.is_exhibition === true) return false;
+        return parseStartDate(race);
+      })
+      .sort(function (a, b) {
+        return raceNumber(a) - raceNumber(b);
+      });
+  }
+
+  function findRace18(schedule) {
+    const races = normalizeRaces(schedule);
+
+    for (let i = 0; i < races.length; i++) {
+      if (raceNumber(races[i]) === 18) {
+        return races[i];
+      }
+    }
+
+    return null;
+  }
+
+  function buildCountdownHtml(race) {
+    const date = parseStartDate(race);
+    const ts = date ? date.getTime() : 0;
+
+    return `
+      <div class="mrl-s3-countdown"
+           data-title="Segment 3 Picks Due"
+           data-target-ts="${ts}">
+      </div>`;
+  }
+
+  function tickOne(el) {
+    const targetTs = Number(el.dataset.targetTs || 0);
+
+    if (!targetTs) {
+      el.innerHTML = '<em>Invalid Segment 3 deadline date/time.</em>';
+      return;
+    }
+
+    const target = new Date(targetTs);
+    let diff = targetTs - Date.now();
+
+    // Same behavior as the race countdown:
+    // keep visible briefly after the target time, then hide.
+    const hideAfterMs = 5 * 60 * 60 * 1000;
+
+    if (diff < -hideAfterMs) {
+      const root = el.closest('.mrl-s3-picks-due-root');
+      if (root) root.style.display = 'none';
+      return;
+    }
+
+    const isPast = diff < 0;
+    if (isPast) diff = Math.abs(diff);
+
+    const d = Math.floor(diff / 86400000);
+    const h = Math.floor((diff % 86400000) / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const dayValue = isPast ? '-' + d : d;
+
+    el.innerHTML = `
+      <div class="mrl-s3-box ${isPast ? 'mrl-s3-past' : ''}">
+        <div class="mrl-s3-title">${htmlEscape(el.dataset.title || '')}</div>
+
+        <div class="mrl-s3-row">
+          <div class="mrl-s3-unit">
+            <span class="mrl-s3-num">${dayValue}</span>
+            <span class="mrl-s3-lab">DAYS</span>
+          </div>
+
+          <span class="mrl-s3-sep">:</span>
+
+          <div class="mrl-s3-unit">
+            <span class="mrl-s3-num">${pad(h)}</span>
+            <span class="mrl-s3-lab">HOURS</span>
+          </div>
+
+          <span class="mrl-s3-sep">:</span>
+
+          <div class="mrl-s3-unit">
+            <span class="mrl-s3-num mrl-s3-red">${pad(m)}</span>
+            <span class="mrl-s3-lab">MINUTES</span>
+          </div>
+        </div>
+
+        <div class="mrl-s3-dt">${raceDateLabel(target)}</div>
+      </div>`;
+  }
+
+  function tickAll(root) {
+    root.querySelectorAll('.mrl-s3-countdown').forEach(tickOne);
+  }
+
+  function initRoot(root) {
+    if (root.dataset.mrlS3DynamicInit === '1') return;
+    root.dataset.mrlS3DynamicInit = '1';
+
+    const scheduleUrl = root.dataset.scheduleUrl || '/race_results/_race_results_schedule.json';
+    const cacheBust = scheduleUrl.indexOf('?') === -1 ? '?' : '&';
+
+    fetch(scheduleUrl + cacheBust + 'v=' + Date.now(), { cache: 'no-store' })
+      .then(function (response) {
+        if (!response.ok) throw new Error('Could not load schedule JSON');
+        return response.json();
+      })
+      .then(function (schedule) {
+        const race18 = findRace18(schedule);
+        const status = root.querySelector('.mrl-s3-countdown-status');
+
+        if (status) status.remove();
+
+        if (!race18) {
+          root.innerHTML = '<p class="mrl-s3-empty">Race 18 deadline could not be found.</p>';
+          return;
+        }
+
+        const container = document.createElement('div');
+        container.className = 'mrl-s3-countdown-content';
+        container.innerHTML = buildCountdownHtml(race18);
+        root.appendChild(container);
+
+        tickAll(root);
+        setInterval(function () { tickAll(root); }, 1000);
+      })
+      .catch(function (error) {
+        const status = root.querySelector('.mrl-s3-countdown-status');
+        if (status) {
+          status.innerHTML = '<p style="color:red; text-align:center;">Segment 3 picks deadline could not be loaded.</p>';
+        }
+        console.error(error);
+      });
+  }
+
+  roots.forEach(initRoot);
+})();
+</script>
+
+<style>
+.mrl-s3-picks-due-root{
+  max-width:720px;
+  margin:0 auto;
+  text-align:center;
+  font-family:inherit;
+}
+
+.mrl-s3-countdown-status,
+.mrl-s3-empty{
+  text-align:center;
+  font-size:18px;
+  color:#555;
+  margin:20px 0;
+}
+
+.mrl-s3-box{
+  border:none;
+  background:transparent;
+  margin:0 auto;
+  padding:0;
+  max-width:720px;
+  text-align:center;
+  font-family:inherit;
+}
+
+.mrl-s3-title{
+  color:#2a4f8e;
+  font-weight:700;
+  margin:0 0 6px 0;
+  font-size:30px;
+  line-height:1.1;
+}
+
+.mrl-s3-row{
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+  gap:4px;
+  white-space:nowrap;
+  margin:0;
+  padding:0;
+}
+
+.mrl-s3-unit{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  min-width:64px;
+}
+
+.mrl-s3-num{
+  font-size:48px;
+  font-weight:500;
+  line-height:1;
+  color:#333;
+}
+
+.mrl-s3-red{
+  color:#ff0000;
+}
+
+.mrl-s3-lab{
+  font-size:10px;
+  color:#333;
+  letter-spacing:.05em;
+  margin:0;
+  transform:translateY(-5px);
+}
+
+.mrl-s3-sep{
+  font-size:32px;
+  line-height:1;
+  position:relative;
+  top:2px;
+  margin:0 2px;
+  opacity:.9;
+  color:#333;
+}
+
+.mrl-s3-dt{
+  font-size:20px;
+  color:#555;
+  margin:2px 0 0 0;
+  letter-spacing:.03em;
+}
+
+@media (max-width:520px){
+  .mrl-s3-title{
+    font-size:24px;
+  }
+
+  .mrl-s3-num{
+    font-size:34px;
+  }
+
+  .mrl-s3-lab{
+    font-size:9px;
+    transform:translateY(-4px);
+  }
+
+  .mrl-s3-sep{
+    font-size:26px;
+    top:1px;
+  }
+
+  .mrl-s3-dt{
+    font-size:18px;
+  }
+}
+</style>
