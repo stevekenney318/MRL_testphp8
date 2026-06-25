@@ -4,13 +4,10 @@ declare(strict_types=1);
 /**
  * race_results_revision_monitor.php
  *
- * VERSION: v011
- * LAST MODIFIED: 6/25/2026 2:34:45 pm
+ * VERSION: v010
+ * LAST MODIFIED: 6/21/2026 3:19:00 pm
  *
  * CHANGELOG:
- * v011 (6/25/2026 2:34:45 pm)
- *   - NEW: Normal revision-monitor runs now verify/generate weekly standings release-version metadata for existing known snapshots.
- *   - NEW: Logs release-history metadata status so weekly_standings.php can rely on Current/Superseded and v1/v2/v3 display info.
  * v010 (6/21/2026)
  *   - NEW: Adds weekly standings release-history helper integration for direct updated release records after saved revision snapshots.
  *   - NEW: Updated release records include supersedes links, MRL impact, change labels, and driver-change counts.
@@ -80,7 +77,7 @@ ini_set('log_errors', '1');
 ini_set('error_log', __DIR__ . '/_race_results_revision_monitor_php_errors.log');
 error_reporting(E_ALL);
 
-const RR_REVISION_MONITOR_SIGNATURE = 'RACE_RESULTS_REVISION_MONITOR v011';
+const RR_REVISION_MONITOR_SIGNATURE = 'RACE_RESULTS_REVISION_MONITOR v010';
 
 require_once __DIR__ . '/race_results_engine.php';
 
@@ -1001,32 +998,6 @@ if (!empty($classificationRefresh['ok'])) {
     rrrev_out('Classification refresh: skipped/failed - ' . (string)($classificationRefresh['message'] ?? 'unknown reason'));
 }
 
-// ------------------------- RELEASE-HISTORY VERSION METADATA VERIFY -------------------------
-$releaseHistoryRefresh = [
-    'ok' => false,
-    'message' => 'Release-history helper unavailable.',
-    'release_count' => 0,
-];
-
-if (function_exists('wsrel_ensure_history_version_metadata')) {
-    $releaseHistoryRefresh = wsrel_ensure_history_version_metadata(__DIR__, (string)$year);
-    rr_log_line(
-        $logFile,
-        'RELEASE HISTORY VERSION METADATA '
-        . (!empty($releaseHistoryRefresh['ok']) ? 'OK' : 'WARN')
-        . ' releases=' . (string)($releaseHistoryRefresh['release_count'] ?? 0)
-        . ' changed=' . (!empty($releaseHistoryRefresh['changed']) ? 'YES' : 'NO')
-        . ' message=' . (string)($releaseHistoryRefresh['message'] ?? '')
-    );
-    rrrev_out(
-        'Release-history version metadata: '
-        . (!empty($releaseHistoryRefresh['ok']) ? 'OK' : 'warning')
-        . ' / Releases: ' . (string)($releaseHistoryRefresh['release_count'] ?? 0)
-    );
-} else {
-    rr_log_line($logFile, 'RELEASE HISTORY VERSION METADATA SKIPPED: wsrel_ensure_history_version_metadata unavailable');
-    rrrev_out('Release-history version metadata: skipped - helper unavailable.');
-}
 // ------------------------- SUMMARY -------------------------
 rrrev_out("---");
 rrrev_out("Run complete: " . rr_now_local_string());

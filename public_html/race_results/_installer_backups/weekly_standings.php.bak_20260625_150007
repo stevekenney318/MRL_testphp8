@@ -28,15 +28,10 @@ if ($isTestSite) {
 /**
  * weekly_standings.php
  *
- * VERSION: v059
- * LAST MODIFIED: 6/25/2026 2:34:45 pm
+ * VERSION: v058
+ * LAST MODIFIED: 6/21/2026 7:46:06 am
  *
  * CHANGELOG:
- *
- * v059 (6/25/2026 2:34:45 pm)
- *   - NEW: Adds stable second-row release-version controls using release-history metadata: Current/Superseded, v1/v2/v3 selector, and compact change-label pill.
- *   - NEW: Selected race versions can be opened directly on weekly standings using release-history snapshot metadata while keeping the familiar weekly page layout.
- *   - NEW: Adds an As-of link to standings_timeline.php for the selected release/version.
  *
  * v058 (6/21/26 7:46:06 am)
  *   - CHANGE: Release-history ladder now shows current/newest releases first, matching revision-block reading order.
@@ -193,7 +188,6 @@ if ($isTestSite) {
 require_once __DIR__ . '/race_results_team_helper.php';
 require_once __DIR__ . '/race_results_snapshot_helper.php';
 require_once __DIR__ . '/race_results_engine.php';
-require_once __DIR__ . '/weekly_standings_release_history_helper.php';
 
 function rrsg_h($val): string
 {
@@ -1978,114 +1972,6 @@ function rrsg_weekly_special_display_context(array $weeklyRows): array
 
 
 
-function rrsg_release_public_change_label(array $row): string
-{
-    $seq = (int)($row['release_sequence'] ?? $row['snapshot_index'] ?? 0);
-    $releaseType = strtolower((string)($row['release_type'] ?? ''));
-    if ($seq <= 1 && $releaseType === 'initial') {
-        return '';
-    }
-
-    $label = trim((string)($row['display_change_label'] ?? $row['change_status_label'] ?? $row['change_label'] ?? ''));
-    if ($label === 'MRL-Listed Driver Changed - No Segment Impact') {
-        return 'MRL Driver - No Team, No Impact';
-    }
-    if ($label === 'Pending Review - MRL Impact' || $label === 'Revised standings release') {
-        return 'MRL Impact - Results Changed';
-    }
-    if ($label !== '') {
-        return $label;
-    }
-
-    if (!empty($row['mrl_impact'])) {
-        return 'MRL Impact - Results Changed';
-    }
-    if ((int)($row['changed_mrl_listed_drivers_count'] ?? 0) > 0 && (int)($row['changed_segment_picked_drivers_count'] ?? 0) === 0) {
-        return 'MRL Driver - No Team, No Impact';
-    }
-    if ((int)($row['changed_all_drivers_count'] ?? 0) > 0) {
-        return 'Non-MRL Driver Change';
-    }
-    return '';
-}
-
-function rrsg_release_id_for_ui(array $row): string
-{
-    return (string)($row['generated_id'] ?? $row['release_id'] ?? '');
-}
-
-function rrsg_release_version_for_ui(array $row, int $fallbackIndex): string
-{
-    $v = trim((string)($row['display_version'] ?? $row['version_label'] ?? ''));
-    return $v !== '' ? $v : ('v' . (string)$fallbackIndex);
-}
-
-function rrsg_release_short_time_for_ui(array $row): string
-{
-    $short = trim((string)($row['released_at_short'] ?? ''));
-    if ($short !== '') return $short;
-    $raw = trim((string)($row['released_at'] ?? ''));
-    if ($raw === '') return '';
-    $dt = DateTime::createFromFormat('Y-m-d H:i:s', $raw, new DateTimeZone('America/New_York'));
-    if (!($dt instanceof DateTime)) {
-        try { $dt = new DateTime($raw, new DateTimeZone('America/New_York')); }
-        catch (Exception $e) { return (string)($row['released_at_display'] ?? $raw); }
-    }
-    return $dt->format('n/j/y g:ia');
-}
-
-function rrsg_release_version_option_label(array $row, int $fallbackIndex): string
-{
-    $label = rrsg_release_version_for_ui($row, $fallbackIndex);
-    $short = rrsg_release_short_time_for_ui($row);
-    return $label . ($short !== '' ? ' (' . $short . ')' : '');
-}
-
-function rrsg_select_release_row(array $rows, string $releaseId): array
-{
-    if (empty($rows)) return [];
-    foreach ($rows as $row) {
-        if (!is_array($row)) continue;
-        $id = rrsg_release_id_for_ui($row);
-        if ($releaseId !== '' && $id === $releaseId) return $row;
-    }
-    return $rows[count($rows) - 1];
-}
-
-function rrsg_release_snapshot_path_for_race(string $raceFolder, array $release): string
-{
-    $base = basename((string)($release['snapshot_file'] ?? $release['current_snapshot'] ?? ''));
-    if ($base === '') {
-        $snapshotId = (string)($release['snapshot_id'] ?? '');
-        if ($snapshotId !== '') $base = 'snapshot_' . $snapshotId . '.html';
-    }
-    if ($base === '') return '';
-    $path = rtrim($raceFolder, '/\\') . '/' . $base;
-    return is_file($path) ? $path : '';
-}
-
-function rrsg_release_status_for_ui(array $selected, array $rows): array
-{
-    if (empty($selected)) return ['label' => '', 'class' => 'none'];
-    $id = rrsg_release_id_for_ui($selected);
-    $latest = !empty($rows) ? $rows[count($rows) - 1] : [];
-    $latestId = rrsg_release_id_for_ui($latest);
-    if ($latestId !== '' && $id === $latestId) {
-        return ['label' => 'Current', 'class' => 'current'];
-    }
-    return ['label' => 'Superseded', 'class' => 'superseded'];
-}
-
-function rrsg_timeline_url_for_release(string $year, array $release): string
-{
-    $id = rrsg_release_id_for_ui($release);
-    if ($id === '') {
-        $snapshotId = (string)($release['snapshot_id'] ?? '');
-        $raceCode = (string)($release['race_code'] ?? '');
-        $id = ($snapshotId !== '' && $raceCode !== '') ? ($snapshotId . '_' . $raceCode) : $snapshotId;
-    }
-    return 'standings_timeline.php?year=' . rawurlencode($year) . '&snapshot=' . rawurlencode($id);
-}
 /* ------------------------------------------------------------------
    INPUTS
    ------------------------------------------------------------------ */
@@ -2145,15 +2031,6 @@ if ((!$selectedRaceHasSnapshot) && !empty($selectablePointRaces)) {
 $selectedRace = ($selectedRaceIndex >= 0 && isset($pointRaces[$selectedRaceIndex]))
     ? $pointRaces[$selectedRaceIndex]
     : null;
-
-$selectedReleaseId = isset($_GET['release']) ? trim((string)$_GET['release']) : '';
-$weeklyReleaseHistory = rrsg_load_weekly_release_history($yearFolder);
-$selectedVersionReleaseRows = rrsg_release_history_rows_for_race($weeklyReleaseHistory, $selectedRaceCode);
-$selectedVersionRelease = rrsg_select_release_row($selectedVersionReleaseRows, $selectedReleaseId);
-$selectedReleaseId = !empty($selectedVersionRelease) ? rrsg_release_id_for_ui($selectedVersionRelease) : '';
-$selectedReleaseStatus = rrsg_release_status_for_ui($selectedVersionRelease, $selectedVersionReleaseRows);
-$selectedReleaseChangeLabel = rrsg_release_public_change_label($selectedVersionRelease);
-$selectedReleaseTimelineUrl = !empty($selectedVersionRelease) ? rrsg_timeline_url_for_release($selectedYear, $selectedVersionRelease) : '';
 
 $liveUrl = '?year=' . rawurlencode($latestYear);
 if ($latestRaceCode !== '') {
@@ -2229,12 +2106,6 @@ if ($selectedRace !== null) {
         $raceTeamRows = rrsg_overlay_special_rows_for_race($raceTeamRowsBase, $raceTeamRowsSpecial, $raceNumber, $raceSegment);
 
         $snapshotFile = rrsg_find_snapshot_file($raceFolder);
-        if ($raceCode === $selectedRaceCode && !empty($selectedVersionRelease)) {
-            $versionSnapshotFile = rrsg_release_snapshot_path_for_race($raceFolder, $selectedVersionRelease);
-            if ($versionSnapshotFile !== '') {
-                $snapshotFile = $versionSnapshotFile;
-            }
-        }
         $driverPoints = [];
         $weeklyRows = [];
         $winner = [
@@ -2511,6 +2382,7 @@ if ($selectedRace !== null) {
     $underReview = rrsg_race_is_pending_review((string)$selectedRace['raceFolder']);
 }
 
+$weeklyReleaseHistory = rrsg_load_weekly_release_history($yearFolder);
 $auditMeta = rrsg_build_public_audit_meta($selectedRaceMeta, $selectedRace, $underReview, $weeklyReleaseHistory);
 
 $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
@@ -2747,72 +2619,6 @@ if ($exportMode === 'xlsx') {
             word-break: normal;
         }
 
-        .release-version-row {
-            display: flex;
-            align-items: center;
-            gap: 8px 10px;
-            min-height: 32px;
-            margin: -2px 0 6px 0;
-            padding-left: 82px;
-            box-sizing: border-box;
-            flex-wrap: wrap;
-        }
-
-        .release-status-pill,
-        .release-change-pill,
-        .timeline-link-pill {
-            display: inline-block;
-            border-radius: 15px;
-            padding: 2px 10px;
-            font-size: 13px;
-            font-weight: bold;
-            line-height: 1.25;
-            white-space: nowrap;
-        }
-
-        .release-status-pill.current {
-            background: #2e8b57;
-            border: 2px solid #1f5f3b;
-            color: #fff;
-        }
-
-        .release-status-pill.superseded {
-            background: #c00000;
-            border: 2px solid #7a0000;
-            color: #fff;
-        }
-
-        .release-status-pill.none {
-            background: #e6e6e6;
-            border: 2px solid #c8c8c8;
-            color: #666;
-        }
-
-        .release-version-select {
-            font: inherit;
-            min-width: 210px;
-            max-width: 270px;
-            padding: 1px 8px;
-        }
-
-        .release-change-pill {
-            background: #2e8b57;
-            border: 2px solid #1f5f3b;
-            color: #fff;
-            min-width: 220px;
-            text-align: center;
-        }
-
-        .release-change-pill.empty {
-            visibility: hidden;
-        }
-
-        .timeline-link-pill {
-            background: #d9ecff;
-            border: 2px solid #7db7ff;
-            color: #084298;
-            text-decoration: none;
-        }
         .details-content {
             display: none;
             padding: 6px 0 8px 0;
@@ -3507,29 +3313,6 @@ if ($exportMode === 'xlsx') {
                     onclick="exportWeeklyStandingsXlsx()"
                     <?php echo ($selectedRace === null ? 'disabled' : ''); ?>>Spreadsheet</button>
         </div>
-    </div>
-
-    <div class="release-version-row" id="releaseVersionRow">
-        <?php if ($selectedRace !== null && !empty($selectedVersionRelease)): ?>
-            <span class="release-status-pill <?php echo rrsg_h((string)$selectedReleaseStatus['class']); ?>"><?php echo rrsg_h((string)$selectedReleaseStatus['label']); ?></span>
-            <select name="release" id="release" form="weeklyStandingsForm" class="release-version-select" aria-label="Race version" onchange="document.getElementById('weeklyStandingsForm').submit();">
-                <?php foreach ($selectedVersionReleaseRows as $idxRelease => $releaseRow): ?>
-                    <?php if (!is_array($releaseRow)) continue; ?>
-                    <?php $releaseOptionId = rrsg_release_id_for_ui($releaseRow); ?>
-                    <option value="<?php echo rrsg_h($releaseOptionId); ?>" <?php echo ($releaseOptionId === $selectedReleaseId ? 'selected' : ''); ?>>
-                        <?php echo rrsg_h(rrsg_release_version_option_label($releaseRow, $idxRelease + 1)); ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-            <span class="release-change-pill <?php echo ($selectedReleaseChangeLabel === '' ? 'empty' : ''); ?>"><?php echo rrsg_h($selectedReleaseChangeLabel !== '' ? $selectedReleaseChangeLabel : 'No change label'); ?></span>
-            <?php if ($selectedReleaseTimelineUrl !== ''): ?>
-                <a class="timeline-link-pill" href="<?php echo rrsg_h($selectedReleaseTimelineUrl); ?>">As-of</a>
-            <?php endif; ?>
-        <?php else: ?>
-            <span class="release-status-pill none">No version</span>
-            <select class="release-version-select" disabled><option>No release history</option></select>
-            <span class="release-change-pill empty">No change label</span>
-        <?php endif; ?>
     </div>
 
     <?php if ($underReview): ?>
@@ -4236,12 +4019,6 @@ function updateNavButtons() {
     nextBtn.disabled = (idx < 0 || idx >= optionNumbers.length - 1);
 }
 
-function rrsgClearReleaseBeforeRaceChange() {
-    var releaseEl = document.getElementById('release');
-    if (releaseEl) {
-        releaseEl.disabled = true;
-    }
-}
 function navigateRace(direction) {
     var raceEl = document.getElementById('race');
     var formEl = document.getElementById('weeklyStandingsForm');
@@ -4283,7 +4060,6 @@ function navigateRace(direction) {
     }
 
     raceEl.value = rrsgPadRaceCode(targetNumber);
-    rrsgClearReleaseBeforeRaceChange();
     formEl.submit();
 }
 
@@ -4393,7 +4169,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             rrsgInitialLoad = false;
-            rrsgClearReleaseBeforeRaceChange();
             document.getElementById('weeklyStandingsForm').submit();
         });
     }
