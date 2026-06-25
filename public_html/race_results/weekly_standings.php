@@ -28,15 +28,18 @@ if ($isTestSite) {
 /**
  * weekly_standings.php
  *
- * VERSION: v059
- * LAST MODIFIED: 6/25/2026 2:34:45 pm
+ * VERSION: v060
+ * LAST MODIFIED: 6/25/2026 3:31:00 pm
  *
  * CHANGELOG:
+ *
+ * v060 (6/25/2026 3:31:00 pm)
+ *   - CHANGE: As-of button now opens standings_timeline_lite.php for a public-friendly as-of view.
  *
  * v059 (6/25/2026 2:34:45 pm)
  *   - NEW: Adds stable second-row release-version controls using release-history metadata: Current/Superseded, v1/v2/v3 selector, and compact change-label pill.
  *   - NEW: Selected race versions can be opened directly on weekly standings using release-history snapshot metadata while keeping the familiar weekly page layout.
- *   - NEW: Adds an As-of link to standings_timeline.php for the selected release/version.
+ *   - NEW: Adds an As-of link to standings_timeline_lite.php for the selected release/version.
  *
  * v058 (6/21/26 7:46:06 am)
  *   - CHANGE: Release-history ladder now shows current/newest releases first, matching revision-block reading order.
@@ -2084,7 +2087,7 @@ function rrsg_timeline_url_for_release(string $year, array $release): string
         $raceCode = (string)($release['race_code'] ?? '');
         $id = ($snapshotId !== '' && $raceCode !== '') ? ($snapshotId . '_' . $raceCode) : $snapshotId;
     }
-    return 'standings_timeline.php?year=' . rawurlencode($year) . '&snapshot=' . rawurlencode($id);
+    return 'standings_timeline_lite.php?year=' . rawurlencode($year) . '&snapshot=' . rawurlencode($id);
 }
 /* ------------------------------------------------------------------
    INPUTS
