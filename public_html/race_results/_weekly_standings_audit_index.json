@@ -1,7 +1,7 @@
 {
     "signature": "WEEKLY_STANDINGS_AUDIT_BUILDER v001",
     "version": "v001",
-    "generated_at": "2026-06-25 12:18:38",
+    "generated_at": "2026-06-26 11:47:57",
     "timezone": "America/New_York",
     "source": "weekly_standings_audit_builder.php",
     "scope": "local_mrl_artifacts_only",
@@ -20,21 +20,21 @@
         "classification_summary": {
             "path": "_race_results_classification_summary.json",
             "present": true,
-            "modified": "6/25/2026 12:00:06 pm",
+            "modified": "6/26/2026 6:00:05 am",
             "size_bytes": 15259,
             "size_label": "14.9 KB"
         },
         "classification_last_run": {
             "path": "_race_results_classification_last_run.json",
             "present": true,
-            "modified": "6/25/2026 12:00:06 pm",
+            "modified": "6/26/2026 6:00:05 am",
             "size_bytes": 15259,
             "size_label": "14.9 KB"
         },
         "pair_classification_history": {
             "path": "_race_results_pair_classification_history.json",
             "present": true,
-            "modified": "6/25/2026 12:00:06 pm",
+            "modified": "6/26/2026 6:00:05 am",
             "size_bytes": 31083,
             "size_label": "30.4 KB"
         },
@@ -48,9 +48,9 @@
         "weekly_standings_php": {
             "path": "weekly_standings.php",
             "present": true,
-            "modified": "6/21/2026 7:49:48 am",
-            "size_bytes": 156594,
-            "size_label": "152.9 KB"
+            "modified": "6/25/2026 4:04:26 pm",
+            "size_bytes": 166234,
+            "size_label": "162.3 KB"
         }
     },
     "counts": {
@@ -512,19 +512,19 @@
                 },
                 "mrl_impact_summary": {
                     "present": true,
-                    "modified": "6/25/2026 12:00:06 pm",
+                    "modified": "6/26/2026 6:00:05 am",
                     "size_bytes": 1766,
                     "size_label": "1.7 KB"
                 },
                 "all_driver_impact_summary": {
                     "present": true,
-                    "modified": "6/25/2026 12:00:06 pm",
+                    "modified": "6/26/2026 6:00:05 am",
                     "size_bytes": 1576,
                     "size_label": "1.5 KB"
                 },
                 "mrl_impact_pair_history": {
                     "present": true,
-                    "modified": "6/25/2026 12:00:06 pm",
+                    "modified": "6/26/2026 6:00:05 am",
                     "size_bytes": 16675,
                     "size_label": "16.3 KB"
                 },
@@ -971,19 +971,19 @@
                 },
                 "mrl_impact_summary": {
                     "present": true,
-                    "modified": "6/25/2026 12:00:06 pm",
+                    "modified": "6/26/2026 6:00:05 am",
                     "size_bytes": 1761,
                     "size_label": "1.7 KB"
                 },
                 "all_driver_impact_summary": {
                     "present": true,
-                    "modified": "6/25/2026 12:00:06 pm",
+                    "modified": "6/26/2026 6:00:05 am",
                     "size_bytes": 1571,
                     "size_label": "1.5 KB"
                 },
                 "mrl_impact_pair_history": {
                     "present": true,
-                    "modified": "6/25/2026 12:00:06 pm",
+                    "modified": "6/26/2026 6:00:05 am",
                     "size_bytes": 2876,
                     "size_label": "2.8 KB"
                 },
@@ -1210,19 +1210,19 @@
                 },
                 "mrl_impact_summary": {
                     "present": true,
-                    "modified": "6/25/2026 12:00:06 pm",
+                    "modified": "6/26/2026 6:00:05 am",
                     "size_bytes": 1763,
                     "size_label": "1.7 KB"
                 },
                 "all_driver_impact_summary": {
                     "present": true,
-                    "modified": "6/25/2026 12:00:06 pm",
+                    "modified": "6/26/2026 6:00:05 am",
                     "size_bytes": 1573,
                     "size_label": "1.5 KB"
                 },
                 "mrl_impact_pair_history": {
                     "present": true,
-                    "modified": "6/25/2026 12:00:06 pm",
+                    "modified": "6/26/2026 6:00:05 am",
                     "size_bytes": 2884,
                     "size_label": "2.8 KB"
                 },
@@ -1339,19 +1339,19 @@
                 },
                 "mrl_impact_summary": {
                     "present": true,
-                    "modified": "6/25/2026 12:00:06 pm",
+                    "modified": "6/26/2026 6:00:05 am",
                     "size_bytes": 1795,
                     "size_label": "1.8 KB"
                 },
                 "all_driver_impact_summary": {
                     "present": true,
-                    "modified": "6/25/2026 12:00:06 pm",
+                    "modified": "6/26/2026 6:00:05 am",
                     "size_bytes": 1606,
                     "size_label": "1.6 KB"
                 },
                 "mrl_impact_pair_history": {
                     "present": true,
-                    "modified": "6/25/2026 12:00:06 pm",
+                    "modified": "6/26/2026 6:00:05 am",
                     "size_bytes": 2908,
                     "size_label": "2.8 KB"
                 },
@@ -1468,19 +1468,19 @@
                 },
                 "mrl_impact_summary": {
                     "present": true,
-                    "modified": "6/25/2026 12:00:06 pm",
+                    "modified": "6/26/2026 6:00:05 am",
                     "size_bytes": 1768,
                     "size_label": "1.7 KB"
                 },
                 "all_driver_impact_summary": {
                     "present": true,
-                    "modified": "6/25/2026 12:00:06 pm",
+                    "modified": "6/26/2026 6:00:05 am",
                     "size_bytes": 1578,
                     "size_label": "1.5 KB"
                 },
                 "mrl_impact_pair_history": {
                     "present": true,
-                    "modified": "6/25/2026 12:00:06 pm",
+                    "modified": "6/26/2026 6:00:05 am",
                     "size_bytes": 2895,
                     "size_label": "2.8 KB"
                 },
@@ -1817,19 +1817,19 @@
                 },
                 "mrl_impact_summary": {
                     "present": true,
-                    "modified": "6/25/2026 12:00:06 pm",
+                    "modified": "6/26/2026 6:00:05 am",
                     "size_bytes": 1201,
                     "size_label": "1.2 KB"
                 },
                 "all_driver_impact_summary": {
                     "present": true,
-                    "modified": "6/25/2026 12:00:06 pm",
+                    "modified": "6/26/2026 6:00:05 am",
                     "size_bytes": 1012,
                     "size_label": "1012 B"
                 },
                 "mrl_impact_pair_history": {
                     "present": true,
-                    "modified": "6/25/2026 12:00:06 pm",
+                    "modified": "6/26/2026 6:00:05 am",
                     "size_bytes": 2130,
                     "size_label": "2.1 KB"
                 },
@@ -1946,19 +1946,19 @@
                 },
                 "mrl_impact_summary": {
                     "present": true,
-                    "modified": "6/25/2026 12:00:06 pm",
+                    "modified": "6/26/2026 6:00:05 am",
                     "size_bytes": 1766,
                     "size_label": "1.7 KB"
                 },
                 "all_driver_impact_summary": {
                     "present": true,
-                    "modified": "6/25/2026 12:00:06 pm",
+                    "modified": "6/26/2026 6:00:05 am",
                     "size_bytes": 1576,
                     "size_label": "1.5 KB"
                 },
                 "mrl_impact_pair_history": {
                     "present": true,
-                    "modified": "6/25/2026 12:00:06 pm",
+                    "modified": "6/26/2026 6:00:05 am",
                     "size_bytes": 2882,
                     "size_label": "2.8 KB"
                 },
