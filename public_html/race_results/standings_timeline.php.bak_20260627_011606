@@ -25,17 +25,12 @@ if ($isTestSite) {
 /**
  * standings_timeline.php
  *
- * VERSION: v006
- * LAST MODIFIED: 6/27/2026 1:12:11 am
+ * VERSION: v005
+ * LAST MODIFIED: 6/26/2026 11:45:00 am
  *
  * CHANGELOG:
  *
- * v006 (6/27/2026 1:12:11 am)
- *   - CHANGE: Refined the audit-style page colors to a light blue background with stronger blue borders.
- *   - CHANGE: Tightened card/table padding and row spacing to better match weekly_standings.php.
- *   - CHANGE: Kept the simplified v005 controls while making the standings tables less card-like and more compact.
- *
- * v005 (6/27/2026 12:46:49 am)
+ * v005 (6/26/2026 11:45:00 am)
  *   - CHANGE: Restyled the full timeline browser from the purple theme to a lighter blue/white audit-style color scheme.
  *   - CHANGE: Removed the duplicate as-of info pill row and the public demo limitation note.
  *   - CHANGE: Added the selected snapshot ID as a compact pill at the end of the main control row.
@@ -1107,62 +1102,61 @@ $timelineSummary = 'Viewing ' . trim($selectedViewRaceCode . ' ' . $selectedView
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
     :root {
-        --bg: #eaf6ff;
-        --panel: #f8fcff;
-        --panel2: #eef8ff;
-        --line: #62aef5;
-        --line-dark: #1f78c8;
-        --line-soft: #9fcef8;
-        --text: #050f1a;
-        --muted: #526b80;
+        --bg: #f5f9ff;
+        --panel: #ffffff;
+        --panel2: #eef7ff;
+        --line: #79b7f2;
+        --line-soft: #cfe4fb;
+        --text: #101820;
+        --muted: #5f6f7f;
         --accent: #004c9d;
         --accent2: #005fb8;
         --good: #177245;
         --warn: #8a6200;
-        --shadow: 0 2px 7px rgba(0, 76, 157, 0.16);
+        --shadow: 0 3px 10px rgba(16, 55, 93, 0.12);
         --sans: Arial, Helvetica, sans-serif;
         --mono: Consolas, Monaco, "Courier New", monospace;
     }
     * { box-sizing: border-box; }
-    body { margin: 0; padding: 8px; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 16px; }
+    body { margin: 0; padding: 8px; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; }
     .wrap { max-width: 1860px; margin: 0 auto; }
-    .hero { border: 2px solid var(--line); border-radius: 16px; padding: 12px 16px; background: #f8fcff; box-shadow: var(--shadow); margin-bottom: 12px; }
-    h1 { margin: 0 0 3px 0; color: var(--accent); font-size: 36px; line-height: 1.08; font-weight: 900; }
-    h2 { margin: 0 0 8px 0; color: var(--accent); font-size: 26px; line-height: 1.1; font-weight: 900; }
-    .sub, .subtle { color: #3e5368; line-height: 1.3; }
-    .controls { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; margin-top: 14px; }
-    select, .button, .navbtn { border: 2px solid var(--line); border-radius: 999px; background: #eef8ff; color: var(--accent); padding: 7px 12px; font-size: 16px; min-height: 34px; font-weight: 800; }
-    select { font-weight: 800; color: #050f1a; background: #ffffff; }
+    .hero { border: 2px solid var(--line); border-radius: 18px; padding: 14px 18px; background: linear-gradient(180deg, #ffffff, #eef7ff); box-shadow: var(--shadow); margin-bottom: 14px; }
+    h1 { margin: 0 0 4px 0; color: var(--accent); font-size: 31px; line-height: 1.1; }
+    h2 { margin: 0 0 10px 0; color: var(--accent); font-size: 21px; line-height: 1.15; }
+    .sub, .subtle { color: var(--muted); line-height: 1.35; }
+    .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 14px; }
+    select, .button, .navbtn { border: 2px solid var(--line); border-radius: 999px; background: #eef7ff; color: var(--accent); padding: 8px 12px; font-size: 14px; min-height: 36px; font-weight: 800; }
+    select { font-weight: 700; color: #101820; background: #ffffff; }
     select.snapshot-select { min-width: min(620px, 100%); max-width: 100%; }
     .race-select { min-width: 190px; }
     .button, .navbtn { display: inline-flex; align-items: center; justify-content: center; cursor: pointer; text-decoration: none; min-width: 54px; }
-    .button:hover, .navbtn:hover { background: #d9efff; text-decoration: none; }
-    .navbtn.disabled { opacity: 0.35; cursor: default; pointer-events: none; background: #f5faff; color: #8aa9c9; }
-    .snapshot-stepper { display: inline-flex; flex-direction: column; gap: 3px; align-items: stretch; justify-content: center; }
-    .snapshot-stepper .snapbtn { min-width: 42px; min-height: 16px; height: 16px; padding: 0 10px; border-radius: 999px; font-size: 12px; line-height: 1; }
-    .timeline-mode { display: inline-block; margin-left: 8px; color: var(--accent); background: #d9efff; border: 2px solid var(--line); border-radius: 999px; padding: 3px 10px; font-size: 14px; font-weight: 900; vertical-align: middle; }
-    .version-tag { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; border-radius: 999px; padding: 3px 8px; background: #d9efff; border: 1px solid var(--line); color: var(--accent); font-weight: 900; font-size: 12px; }
-    .snapshot-id-pill { display: inline-flex; align-items: center; gap: 6px; border: 2px solid var(--line); border-radius: 999px; padding: 7px 12px; background: #eef8ff; color: #050f1a; line-height: 1.15; white-space: nowrap; }
+    .button:hover, .navbtn:hover { background: #ddecfb; text-decoration: none; }
+    .navbtn.disabled { opacity: 0.35; cursor: default; pointer-events: none; background: #f5f8fb; color: #8aa9c9; }
+    .snapshot-stepper { display: inline-flex; flex-direction: column; gap: 4px; align-items: stretch; justify-content: center; }
+    .snapshot-stepper .snapbtn { min-width: 42px; min-height: 17px; height: 17px; padding: 0 10px; border-radius: 999px; font-size: 12px; line-height: 1; }
+    .timeline-mode { display: inline-block; margin-left: 8px; color: var(--accent); background: #ddecfb; border: 2px solid var(--line); border-radius: 999px; padding: 3px 10px; font-size: 13px; font-weight: 900; vertical-align: middle; }
+    .version-tag { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; border-radius: 999px; padding: 3px 8px; background: #ddecfb; border: 1px solid var(--line); color: var(--accent); font-weight: 900; font-size: 12px; }
+    .snapshot-id-pill { display: inline-flex; align-items: center; gap: 6px; border: 2px solid var(--line); border-radius: 999px; padding: 7px 12px; background: #eef7ff; color: #101820; line-height: 1.15; white-space: nowrap; }
     .snapshot-id-pill strong { color: var(--accent); }
     .pill-row { display: none; }
-    .pill { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 7px 11px; background: #eef8ff; color: var(--text); line-height: 1.15; }
+    .pill { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 7px 11px; background: rgba(255,255,255,0.045); color: var(--text); line-height: 1.15; }
     .pill strong { color: var(--accent2); }
     .note { display: none; }
-    .grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
     @media (min-width: 1150px) { .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-    .card, .wide-card { border: 2px solid var(--line-soft); border-radius: 16px; padding: 10px 16px 14px 16px; background: #f8fcff; box-shadow: var(--shadow); overflow: hidden; }
-    .wide-card { margin-top: 12px; }
+    .card, .wide-card { border: 1px solid var(--line-soft); border-radius: 16px; padding: 14px; background: linear-gradient(180deg, var(--panel), var(--panel2)); box-shadow: var(--shadow); overflow: hidden; }
+    .wide-card { margin-top: 14px; }
     .table-wrap { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; background: #ffffff; border: 2px solid #111; }
-    th, td { padding: 4px 8px; border: 1px solid #111; text-align: left; line-height: 1.15; font-size: 18px; }
-    th { color: #000; background: #ffff00; font-size: 18px; font-weight: 900; }
-    tr:nth-child(even) td { background: #d6e9f9; }
+    table { width: 100%; border-collapse: collapse; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #222; }
+    th, td { padding: 8px 9px; border: 1px solid #222; text-align: left; line-height: 1.22; font-size: 14px; }
+    th { color: #000; background: #ffff00; font-size: 13px; font-weight: 900; }
+    tr:nth-child(even) td { background: #d9ecfb; }
     tr:nth-child(odd) td { background: #ffffff; }
-    .st-rank { width: 48px; text-align: center; color: #000; }
+    .st-rank { width: 42px; text-align: right; color: #000; }
     .st-score { width: 70px; text-align: right; font-weight: 800; }
-    .st-racecol { width: 68px; white-space: nowrap; }
+    .st-racecol { width: 58px; white-space: nowrap; }
     .st-empty { color: var(--muted); font-style: italic; text-align: center; }
-    .snapshot-table td, .snapshot-table th { font-size: 14px; }
+    .snapshot-table td, .snapshot-table th { font-size: 12px; }
     .mono { font-family: var(--mono); }
     .footer { color: var(--muted); font-size: 12px; margin-top: 12px; text-align: center; }
 </style>
@@ -1242,7 +1236,7 @@ $timelineSummary = 'Viewing ' . trim($selectedViewRaceCode . ' ' . $selectedView
         <div class="table-wrap"><?php st_render_snapshot_set_table($snapshotSetRows); ?></div>
     </div>
 
-    <div class="footer">standings_timeline.php v006 · generated <?php echo st_h(date('n/j/Y g:i:s a')); ?></div>
+    <div class="footer">standings_timeline.php v005 · generated <?php echo st_h(date('n/j/Y g:i:s a')); ?></div>
 </div>
 <script>
 function stSnapshotChanged(selectEl) {

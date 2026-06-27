@@ -2,6 +2,30 @@
 
 declare(strict_types=1);
 
+/**
+ * install_standings_timeline_v006_20260627_011211am.php
+ *
+ * VERSION: v001
+ * LAST MODIFIED: 6/27/2026 1:12:11 am
+ *
+ * CHANGELOG:
+ * v001 (6/27/2026 1:12:11 am)
+ *   - NEW: Installer for standings_timeline.php v006 visual polish pass.
+ *   - NEW: Backs up existing standings_timeline.php before replacement.
+ *
+ * PHP: 7.3 compatible.
+ */
+
+$target = __DIR__ . '/standings_timeline.php';
+$backup = __DIR__ . '/standings_timeline.php.bak_' . date('Ymd_His');
+$report = [];
+$ok = true;
+
+$newContent = <<<'MRL_FILE'
+<?php
+
+declare(strict_types=1);
+
 ob_start();
 
 require_once $_SERVER['DOCUMENT_ROOT'] . '/config.php';
@@ -1270,5 +1294,62 @@ function stSnapshotChanged(selectEl) {
 }
 </script>
 
+</body>
+</html>
+
+MRL_FILE;
+
+function installer_h($value): string
+{
+    return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
+}
+
+if (!is_file($target)) {
+    $ok = false;
+    $report[] = 'ERROR: standings_timeline.php was not found in this folder.';
+} else {
+    if (!@copy($target, $backup)) {
+        $ok = false;
+        $report[] = 'ERROR: Could not create backup: ' . basename($backup);
+    } else {
+        $report[] = 'Backup created: ' . basename($backup);
+    }
+}
+
+if ($ok) {
+    $bytes = @file_put_contents($target, $newContent, LOCK_EX);
+    if ($bytes === false) {
+        $ok = false;
+        $report[] = 'ERROR: Could not write standings_timeline.php.';
+    } else {
+        $report[] = 'Updated: standings_timeline.php';
+        $report[] = 'Installed standings_timeline.php v006 tighter weekly-standings-style visual polish.';
+    }
+}
+
+?><!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MRL Standings Timeline v006 Installer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body { font-family: Arial, Helvetica, sans-serif; margin: 24px; background: #f5f9ff; color: #111; }
+.box { max-width: 900px; border: 2px solid <?php echo $ok ? '#4caf50' : '#b00020'; ?>; border-radius: 12px; padding: 18px; background: #fff; }
+h1 { margin-top: 0; color: <?php echo $ok ? '#176b2c' : '#b00020'; ?>; }
+pre { white-space: pre-wrap; background: #f3f6fa; border: 1px solid #d5dde8; border-radius: 8px; padding: 12px; }
+</style>
+</head>
+<body>
+<div class="box">
+<h1>MRL Standings Timeline v006 Installer</h1>
+<p><strong><?php echo $ok ? 'SUCCESS — standings_timeline.php v006 was installed.' : 'INSTALL FAILED — no changes completed.'; ?></strong></p>
+<h2>Report</h2>
+<pre><?php echo installer_h(implode("
+", $report)); ?></pre>
+<?php if ($ok): ?>
+<p>After a successful install, open standings_timeline.php, then delete this installer.</p>
+<?php endif; ?>
+</div>
 </body>
 </html>
