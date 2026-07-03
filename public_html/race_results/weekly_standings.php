@@ -28,12 +28,39 @@ if ($isTestSite) {
 /**
  * weekly_standings.php
  *
- * VERSION: v060
- * LAST MODIFIED: 6/25/2026 3:31:00 pm
+ * VERSION: v061
+ * LAST MODIFIED: 7/3/2026 2:09:00 am
  *
  * CHANGELOG:
  *
- * v060 (6/25/2026 3:31:00 pm)
+ * v061 (7/3/2026 2:09:00 am)
+ *   - FIX: Release/version control row now aligns from actual rendered Year and Race control positions so Current lines up under Year and Version lines up under Race.
+ *   - FIX: View and MRL Impact controls stay attached to the selected Version instead of drifting across the row.
+ *
+ * v061 (7/3/2026 1:52:25 am)
+ *   - POLISH: Reworked the release/version row grid so the Current pill aligns under Year and the Version selector aligns under Race.
+ *   - POLISH: Kept the Race selector width unchanged while tightening Version, View, and MRL Impact grouping.
+ *   - POLISH: Changed the release change pill track from stretching auto columns to fit-content/max-content behavior.
+ *
+ * v061 (7/3/2026 1:35:16 am)
+ *   - POLISH: Kept Race dropdown width unchanged.
+ *   - POLISH: Narrowed the Version dropdown while preserving its left alignment with the Race dropdown.
+ *   - POLISH: Kept Current/Superseded aligned under Live/Year so its right edge matches the Year dropdown.
+ *   - POLISH: Nudged View closer to Version while keeping it after Version and opening in a new tab.
+ *   - POLISH: Kept the MRL Impact/change pill fit-to-content.
+ * * v061 (7/2/2026 5:53:35 pm)
+ *   - POLISH: Kept Weekly Winners segment colors but restored the original page wrapper width.
+ *   - POLISH: Reordered the release/version row to read Current/Superseded, Version, View, MRL Impact.
+ *   - POLISH: Renamed As-of to View, moved it after the version dropdown, and opens it in a new browser tab.
+ *   - POLISH: Aligned Current/Superseded with the Year dropdown and Version with the Race dropdown/nav area.
+ *   - POLISH: Reduced the MRL Impact/change pill so it fits its text instead of stretching wide.
+ * * v061 (7/2/2026 12:26:05 am)
+ *   - CHANGE: Polished the top control layout so Print and Spreadsheet stay on the upper-right first row.
+ *   - CHANGE: Moved the historical note below the controls so it no longer reserves row-1 space or disrupts version controls.
+ *   - CHANGE: Aligned the race selector and release-version selector rows, moved As-of under Live, and made As-of normal weight.
+ *   - CHANGE: Widened the page wrapper while preserving existing table font size, padding, and row height.
+ *   - CHANGE: Rolled Weekly Winners segment background colors into table 4.
+ * * v060 (6/25/2026 3:31:00 pm)
  *   - CHANGE: As-of button now opens standings_timeline_lite.php for a public-friendly as-of view.
  *
  * v059 (6/25/2026 2:34:45 pm)
@@ -2632,10 +2659,10 @@ if ($exportMode === 'xlsx') {
         }
 
         .top-controls {
-            display: flex;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: minmax(0, auto) minmax(0, 1fr) auto;
+            grid-template-areas: "primary status actions";
             align-items: center;
-            justify-content: flex-start;
             gap: 8px 12px;
             margin-bottom: 6px;
         }
@@ -2646,6 +2673,15 @@ if ($exportMode === 'xlsx') {
             flex-wrap: wrap;
             align-items: center;
             gap: 6px 10px;
+            min-width: 0;
+        }
+
+        .top-controls-left {
+            grid-area: primary;
+        }
+
+        .top-controls-right {
+            grid-area: status;
         }
 
         .top-controls select,
@@ -2660,11 +2696,14 @@ if ($exportMode === 'xlsx') {
 
 
         .top-controls-actions {
+            grid-area: actions;
             display: flex;
             flex-wrap: nowrap;
             align-items: center;
+            justify-content: flex-end;
             gap: 6px 10px;
             margin-left: auto;
+            white-space: nowrap;
         }
 
         .report-action-btn {
@@ -2733,34 +2772,37 @@ if ($exportMode === 'xlsx') {
             cursor: pointer;
         }
 
-        .historical-note-slot {
-            display: inline-block;
-            width: 460px;
-            max-width: 460px;
-            min-height: 1.2em;
-            margin-left: 6px;
+        .historical-note-row {
+            margin: 2px 0 6px 0;
+            max-width: 760px;
             font-size: 11px;
             font-style: italic;
             color: #0f0d0d;
-            white-space: normal;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            vertical-align: top;
+            line-height: 1.25;
             overflow-wrap: anywhere;
             word-break: normal;
         }
 
-        .release-version-row {
-            display: flex;
-            align-items: center;
-            gap: 8px 10px;
-            min-height: 32px;
-            margin: -2px 0 6px 0;
-            padding-left: 82px;
-            box-sizing: border-box;
-            flex-wrap: wrap;
+        .historical-note-slot {
+            display: inline;
         }
 
+        .release-version-row {
+            display: block;
+            position: relative;
+            min-height: 32px;
+            margin: -2px 0 6px 0;
+            padding-left: 0;
+            box-sizing: border-box;
+        }
+
+        .release-version-row .release-status-pill,
+        .release-version-row .release-version-select,
+        .release-version-row .timeline-link-pill,
+        .release-version-row .release-change-pill {
+            position: absolute;
+            top: 2px;
+        }
         .release-status-pill,
         .release-change-pill,
         .timeline-link-pill {
@@ -2793,16 +2835,20 @@ if ($exportMode === 'xlsx') {
 
         .release-version-select {
             font: inherit;
-            min-width: 210px;
-            max-width: 270px;
+            width: 178px;
+            min-width: 0;
+            max-width: 178px;
             padding: 1px 8px;
+            box-sizing: border-box;
         }
 
         .release-change-pill {
             background: #2e8b57;
             border: 2px solid #1f5f3b;
             color: #fff;
-            min-width: 220px;
+            min-width: 0;
+            width: fit-content;
+            max-width: max-content;
             text-align: center;
         }
 
@@ -2815,6 +2861,15 @@ if ($exportMode === 'xlsx') {
             border: 2px solid #7db7ff;
             color: #084298;
             text-decoration: none;
+            font-weight: normal;
+            text-align: center;
+            margin-left: -4px;
+        }
+
+        .timeline-link-spacer {
+            display: inline-block;
+            min-width: 66px;
+            min-height: 1px;
         }
         .details-content {
             display: none;
@@ -3274,6 +3329,21 @@ if ($exportMode === 'xlsx') {
             white-space: nowrap;
         }
 
+        /* ── Weekly Winners segment background colors ───────────────────────
+           S1/R01-R08: #c5d9f1 light blue
+           S2/R09-R17: #c4bd97 tan/gray
+           S3/R18-R26: #fcd5b4 peach
+           S4/R27-R36: #c4d79b green
+           This overrides normal striping only for Table 4 winner rows.
+        */
+        .weekly-winner-segment-row.weekly-winner-segment-S1 td { background: #c5d9f1 !important; }
+        .weekly-winner-segment-row.weekly-winner-segment-S2 td { background: #c4bd97 !important; }
+        .weekly-winner-segment-row.weekly-winner-segment-S3 td { background: #fcd5b4 !important; }
+        .weekly-winner-segment-row.weekly-winner-segment-S4 td { background: #c4d79b !important; }
+        .weekly-winner-segment-row td {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
 
         @media print {
             @page {
@@ -3356,8 +3426,19 @@ if ($exportMode === 'xlsx') {
                 grid-template-columns: minmax(280px, 1fr) minmax(280px, 1fr);
             }
 
-            .historical-note-slot {
-                max-width: 480px;
+            .top-controls {
+                grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+                grid-template-areas:
+                    "primary actions"
+                    "status status";
+            }
+
+            .top-controls-actions {
+                justify-self: end;
+            }
+
+            .historical-note-row {
+                max-width: 760px;
             }
         }
 
@@ -3368,8 +3449,19 @@ if ($exportMode === 'xlsx') {
             }
 
             .top-controls {
-                flex-wrap: wrap;
-                gap: 4px 8px;
+                display: grid;
+                grid-template-columns: 1fr;
+                grid-template-areas:
+                    "primary"
+                    "status"
+                    "actions";
+                gap: 6px 8px;
+            }
+
+            .top-controls-left,
+            .top-controls-right,
+            .top-controls-actions {
+                justify-content: flex-start;
             }
 
             .top-controls select,
@@ -3392,11 +3484,33 @@ if ($exportMode === 'xlsx') {
                 max-width: 100%;
             }
 
-            .historical-note-slot {
-                width: 100%;
-                white-space: normal;
-                min-height: 1.2em;
-                margin-left: 0;
+            .historical-note-row {
+                max-width: 100%;
+                margin: 4px 0 8px 0;
+            }
+
+            .release-version-row {
+                display: flex;
+                position: static;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 6px 8px;
+                min-height: 0;
+            }
+
+            .release-version-row .release-status-pill,
+            .release-version-row .release-version-select,
+            .release-version-row .timeline-link-pill,
+            .release-version-row .release-change-pill {
+                position: static;
+                top: auto;
+                left: auto;
+            }
+
+            .release-version-select,
+            .release-change-pill {
+                min-width: 0;
+                max-width: 100%;
             }
 
             .details-meta {
@@ -3495,7 +3609,6 @@ if ($exportMode === 'xlsx') {
                 </button>
             <?php endif; ?>
 
-            <span class="historical-note-slot" id="historicalNoteSlot"><?php echo ($historicalNote !== '' ? rrsg_h($historicalNote) : '&nbsp;'); ?></span>
         </div>
 
         <div class="top-controls-actions">
@@ -3524,16 +3637,20 @@ if ($exportMode === 'xlsx') {
                     </option>
                 <?php endforeach; ?>
             </select>
-            <span class="release-change-pill <?php echo ($selectedReleaseChangeLabel === '' ? 'empty' : ''); ?>"><?php echo rrsg_h($selectedReleaseChangeLabel !== '' ? $selectedReleaseChangeLabel : 'No change label'); ?></span>
             <?php if ($selectedReleaseTimelineUrl !== ''): ?>
-                <a class="timeline-link-pill" href="<?php echo rrsg_h($selectedReleaseTimelineUrl); ?>">As-of</a>
+                <a class="timeline-link-pill" href="<?php echo rrsg_h($selectedReleaseTimelineUrl); ?>" target="_blank" rel="noopener">View</a>
             <?php endif; ?>
+            <span class="release-change-pill <?php echo ($selectedReleaseChangeLabel === '' ? 'empty' : ''); ?>"><?php echo rrsg_h($selectedReleaseChangeLabel !== '' ? $selectedReleaseChangeLabel : 'No change label'); ?></span>
         <?php else: ?>
             <span class="release-status-pill none">No version</span>
             <select class="release-version-select" disabled><option>No release history</option></select>
             <span class="release-change-pill empty">No change label</span>
         <?php endif; ?>
     </div>
+
+    <?php if ($historicalNote !== ''): ?>
+        <div class="historical-note-row" id="historicalNoteSlot"><?php echo rrsg_h($historicalNote); ?></div>
+    <?php endif; ?>
 
     <?php if ($underReview): ?>
         <div class="pending-review-panel" id="reviewPanel">
@@ -4064,14 +4181,14 @@ if ($exportMode === 'xlsx') {
                                     ?>
 
                                     <?php if (empty($winnerNames)): ?>
-                                        <tr>
+                                        <tr class="weekly-winner-segment-row weekly-winner-segment-<?php echo rrsg_h(rrsg_segment_from_race_number((int)$race['number'])); ?>">
                                             <td class="num"><?php echo rrsg_h($winnerWeekDisplay); ?></td>
                                             <td class="team-col"></td>
                                             <td class="num">0</td>
                                         </tr>
                                     <?php else: ?>
                                         <?php foreach ($winnerNames as $winnerName): ?>
-                                            <tr>
+                                            <tr class="weekly-winner-segment-row weekly-winner-segment-<?php echo rrsg_h(rrsg_segment_from_race_number((int)$race['number'])); ?>">
                                                 <td class="num"><?php
                                                     if ($winnerIsTieWeek) {
                                                         echo '<span class="tie-rank">' . rrsg_h($winnerWeekDisplay) . '</span>';
@@ -4101,6 +4218,92 @@ var rrsgYearRaceOptions = <?php echo json_encode($yearRaceOptions, JSON_HEX_TAG 
 var rrsgLiveUrl = <?php echo json_encode($liveUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 var rrsgInitialLoad = true;
 
+function rrsgResetReleaseVersionAlignment() {
+    var row = document.getElementById('releaseVersionRow');
+    if (!row) return;
+
+    var controls = row.querySelectorAll('.release-status-pill, .release-version-select, .timeline-link-pill, .release-change-pill');
+    for (var i = 0; i < controls.length; i++) {
+        controls[i].style.left = '';
+        controls[i].style.top = '';
+        controls[i].style.position = '';
+    }
+    row.style.minHeight = '';
+}
+
+function rrsgAlignReleaseVersionRow() {
+    var row = document.getElementById('releaseVersionRow');
+    var yearEl = document.getElementById('year');
+    var raceEl = document.getElementById('race');
+
+    if (!row || !yearEl || !raceEl) {
+        return;
+    }
+
+    if (window.matchMedia && window.matchMedia('(max-width: 760px)').matches) {
+        rrsgResetReleaseVersionAlignment();
+        return;
+    }
+
+    var statusEl = row.querySelector('.release-status-pill');
+    var versionEl = row.querySelector('.release-version-select');
+    var viewEl = row.querySelector('.timeline-link-pill');
+    var changeEl = row.querySelector('.release-change-pill');
+
+    if (!statusEl || !versionEl) {
+        return;
+    }
+
+    var rowRect = row.getBoundingClientRect();
+    var yearRect = yearEl.getBoundingClientRect();
+    var raceRect = raceEl.getBoundingClientRect();
+    var gapAfterVersion = 8;
+    var gapAfterView = 10;
+
+    var statusLeft = Math.round(yearRect.right - rowRect.left - statusEl.offsetWidth);
+    var versionLeft = Math.round(raceRect.left - rowRect.left);
+    var versionWidth = versionEl.offsetWidth;
+    var viewLeft = versionLeft + versionWidth + gapAfterVersion;
+    var nextLeft = viewLeft;
+    var maxBottom = 0;
+
+    statusEl.style.position = 'absolute';
+    statusEl.style.left = Math.max(0, statusLeft) + 'px';
+    statusEl.style.top = '2px';
+
+    versionEl.style.position = 'absolute';
+    versionEl.style.left = Math.max(0, versionLeft) + 'px';
+    versionEl.style.top = '2px';
+
+    if (viewEl) {
+        viewEl.style.position = 'absolute';
+        viewEl.style.left = Math.max(0, viewLeft) + 'px';
+        viewEl.style.top = '2px';
+        nextLeft = viewLeft + viewEl.offsetWidth + gapAfterView;
+    } else {
+        nextLeft = versionLeft + versionWidth + gapAfterVersion;
+    }
+
+    if (changeEl && !changeEl.classList.contains('empty')) {
+        changeEl.style.position = 'absolute';
+        changeEl.style.left = Math.max(0, nextLeft) + 'px';
+        changeEl.style.top = '2px';
+    }
+
+    var controls = row.querySelectorAll('.release-status-pill, .release-version-select, .timeline-link-pill, .release-change-pill');
+    for (var i = 0; i < controls.length; i++) {
+        if (controls[i].offsetParent !== null) {
+            maxBottom = Math.max(maxBottom, controls[i].offsetTop + controls[i].offsetHeight);
+        }
+    }
+
+    row.style.minHeight = Math.max(32, maxBottom + 4) + 'px';
+}
+
+function rrsgAlignReleaseVersionRowSoon() {
+    window.setTimeout(rrsgAlignReleaseVersionRow, 0);
+    window.setTimeout(rrsgAlignReleaseVersionRow, 100);
+}
 function rrsgPadRaceCode(num) {
     var n = parseInt(num, 10);
     if (isNaN(n)) {
@@ -4357,6 +4560,7 @@ function toggleWeeklyDetail(detailId, rowEl) {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+    rrsgAlignReleaseVersionRowSoon();
     var yearEl = document.getElementById('year');
     var raceEl = document.getElementById('race');
     var detailsEl = document.getElementById('detailsContent');
@@ -4419,6 +4623,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     updateNavButtons();
 });
+window.addEventListener('resize', rrsgAlignReleaseVersionRowSoon);
 </script>
 <?php include $_SERVER['DOCUMENT_ROOT'] . '/footer-light.php'; ?>
 </body>
