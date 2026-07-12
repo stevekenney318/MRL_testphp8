@@ -28,16 +28,10 @@ if ($isTestSite) {
 /**
  * weekly_standings.php
  *
- * VERSION: v062
- * LAST MODIFIED: 7/5/2026 12:47:15 am
+ * VERSION: v061
+ * LAST MODIFIED: 7/3/2026 2:09:00 am
  *
  * CHANGELOG:
- *
- * v062 (7/5/2026 12:47:15 am)
- *   - CHANGE: Pending Review now uses release-level metadata instead of automatic race-folder under_review.flag state.
- *   - NEW: Selected superseded releases receive a full-page translucent red tint.
- *   - NEW: Validation details are visually grouped with a light green panel when expanded.
- *   - NEW: Added support for the companion weekly_pending_review_admin.php manual review queue.
  *
  * v061 (7/3/2026 2:09:00 am)
  *   - FIX: Release/version control row now aligns from actual rendered Year and Race control positions so Current lines up under Year and Version lines up under Race.
@@ -2543,29 +2537,11 @@ if ((int)$selectedYear < 2026 && $selectedRace !== null) {
 }
 
 $underReview = false;
-$selectedReleaseManualReason = '';
-if ($selectedRace !== null && !empty($selectedVersionRelease)) {
-    $releaseStatusRaw = strtolower(trim((string)($selectedVersionRelease['status'] ?? '')));
-    $releasePublicRaw = strtolower(trim((string)($selectedVersionRelease['public_status'] ?? '')));
-    $underReview = (
-        !empty($selectedVersionRelease['under_review']) ||
-        !empty($selectedVersionRelease['pending_review']) ||
-        !empty($selectedVersionRelease['manual_pending_review']) ||
-        $releaseStatusRaw === 'pending_review' ||
-        $releasePublicRaw === 'pending_review'
-    );
-    $selectedReleaseManualReason = trim((string)(
-        $selectedVersionRelease['pending_review_reason']
-        ?? $selectedVersionRelease['manual_review_reason']
-        ?? $selectedVersionRelease['reason_public']
-        ?? ''
-    ));
+if ($selectedRace !== null) {
+    $underReview = rrsg_race_is_pending_review((string)$selectedRace['raceFolder']);
 }
 
 $auditMeta = rrsg_build_public_audit_meta($selectedRaceMeta, $selectedRace, $underReview, $weeklyReleaseHistory);
-if ($underReview && $selectedReleaseManualReason !== '') {
-    $auditMeta['reason'] = $selectedReleaseManualReason;
-}
 
 $yearRaceOptions = rrsg_build_year_race_options($availableYears, $baseDir);
 
@@ -2674,10 +2650,6 @@ if ($exportMode === 'xlsx') {
             line-height: 1.3;
             margin: 12px;
             color: #111;
-        }
-
-        body.release-superseded-view {
-            background: rgba(255, 0, 0, 0.10);
         }
 
         .page-wrap {
@@ -2905,16 +2877,6 @@ if ($exportMode === 'xlsx') {
             margin: 0 0 8px 0;
             background: transparent;
             border: none;
-        }
-
-        .details-content.validation-report-panel {
-            margin: 8px 0 8px 0;
-            padding: 8px 10px 10px 10px;
-            background: rgba(46, 139, 87, 0.18);
-            border: 2px solid rgba(46, 139, 87, 0.85);
-            border-radius: 8px;
-            max-width: 970px;
-            box-sizing: border-box;
         }
 
         .validation-btn {
@@ -3583,7 +3545,7 @@ if ($exportMode === 'xlsx') {
         }
     </style>
 </head>
-<body class="<?php echo (!empty($selectedReleaseStatus['class']) && (string)$selectedReleaseStatus['class'] === 'superseded') ? 'release-superseded-view' : ''; ?>">
+<body>
 
 <div class="page-wrap">
 
@@ -3692,7 +3654,7 @@ if ($exportMode === 'xlsx') {
 
     <?php if ($underReview): ?>
         <div class="pending-review-panel" id="reviewPanel">
-            <?php echo rrsg_h($selectedReleaseManualReason !== '' ? $selectedReleaseManualReason : 'Pending review has been manually applied to this release.'); ?>
+            Results generated automatically. Pending league review.
         </div>
     <?php endif; ?>
 
@@ -3771,7 +3733,7 @@ if ($exportMode === 'xlsx') {
     </div>
 
     <div id="resultsArea" <?php echo ($selectedRace === null ? 'style="display:none;"' : ''); ?>>
-        <div class="details-content validation-report-panel" id="detailsContent">
+        <div class="details-content" id="detailsContent">
             <div class="details-meta">
                 <span class="chunk"><strong>Scoring:</strong> <?php echo rrsg_h($scoreYear . ' / ' . $scoreSegment . ' / ' . $selectedRaceDisplay); ?></span>
                 <span class="chunk"><strong>Teams:</strong> <?php echo count($teamRows); ?></span>

@@ -4,14 +4,10 @@ declare(strict_types=1);
 /**
  * race_results_revision_monitor.php
  *
- * VERSION: v012
- * LAST MODIFIED: 7/5/2026 12:47:15 am
+ * VERSION: v011
+ * LAST MODIFIED: 6/25/2026 2:34:45 pm
  *
  * CHANGELOG:
- * v012 (7/5/2026 12:47:15 am)
- *   - CHANGE: Detected revisions no longer automatically create or remove under_review.flag.
- *   - CHANGE: Release-history records remain current/released by default while preserving review_required/review_suggested metadata for audit.
- *   - CHANGE: Manual Pending Review is controlled through weekly_pending_review_admin.php.
  * v011 (6/25/2026 2:34:45 pm)
  *   - NEW: Normal revision-monitor runs now verify/generate weekly standings release-version metadata for existing known snapshots.
  *   - NEW: Logs release-history metadata status so weekly_standings.php can rely on Current/Superseded and v1/v2/v3 display info.
@@ -811,12 +807,22 @@ foreach ($completedRaces as $race) {
         . ($reviewRequired ? 'YES' : 'NO')
     );
 
-    // 5. v012: Pending Review is now manual release-level metadata.
-    // The classifier may still mark review_required/review_suggested in revision_meta.json,
-    // but this script no longer creates or removes under_review.flag automatically.
+    // 5. Create under_review.flag only when review is required.
     $flagPath = $raceFolder . '/under_review.flag';
-    rr_log_line($logFile, "UNDER_REVIEW FLAG UNCHANGED folder={$folderName} reviewSuggested=" . ($reviewRequired ? 'YES' : 'NO') . " reason={$status}");
-    rrrev_out("  under_review.flag unchanged; Pending Review is manual release metadata.");
+    if ($reviewRequired) {
+        rr_atomic_write($flagPath, "");
+        rr_log_line($logFile, "UNDER_REVIEW FLAG SET folder={$folderName} reason={$status}");
+        rrrev_out("  under_review.flag created.");
+    } else {
+        if (is_file($flagPath)) {
+            @unlink($flagPath);
+            rr_log_line($logFile, "UNDER_REVIEW FLAG REMOVED folder={$folderName} reason={$status}");
+            rrrev_out("  under_review.flag removed/not required.");
+        } else {
+            rr_log_line($logFile, "UNDER_REVIEW FLAG NOT SET folder={$folderName} reason={$status}");
+            rrrev_out("  under_review.flag not required.");
+        }
+    }
 
     // 6. Write revision metadata artifact.
     $existingMeta = rrrev_read_revision_meta($raceFolder);

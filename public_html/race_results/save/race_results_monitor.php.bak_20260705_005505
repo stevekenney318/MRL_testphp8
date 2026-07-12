@@ -4,14 +4,10 @@ declare(strict_types=1);
 /**
  * race_results_monitor.php
  *
- * VERSION: v137
- * LAST MODIFIED: 7/5/2026 12:47:15 am
+ * VERSION: v136
+ * LAST MODIFIED: 6/21/2026 3:19:00 pm
  *
  * CHANGELOG:
- *
- * v137 (7/5/2026 12:47:15 am)
- *   - CHANGE: Final race snapshots no longer automatically create under_review.flag.
- *   - CHANGE: Initial weekly release-history records are now released/current by default; Pending Review is manual release metadata.
  *
  * v136 (6/21/2026)
  *   - NEW: Adds weekly standings release-history helper integration for initial race result snapshots.
@@ -1794,7 +1790,7 @@ if ($snapshotsEnabled) {
     rr_save_snapshot_summary($raceFolder, $tsFile, $html2);
     rr_atomic_write($hashFilePath, $finalHashNow . "
 ");
-    // v137: do not automatically create under_review.flag on normal final capture.
+    touch($raceFolder . '/under_review.flag');
     rr_log_line($logFile, "SNAPSHOT SAVED in " . basename($raceFolder));
 
     if ($snapshotPath !== '' && !$isExh && $raceNum !== null && (int)$raceNum > 0 && function_exists('wsrel_record_snapshot_release')) {
@@ -1823,11 +1819,9 @@ if ($snapshotsEnabled) {
             'snapshot_index' => $snapshotIndexForRelease,
             'snapshot_count' => $snapshotCountForRelease,
             'is_current_snapshot' => true,
-            'under_review' => false,
-            'status' => 'released',
-            'public_status' => 'Official standings release',
+            'under_review' => is_file($raceFolder . '/under_review.flag'),
             'source_type' => 'initial',
-            'builder_note' => 'Automatically recorded by race_results_monitor after first final-result snapshot capture. Pending Review is now manual release metadata only.',
+            'builder_note' => 'Automatically recorded by race_results_monitor after first final-result snapshot capture.',
         ]);
 
         rr_log_line(
