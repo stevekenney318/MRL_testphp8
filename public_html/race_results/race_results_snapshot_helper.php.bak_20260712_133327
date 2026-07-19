@@ -4,16 +4,11 @@ declare(strict_types=1);
 /**
  * race_results_snapshot_helper.php
  *
- * VERSION: v1.00.02
- * LAST MODIFIED: 7/12/2026 1:15:52 pm
- * BUILD TS: 20260712_131552000
+ * VERSION: v1.00.01
+ * LAST MODIFIED: 2026-03-12
+ * BUILD TS: 20260312_001500000
  *
  * CHANGELOG:
- * v1.00.02 (7/12/2026 1:15:52 pm)
- *   - NEW: Added strict canonical snapshot filename detection.
- *   - NEW: Added shared canonical snapshot discovery/latest helpers.
- *   - FIX: Derived files such as _lite.html and future _mrl.html are excluded.
- *
  * v1.00.01 (2026-03-12)
  *   - FIX: Correct NET calculation for ESPN/NASCAR race results.
  *   - NET is now calculated as:
@@ -28,52 +23,6 @@ declare(strict_types=1);
  * PHP: 7.3 compatible.
  */
 
-
-if (!function_exists('rrs_is_canonical_snapshot_filename')) {
-    /**
-     * Canonical source snapshots use exactly:
-     * snapshot_YYYYMMDD_HHMMSSmmm.html
-     *
-     * Derived views such as _lite.html and _mrl.html are intentionally excluded.
-     */
-    function rrs_is_canonical_snapshot_filename(string $pathOrFilename): bool
-    {
-        return preg_match(
-            '/^snapshot_\d{8}_\d{9}\.html$/',
-            basename($pathOrFilename)
-        ) === 1;
-    }
-}
-
-if (!function_exists('rrs_canonical_snapshot_files')) {
-    function rrs_canonical_snapshot_files(string $raceFolder): array
-    {
-        $files = glob(rtrim($raceFolder, '/\\') . '/snapshot_*.html');
-
-        if (!is_array($files) || empty($files)) {
-            return [];
-        }
-
-        $canonical = [];
-
-        foreach ($files as $file) {
-            if (rrs_is_canonical_snapshot_filename((string)$file)) {
-                $canonical[] = (string)$file;
-            }
-        }
-
-        sort($canonical, SORT_STRING);
-        return array_values($canonical);
-    }
-}
-
-if (!function_exists('rrs_latest_canonical_snapshot')) {
-    function rrs_latest_canonical_snapshot(string $raceFolder): string
-    {
-        $files = rrs_canonical_snapshot_files($raceFolder);
-        return empty($files) ? '' : (string)$files[count($files) - 1];
-    }
-}
 if (!function_exists('rrs_norm_text')) {
     function rrs_norm_text(string $s): string
     {

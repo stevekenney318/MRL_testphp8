@@ -4,15 +4,10 @@ declare(strict_types=1);
 /**
  * weekly_standings_release_history_helper.php
  *
- * VERSION: v003
- * LAST MODIFIED: 7/12/2026 1:15:52 pm
+ * VERSION: v002
+ * LAST MODIFIED: 6/25/2026 2:34:45 pm
  *
  * CHANGELOG:
- * v003 (7/12/2026 1:15:52 pm)
- *   - FIX: Release-history rebuilds now use canonical source snapshots only.
- *   - FIX: Derived _lite.html / _mrl.html views cannot become releases or versions.
- *   - CHANGE: Uses the shared snapshot helper for canonical discovery.
- *
  * v002 (6/25/2026 2:34:45 pm)
  *   - NEW: Adds UI-only release version metadata for v1/v2/v3, Current/Superseded, and public change-label display.
  *   - NEW: Adds idempotent wsrel_ensure_history_version_metadata() so monitors can verify/generate version metadata during normal runs.
@@ -30,8 +25,6 @@ declare(strict_types=1);
  */
 
 date_default_timezone_set('America/New_York');
-
-require_once __DIR__ . '/race_results_snapshot_helper.php';
 
 if (!function_exists('wsrel_load_json')) {
 
@@ -73,8 +66,8 @@ function wsrel_history_path(string $baseDir, $year): string
 function wsrel_default_history($year, string $source = 'weekly_standings_release_history_helper.php'): array
 {
     return [
-        'signature' => 'WEEKLY_STANDINGS_RELEASE_HISTORY v003',
-        'version' => 'v003',
+        'signature' => 'WEEKLY_STANDINGS_RELEASE_HISTORY v002',
+        'version' => 'v002',
         'generated_at' => wsrel_now_raw(),
         'timezone' => 'America/New_York',
         'source' => $source,
@@ -107,7 +100,7 @@ function wsrel_normalize_history(array $history, $year, string $source = 'weekly
     if (!isset($history['releases']) || !is_array($history['releases'])) {
         $history['releases'] = [];
     }
-    $history['signature'] = 'WEEKLY_STANDINGS_RELEASE_HISTORY v003';
+    $history['signature'] = 'WEEKLY_STANDINGS_RELEASE_HISTORY v002';
     $history['version'] = 'v002';
     $history['generated_at'] = wsrel_now_raw();
     $history['timezone'] = 'America/New_York';
@@ -278,7 +271,10 @@ function wsrel_race_code_from_number(int $raceNumber): string
 
 function wsrel_snapshot_files(string $raceFolder): array
 {
-    return rrs_canonical_snapshot_files($raceFolder);
+    $files = glob(rtrim($raceFolder, '/\\') . '/snapshot_*.html');
+    if (!is_array($files)) return [];
+    sort($files, SORT_STRING);
+    return array_values($files);
 }
 
 function wsrel_pair_key(string $raceCode, string $previousSnapshot, string $currentSnapshot): string

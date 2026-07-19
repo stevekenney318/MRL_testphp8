@@ -4,10 +4,14 @@ declare(strict_types=1);
 /**
  * race_results_revision_monitor.php
  *
- * VERSION: v012
- * LAST MODIFIED: 7/5/2026 12:47:15 am
+ * VERSION: v013
+ * LAST MODIFIED: 7/19/2026 1:35:18 pm
  *
  * CHANGELOG:
+ * v013 (7/19/2026 1:35:18 pm)
+ *   - NEW: Every accepted revision snapshot now generates matching _lite, _mrl, and _mrl_segment companions.
+ *   - NEW: Uses race_results_snapshot_views_helper.php so initial and revision snapshots share one generation path.
+ *   - CHANGE: All four timestamp-matched files are always generated; classification decides what changed later.
  * v012 (7/5/2026 12:47:15 am)
  *   - CHANGE: Detected revisions no longer automatically create or remove under_review.flag.
  *   - CHANGE: Release-history records remain current/released by default while preserving review_required/review_suggested metadata for audit.
@@ -84,9 +88,10 @@ ini_set('log_errors', '1');
 ini_set('error_log', __DIR__ . '/_race_results_revision_monitor_php_errors.log');
 error_reporting(E_ALL);
 
-const RR_REVISION_MONITOR_SIGNATURE = 'RACE_RESULTS_REVISION_MONITOR v011';
+const RR_REVISION_MONITOR_SIGNATURE = 'RACE_RESULTS_REVISION_MONITOR v013';
 
 require_once __DIR__ . '/race_results_engine.php';
+require_once __DIR__ . '/race_results_snapshot_views_helper.php';
 
 // ------------------------- DOCUMENT ROOT + INCLUDES -------------------------
 $docRoot = rr_docroot_from_script_dir(__DIR__);
@@ -663,9 +668,28 @@ foreach ($completedRaces as $race) {
     // 1. Save new timestamped snapshot
     if ($snapshotsEnabled) {
         $tsFile = rr_preferred_timestamp(true);
-        rr_save_snapshot_html($raceFolder, $tsFile, $html, $snapshotMaxBytes);
+        $currentSnapshotPath = rr_save_snapshot_html($raceFolder, $tsFile, $html, $snapshotMaxBytes);
         rr_save_snapshot_summary($raceFolder, $tsFile, $html);
         $currentSnapshotBase = 'snapshot_' . $tsFile . '.html';
+        if ($currentSnapshotPath !== '' && function_exists('rrsv_generate_companion_set')) {
+            $raceNumberForViews = (int)preg_replace('/\D+/', '', (string)$raceCode);
+            $companionSet = rrsv_generate_companion_set(
+                $currentSnapshotPath,
+                (int)$year,
+                $raceNumberForViews,
+                (string)$folderName,
+                $dbo ?? null,
+                $dbconnect ?? null,
+                true
+            );
+            rr_log_line(
+                $logFile,
+                'SNAPSHOT COMPANIONS ' . (!empty($companionSet['ok']) ? 'OK' : 'ERROR')
+                . ' canonical=' . basename($currentSnapshotPath)
+                . ' files=' . implode(',', array_values($companionSet['files'] ?? []))
+                . ' errors=' . implode(' | ', $companionSet['errors'] ?? [])
+            );
+        }
         rr_log_line($logFile, "SNAPSHOT SAVED folder={$folderName} ts={$tsFile}");
         rrrev_out("  Snapshot saved: snapshot_{$tsFile}");
     }

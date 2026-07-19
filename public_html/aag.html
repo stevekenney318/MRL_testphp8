@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MRL At a Glance</title>
+
+  <!--
+   * MRL At a Glance Standalone Page
+   * VERSION: v001
+   * LAST MODIFIED: 7/12/2026 11:49:41 am
+   *
+   * CHANGELOG:
+   * v001 (7/12/2026 11:49:41 am)
+   * - Recreated the Chrome extension presentation and behavior as a standalone page.
+   * - Added matching panel size, typography, spacing, status rows, refresh button,
+   *   close button, Escape-key support, row links, and Weekly Standings link.
+   * - Loads live data directly from mrl_at_a_glance.php.
+   -->
+
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+      margin: 0;
+    }
+
+    body {
+      background: #ffffff;
+      color: #111;
+      overflow-x: hidden;
+    }
+
+    .mrlc-overlay-shell {
+      position: fixed;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(690px, calc(100vw - 28px));
+      z-index: 2147483647;
+    }
+
+    .mrlc-panel {
+      width: 100%;
+      border: 3px solid #7db7ff;
+      background: #f3f9ff;
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 8px 26px rgba(0, 0, 0, 0.28);
+    }
+
+    .mrlc-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      background: #d9ecff;
+      border-bottom: 2px solid #9ecbff;
+    }
+
+    .mrlc-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: #084298;
+      line-height: 1.1;
+    }
+
+    .mrlc-sub {
+      margin-top: 2px;
+      font-size: 12px;
+      color: #406080;
+      font-weight: 700;
+    }
+
+    .mrlc-head-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mrlc-icon-btn {
+      border: 0;
+      border-radius: 11px;
+      background: #cfe4ff;
+      color: #084298;
+      font-size: 20px;
+      font-weight: 900;
+      cursor: pointer;
+      padding: 4px 10px;
+      line-height: 1.2;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .mrlc-icon-btn:hover {
+      background: #bad8ff;
+    }
+
+    .mrlc-icon-btn:focus-visible {
+      outline: 3px solid rgba(8, 66, 152, 0.35);
+      outline-offset: 2px;
+    }
+
+    .mrlc-close-btn {
+      background: transparent;
+      font-size: 24px;
+      padding: 2px 8px;
+    }
+
+    .mrlc-body {
+      padding: 10px 12px;
+    }
+
+    .mrlc-row {
+      display: grid;
+      grid-template-columns: 18px 155px 1fr;
+      gap: 7px;
+      align-items: center;
+      padding: 7px 8px;
+      margin: 5px 0;
+      border-radius: 12px;
+      border: 2px solid rgba(0, 0, 0, 0.12);
+      background: #fff;
+      line-height: 1.2;
+      text-decoration: none;
+      color: #111;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 16px;
+    }
+
+    a.mrlc-row:hover {
+      background: #f7fbff;
+      border-color: #7db7ff;
+    }
+
+    .mrlc-row b {
+      color: #111;
+      font-weight: 800;
+    }
+
+    .mrlc-row span:last-child {
+      color: #222;
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .mrlc-dot {
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      display: inline-block;
+      box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.15);
+    }
+
+    .green .mrlc-dot {
+      background: #2e8b57;
+    }
+
+    .yellow .mrlc-dot {
+      background: #f1c232;
+    }
+
+    .red .mrlc-dot {
+      background: #c00000;
+    }
+
+    .mrlc-foot {
+      padding: 8px 12px 10px;
+      font-size: 12px;
+      border-top: 1px solid #bfdcff;
+      background: #eef6ff;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .mrlc-foot a {
+      color: #084298;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .mrlc-foot a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 760px) {
+      .mrlc-overlay-shell {
+        top: 10px;
+        width: calc(100vw - 16px);
+      }
+
+      .mrlc-row {
+        grid-template-columns: 16px 128px 1fr;
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="mrlc-overlay-shell" id="mrl-at-a-glance" role="dialog" aria-label="MRL At a Glance">
+    <section class="mrlc-panel">
+      <header class="mrlc-head">
+        <div>
+          <div class="mrlc-title">MRL 👀</div>
+          <div class="mrlc-sub" id="mrlc-updated-text">loading live status...</div>
+        </div>
+
+        <div class="mrlc-head-actions">
+          <button type="button" class="mrlc-icon-btn" id="mrlc-refresh-btn" title="Refresh" aria-label="Refresh">
+            ↻
+          </button>
+
+          <button type="button" class="mrlc-icon-btn mrlc-close-btn" id="mrlc-close-btn" title="Close" aria-label="Close">
+            ×
+          </button>
+        </div>
+      </header>
+
+      <div class="mrlc-body" id="mrlc-status-rows">
+        <div class="mrlc-row yellow">
+          <span class="mrlc-dot"></span>
+          <b>Status</b>
+          <span>Loading...</span>
+        </div>
+      </div>
+
+      <footer class="mrlc-foot">
+        <a href="https://manliusracingleague.com/race_results/weekly_standings.php" target="_blank" rel="noopener">
+          Open Weekly Standings
+        </a>
+        <span>&nbsp; Live data from mrl_at_a_glance.php</span>
+      </footer>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      'use strict';
+
+      const STATUS_URL = 'https://manliusracingleague.com/race_results/mrl_at_a_glance.php';
+
+      const overlay = document.getElementById('mrl-at-a-glance');
+      const refreshButton = document.getElementById('mrlc-refresh-btn');
+      const closeButton = document.getElementById('mrlc-close-btn');
+      const updatedText = document.getElementById('mrlc-updated-text');
+      const statusRows = document.getElementById('mrlc-status-rows');
+
+      function esc(value) {
+        return String(value == null ? '' : value).replace(/[&<>"']/g, function (character) {
+          return {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+          }[character];
+        });
+      }
+
+      function safeStatus(status) {
+        return ['green', 'yellow', 'red'].includes(status) ? status : 'yellow';
+      }
+
+      function safeUrl(value) {
+        if (!value) {
+          return '';
+        }
+
+        try {
+          const url = new URL(value, window.location.href);
+
+          if (url.protocol === 'http:' || url.protocol === 'https:') {
+            return url.href;
+          }
+        } catch (error) {
+          return '';
+        }
+
+        return '';
+      }
+
+      function rowHtml(item) {
+        const status = safeStatus(item && item.status);
+        const label = esc(item && item.label);
+        const text = esc(item && item.text);
+        const detail = esc((item && item.detail) || '');
+        const url = safeUrl(item && item.url);
+        const inner = '<span class="mrlc-dot"></span><b>' + label + '</b><span>' + text + '</span>';
+
+        if (url) {
+          return '<a class="mrlc-row ' + status + '" href="' + esc(url) +
+            '" target="_blank" rel="noopener" title="' + detail + '">' + inner + '</a>';
+        }
+
+        return '<div class="mrlc-row ' + status + '" title="' + detail + '">' + inner + '</div>';
+      }
+
+      function showLoading() {
+        updatedText.textContent = 'loading live status...';
+        statusRows.innerHTML =
+          '<div class="mrlc-row yellow">' +
+            '<span class="mrlc-dot"></span>' +
+            '<b>Status</b>' +
+            '<span>Loading...</span>' +
+          '</div>';
+      }
+
+      function showError(message) {
+        updatedText.textContent = 'live status unavailable';
+        statusRows.innerHTML =
+          '<div class="mrlc-row red">' +
+            '<span class="mrlc-dot"></span>' +
+            '<b>Error</b>' +
+            '<span>' + esc(message) + '</span>' +
+          '</div>';
+      }
+
+      async function loadStatus() {
+        showLoading();
+        refreshButton.disabled = true;
+
+        try {
+          const response = await fetch(STATUS_URL, { cache: 'no-store' });
+
+          if (!response.ok) {
+            throw new Error('HTTP ' + response.status);
+          }
+
+          const data = await response.json();
+
+          if (!data || !Array.isArray(data.items)) {
+            throw new Error('No status rows returned');
+          }
+
+          updatedText.textContent = 'updated ' + (data.generated_display || '');
+          statusRows.innerHTML = data.items.map(rowHtml).join('');
+        } catch (error) {
+          showError(error && error.message ? error.message : String(error));
+        } finally {
+          refreshButton.disabled = false;
+        }
+      }
+
+      function closePage() {
+        overlay.style.display = 'none';
+
+        try {
+          window.close();
+        } catch (error) {
+          // Browser may refuse to close tabs it does not consider script-opened.
+        }
+      }
+
+      refreshButton.addEventListener('click', loadStatus);
+      closeButton.addEventListener('click', closePage);
+
+      document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') {
+          closePage();
+        }
+      });
+
+      loadStatus();
+    })();
+  </script>
+</body>
+</html>

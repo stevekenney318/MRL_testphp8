@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MRL Featured Image Search Test</title>
+<style>
+body{margin:0;padding:28px;font-family:Arial,Helvetica,sans-serif;background:#1f1f1f;color:#f2f2f2}
+.wrap{max-width:760px}
+h1{margin:0 0 18px;color:#ffd28a;font-size:36px}
+.panel{background:#2a2a2a;border:1px solid #555;border-radius:12px;padding:20px}
+.row{display:grid;grid-template-columns:130px 1fr;gap:12px;align-items:center;margin-bottom:14px}
+label{font-size:18px;font-weight:bold}
+input{width:100%;box-sizing:border-box;font-size:18px;padding:10px 12px;border-radius:8px;border:1px solid #777}
+.buttons{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}
+button{font-size:17px;font-weight:bold;color:#fff;background:#1f6fd1;border:1px solid #3a8cff;border-radius:8px;padding:10px 14px;cursor:pointer}
+button.secondary{background:#444;border-color:#777}
+#preview{margin-top:18px;padding:12px;background:#191919;border-radius:8px;color:#9dffb3;line-height:1.5;word-break:break-word}
+.note{margin-top:16px;color:#cfcfcf;line-height:1.45}
+@media(max-width:600px){body{padding:16px}.row{grid-template-columns:1fr;gap:6px}}
+</style>
+</head>
+<body>
+<!--
+MRL FEATURED IMAGE SEARCH TEST
+VERSION: v001
+PURPOSE:
+- Build quick Google Images searches for likely NASCAR victory-lane featured photos.
+-->
+<div class="wrap">
+  <h1>MRL Featured Image Search</h1>
+  <div class="panel">
+    <div class="row"><label for="year">Year</label><input id="year" value="2026"></div>
+    <div class="row"><label for="track">Track / Race</label><input id="track" value="Chicago"></div>
+    <div class="row"><label for="driver">Winner</label><input id="driver" value="Chase Briscoe"></div>
+
+    <div class="buttons">
+      <button data-mode="winner">Winner</button>
+      <button data-mode="victory lane">Victory Lane</button>
+      <button data-mode="trophy">Trophy</button>
+      <button data-mode="team celebration">Team Celebration</button>
+      <button data-mode="car driver trophy team">Best Match</button>
+      <button id="openAll" class="secondary">Open All 5</button>
+    </div>
+
+    <div id="preview">Ready.</div>
+
+    <div class="note">
+      Each button opens a Google Images search in a new tab.
+      “Best Match” adds the elements you usually want: car, driver, trophy, and team.
+    </div>
+  </div>
+</div>
+
+<script>
+function clean(v){return String(v||"").trim().replace(/\s+/g," ")}
+function buildQuery(mode){
+  const year=clean(document.getElementById("year").value);
+  const track=clean(document.getElementById("track").value);
+  const driver=clean(document.getElementById("driver").value);
+  return [year,track,driver,mode].filter(Boolean).join(" ");
+}
+function googleImagesUrl(q){return "https://www.google.com/search?tbm=isch&q="+encodeURIComponent(q)}
+function openSearch(mode){
+  const q=buildQuery(mode);
+  document.getElementById("preview").textContent="Searching: "+q;
+  window.open(googleImagesUrl(q),"_blank","noopener");
+}
+document.querySelectorAll("button[data-mode]").forEach(b=>b.addEventListener("click",()=>openSearch(b.dataset.mode)));
+document.getElementById("openAll").addEventListener("click",()=>{
+  const modes=["winner","victory lane","trophy","team celebration","car driver trophy team"];
+  document.getElementById("preview").textContent="Opening 5 Google Images searches...";
+  modes.forEach((mode,i)=>setTimeout(()=>openSearch(mode),i*250));
+});
+</script>
+</body>
+</html>

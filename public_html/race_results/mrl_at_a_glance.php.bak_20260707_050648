@@ -2,15 +2,10 @@
 /**
  * mrl_at_a_glance.php
  *
- * VERSION: v005
- * LAST MODIFIED: 7/6/2026 7:36:25 pm
+ * VERSION: v004
+ * LAST MODIFIED: 6/28/2026 12:33:29 pm
  *
  * CHANGELOG:
- * v005 (7/6/2026 7:36:25 pm)
- * - Changed Scheduler/Race Monitor/Revision Monitor links to race_results_dashboard.php dashboard tabs.
- * - Improved race monitor text when the monitor is intentionally standing by between race windows.
- * - Keeps Latest Snapshot release/version labeling from v004.
- *
  * v004 (6/28/2026 12:33:29 pm)
  * - Updated Latest Snapshot to use the same snapshot-label model as standings_timeline.php:
  *   race label + version label + timestamp.
@@ -123,17 +118,9 @@ function mrlg_count_from_tail($tail, $label) {
     return null;
 }
 
-function mrlg_monitor_row($task, $decision, $standbyLabel = '') {
+function mrlg_monitor_row($task, $decision) {
     $next = (string)($decision['next_due_at'] ?? '');
     $interval = $decision['interval_minutes'] ?? $task['last_interval_minutes'] ?? null;
-    $phaseLabel = trim((string)($decision['phase_label'] ?? ''));
-    $due = !empty($decision['due']);
-
-    if (!$due && is_numeric($interval) && (int)$interval <= 0) {
-        $label = $standbyLabel !== '' ? $standbyLabel : 'Standby';
-        return $label . ($phaseLabel !== '' ? ' • ' . $phaseLabel : '');
-    }
-
     return mrlg_time($next) . ' • ' . mrlg_remaining($next) . ' • ' . mrlg_cadence($interval, $decision);
 }
 
@@ -303,7 +290,6 @@ function mrlg_latest_snapshot_label($base, $year) {
 $base = __DIR__;
 $schedulerDir = $base . '/_scheduler';
 $public = 'https://manliusracingleague.com/race_results';
-$dashboard = $public . '/race_results_dashboard.php';
 
 $stateFile = is_dir($schedulerDir) ? mrlg_find_file($schedulerDir, array('state.json','scheduler_state.json','cron_master_scheduler_state.json','cron_master_state.json','status.json'), '*state*.json') : '';
 $heartbeatFile = is_dir($schedulerDir) ? mrlg_find_file($schedulerDir, array('heartbeat.txt','cron_master_scheduler_heartbeat.txt','scheduler_heartbeat.txt'), '*heartbeat*.txt') : '';
@@ -317,9 +303,9 @@ $items = array();
 if ($heartbeatFile !== '') {
     $age = time() - filemtime($heartbeatFile);
     $status = ($age <= 180) ? 'green' : (($age <= 600) ? 'yellow' : 'red');
-    $items[] = mrlg_item('scheduler', 'Scheduler', $status, 'Heartbeat ' . mrlg_age($age), basename($heartbeatFile), $dashboard);
+    $items[] = mrlg_item('scheduler', 'Scheduler', $status, 'Heartbeat ' . mrlg_age($age), basename($heartbeatFile), $public . '/_scheduler/');
 } else {
-    $items[] = mrlg_item('scheduler', 'Scheduler', 'red', 'Heartbeat not found', 'No scheduler heartbeat file found.', $dashboard);
+    $items[] = mrlg_item('scheduler', 'Scheduler', 'red', 'Heartbeat not found', 'No scheduler heartbeat file found.', $public . '/_scheduler/');
 }
 
 $raceTask = isset($tasks['race_results_monitor']) && is_array($tasks['race_results_monitor']) ? $tasks['race_results_monitor'] : array();
@@ -328,11 +314,11 @@ $raceNext = isset($raceTask['auto_schedule']['next_race']) && is_array($raceTask
 
 if (!empty($raceTask)) {
     $status = (strtolower((string)($raceTask['last_status'] ?? 'success')) === 'success') ? 'green' : 'red';
-    $text = mrlg_monitor_row($raceTask, $raceDecision, 'Standby');
+    $text = mrlg_monitor_row($raceTask, $raceDecision);
     if (strpos($text, 'overdue') !== false && $status === 'green') $status = 'yellow';
-    $items[] = mrlg_item('race_monitor', 'Race Monitor', $status, $text, (string)($raceTask['last_message'] ?? ''), $dashboard . '?tab=monitor');
+    $items[] = mrlg_item('race_monitor', 'Race Monitor', $status, $text, (string)($raceTask['last_message'] ?? ''), $public . '/race_results_monitor.php');
 } else {
-    $items[] = mrlg_item('race_monitor', 'Race Monitor', 'yellow', 'No state found', '', $dashboard . '?tab=monitor');
+    $items[] = mrlg_item('race_monitor', 'Race Monitor', 'yellow', 'No state found', '', $public . '/race_results_monitor.php');
 }
 
 $revTask = isset($tasks['race_results_revision_monitor']) && is_array($tasks['race_results_revision_monitor']) ? $tasks['race_results_revision_monitor'] : array();
@@ -342,9 +328,9 @@ if (!empty($revTask)) {
     $status = (strtolower((string)($revTask['last_status'] ?? 'success')) === 'success') ? 'green' : 'red';
     $text = mrlg_monitor_row($revTask, $revDecision);
     if (strpos($text, 'overdue') !== false && $status === 'green') $status = 'yellow';
-    $items[] = mrlg_item('revision_monitor', 'Revision Monitor', $status, $text, (string)($revTask['last_message'] ?? ''), $dashboard . '?tab=revision');
+    $items[] = mrlg_item('revision_monitor', 'Revision Monitor', $status, $text, (string)($revTask['last_message'] ?? ''), $public . '/race_results_revision_monitor.php');
 } else {
-    $items[] = mrlg_item('revision_monitor', 'Revision Monitor', 'yellow', 'No state found', '', $dashboard . '?tab=revision');
+    $items[] = mrlg_item('revision_monitor', 'Revision Monitor', 'yellow', 'No state found', '', $public . '/race_results_revision_monitor.php');
 }
 
 if (!empty($raceNext)) {
@@ -388,7 +374,7 @@ if (preg_match('/Release-history version metadata:\s*OK\s*\/\s*Releases:\s*(\d+)
 
 echo json_encode(array(
     'ok' => true,
-    'version' => 'v005',
+    'version' => 'v004',
     'generated_at' => date('Y-m-d H:i:s'),
     'generated_display' => date('n/j/Y g:i:s a'),
     'timezone' => 'America/New_York',

@@ -4,15 +4,10 @@ declare(strict_types=1);
 /**
  * race_results_monitor.php
  *
- * VERSION: v138
- * LAST MODIFIED: 7/19/2026 1:35:18 pm
+ * VERSION: v137
+ * LAST MODIFIED: 7/5/2026 12:47:15 am
  *
  * CHANGELOG:
- *
- * v138 (7/19/2026 1:35:18 pm)
- *   - NEW: Every accepted canonical snapshot now generates matching _lite, _mrl, and _mrl_segment companions.
- *   - NEW: Uses race_results_snapshot_views_helper.php so initial and revision snapshots share one generation path.
- *   - CHANGE: Companion generation is logged separately and does not control release-history or classification decisions.
  *
  * v137 (7/5/2026 12:47:15 am)
  *   - CHANGE: Final race snapshots no longer automatically create under_review.flag.
@@ -93,7 +88,7 @@ ini_set('log_errors', '1');
 ini_set('error_log', __DIR__ . '/_race_results_monitor_php_errors.log');
 error_reporting(E_ALL);
 
-const RR_MONITOR_SIGNATURE = 'RACE_RESULTS_MONITOR v138';
+const RR_MONITOR_SIGNATURE = 'RACE_RESULTS_MONITOR v136';
 
 // ------------------------- PREFLIGHT HEARTBEAT -------------------------
 // This intentionally happens before helper includes and USER initialization.
@@ -137,7 +132,6 @@ $__rr_preflight_line = $__rr_preflight_now
 
 require_once __DIR__ . '/race_results_engine.php';
 require_once __DIR__ . '/race_results_snapshot_helper.php';
-require_once __DIR__ . '/race_results_snapshot_views_helper.php';
 require_once __DIR__ . '/race_results_team_helper.php';
 require_once __DIR__ . '/race_results_rd_helper.php';
 require_once __DIR__ . '/weekly_standings_release_history_helper.php';
@@ -1798,24 +1792,6 @@ if ($snapshotsEnabled) {
     $tsFile = rr_preferred_timestamp(true);
     $snapshotPath = rr_save_snapshot_html($raceFolder, $tsFile, $html2, $snapshotMaxBytes);
     rr_save_snapshot_summary($raceFolder, $tsFile, $html2);
-    if ($snapshotPath !== '' && !$isExh && $raceNum !== null && (int)$raceNum > 0 && function_exists('rrsv_generate_companion_set')) {
-        $companionSet = rrsv_generate_companion_set(
-            $snapshotPath,
-            (int)$year,
-            (int)$raceNum,
-            (string)$raceFolderName,
-            $dbo ?? null,
-            $dbconnect ?? null,
-            true
-        );
-        rr_log_line(
-            $logFile,
-            'SNAPSHOT COMPANIONS ' . (!empty($companionSet['ok']) ? 'OK' : 'ERROR')
-            . ' canonical=' . basename($snapshotPath)
-            . ' files=' . implode(',', array_values($companionSet['files'] ?? []))
-            . ' errors=' . implode(' | ', $companionSet['errors'] ?? [])
-        );
-    }
     rr_atomic_write($hashFilePath, $finalHashNow . "
 ");
     // v137: do not automatically create under_review.flag on normal final capture.

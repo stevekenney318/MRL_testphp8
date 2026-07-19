@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MRL Race Images</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { font-family: Arial, Helvetica, sans-serif; margin: 24px; background: #1f1f1f; color: #f2f2f2; }
+  h1 { color: #ffd28a; margin-bottom: 8px; }
+  h2 { color: #ffd28a; margin: 0 0 10px; }
+  .panel { background: #2a2a2a; border: 1px solid #555; border-radius: 10px; padding: 16px; margin-bottom: 16px; max-width: 900px; }
+  label { display: inline-block; margin: 8px 14px 8px 0; font-size: 18px; }
+  input, select, button { font-size: 18px; padding: 8px 10px; border-radius: 7px; border: 1px solid #777; }
+  input { min-width: 330px; }
+  button { cursor: pointer; background: #1f6fd1; color: white; border-color: #3a8cff; font-weight: bold; margin: 6px 8px 6px 0; }
+  button.secondary { background: #444; border-color: #777; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .status { margin-top: 12px; color: #9dffb3; font-weight: bold; line-height: 1.4; white-space: pre-wrap; }
+  .note { color: #d6d6d6; line-height: 1.45; }
+  .warn { color: #ffd28a; }
+  .hidden { display: none; }
+  #captureWrap { position: relative; display: inline-block; max-width: 100%; margin-top: 12px; border: 1px solid #777; background: #111; }
+  #captureCanvas { display: block; max-width: 100%; height: auto; cursor: crosshair; }
+  #selectionBox { position: absolute; border: 2px solid #ff2c7d; background: rgba(255,44,125,.10); pointer-events: none; display: none; box-sizing: border-box; }
+  .small { font-size: 14px; color: #bbb; }
+</style>
+</head>
+<body>
+
+<h1>MRL Race Images</h1>
+
+<div class="panel note">
+  <b>VERSION: v001</b><br>
+  This combines the existing Top 5 PDF crop with a browser-only winner-image capture test.
+  The winner capture stays inside this one page, but Chrome must ask which tab to share.
+</div>
+
+<div class="panel">
+  <h2>Common Setup</h2>
+  <button id="chooseFolderBtn" class="secondary">Choose MRL Folder</button>
+
+  <div>
+    <label>Year:
+      <select id="yearSelect"></select>
+    </label>
+
+    <label>Week:
+      <select id="weekSelect"></select>
+    </label>
+  </div>
+
+  <div id="commonStatus" class="status">Waiting for folder selection...</div>
+</div>
+
+<div class="panel">
+  <h2>Top 5 Image</h2>
+  <div class="note">
+    Reads <b>Weekly Updates\YYYY_WK_XX_RESULTS.pdf</b> and saves the normal Top 5 PNG into <b>images</b>.
+  </div>
+  <button id="generateTop5Btn">Generate Top 5 PNG</button>
+  <div id="top5Status" class="status">Ready.</div>
+</div>
+
+<div class="panel">
+  <h2>Winner Image — Browser Capture Test</h2>
+
+  <div class="note">
+    1. Enter the winner's name.<br>
+    2. Open the NASCAR schedule and scroll the winner card into view.<br>
+    3. Start capture and choose the <b>NASCAR schedule tab</b> in Chrome's dialog.<br>
+    4. Capture the visible frame, then drag a rectangle around the winner area.<br>
+    5. The saved crop automatically includes <b>3 extra pixels on all four sides</b>.
+  </div>
+
+  <div>
+    <label>Winner:
+      <input id="winnerName" type="text" placeholder="Shane van Gisbergen">
+    </label>
+  </div>
+
+  <button id="openNascarBtn" class="secondary">Open NASCAR Schedule</button>
+  <button id="startCaptureBtn">Start NASCAR Tab Capture</button>
+  <button id="captureFrameBtn" disabled>Capture Visible Frame</button>
+  <button id="saveWinnerBtn" disabled>Save Winner JPG</button>
+  <button id="stopCaptureBtn" class="secondary" disabled>Stop Capture</button>
+
+  <div id="winnerStatus" class="status">Ready.</div>
+  <div class="small warn">
+    This is the safest non-extension browser route. It proves the capture/save workflow, but it cannot inspect NASCAR's page structure automatically because NASCAR is a different website.
+  </div>
+
+  <video id="captureVideo" class="hidden" autoplay playsinline muted></video>
+
+  <div id="captureWrap" class="hidden">
+    <canvas id="captureCanvas"></canvas>
+    <div id="selectionBox"></div>
+  </div>
+</div>
+
+<canvas id="pdfCanvas" class="hidden"></canvas>
+<canvas id="outputCanvas" class="hidden"></canvas>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+const SETTINGS = {
+  referenceWidth: 1600,
+  renderQuality: 2,
+  cropX: 102,
+  cropY: 110,
+  cropW: 628,
+  cropH: 132,
+  margin: 7,
+  winnerPadding: 3,
+  winnerJpegQuality: 0.95
+};
+
+let rootDirHandle = null;
+let captureStream = null;
+let selection = null;
+let dragStart = null;
+
+const commonStatus = document.getElementById("commonStatus");
+const top5Status = document.getElementById("top5Status");
+const winnerStatus = document.getElementById("winnerStatus");
+const yearSelect = document.getElementById("yearSelect");
+const weekSelect = document.getElementById("weekSelect");
+const winnerName = document.getElementById("winnerName");
+
+const pdfCanvas = document.getElementById("pdfCanvas");
+const outputCanvas = document.getElementById("outputCanvas");
+const captureVideo = document.getElementById("captureVideo");
+const captureCanvas = document.getElementById("captureCanvas");
+const captureWrap = document.getElementById("captureWrap");
+const selectionBox = document.getElementById("selectionBox");
+
+const captureFrameBtn = document.getElementById("captureFrameBtn");
+const saveWinnerBtn = document.getElementById("saveWinnerBtn");
+const stopCaptureBtn = document.getElementById("stopCaptureBtn");
+
+function setStatus(el, msg) {
+  el.textContent = msg;
+}
+
+function populateDropdowns() {
+  for (let y = 2026; y >= 2008; y--) {
+    const opt = document.createElement("option");
+    opt.value = String(y);
+    opt.textContent = String(y);
+    if (y === 2026) opt.selected = true;
+    yearSelect.appendChild(opt);
+  }
+
+  for (let w = 1; w <= 36; w++) {
+    const opt = document.createElement("option");
+    opt.value = String(w);
+    opt.textContent = "Week " + w;
+    weekSelect.appendChild(opt);
+  }
+}
+
+async function verifyPermission(handle, readWrite) {
+  const opts = {};
+  if (readWrite) opts.mode = "readwrite";
+  if ((await handle.queryPermission(opts)) === "granted") return true;
+  if ((await handle.requestPermission(opts)) === "granted") return true;
+  return false;
+}
+
+async function chooseFolder() {
+  if (!window.showDirectoryPicker) {
+    setStatus(commonStatus, "This browser does not support folder access. Use Chrome or Edge.");
+    return;
+  }
+
+  try {
+    rootDirHandle = await window.showDirectoryPicker({ mode: "readwrite" });
+    setStatus(commonStatus, "MRL folder selected.\nReady to generate images.");
+  } catch (err) {
+    if (err.name !== "AbortError") {
+      setStatus(commonStatus, "Folder selection error:\n" + err.message);
+    }
+  }
+}
+
+async function getSubFolder(parent, name) {
+  return await parent.getDirectoryHandle(name, { create: false });
+}
+
+function pdfFileName(year, week) {
+  return `${year}_WK_${String(week).padStart(2, "0")}_RESULTS.pdf`;
+}
+
+function top5OutputFileName(year, week) {
+  return `${year} Week ${week} Top 5.png`;
+}
+
+function winnerOutputFileName(name) {
+  return `${name.trim()} Winner.jpg`;
+}
+
+async function renderPdfToCanvas(file) {
+  const buffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+  const page = await pdf.getPage(1);
+
+  const baseViewport = page.getViewport({ scale: 1 });
+  const targetWidth = SETTINGS.referenceWidth * SETTINGS.renderQuality;
+  const scale = targetWidth / baseViewport.width;
+  const viewport = page.getViewport({ scale });
+
+  pdfCanvas.width = Math.round(viewport.width);
+  pdfCanvas.height = Math.round(viewport.height);
+
+  const ctx = pdfCanvas.getContext("2d");
+  await page.render({ canvasContext: ctx, viewport }).promise;
+}
+
+function cropTop5ToOutputCanvas() {
+  const q = SETTINGS.renderQuality;
+  const sx = SETTINGS.cropX * q;
+  const sy = SETTINGS.cropY * q;
+  const sw = SETTINGS.cropW * q;
+  const sh = SETTINGS.cropH * q;
+  const sm = SETTINGS.margin * q;
+
+  outputCanvas.width = sw + sm * 2;
+  outputCanvas.height = sh + sm * 2;
+
+  const ctx = outputCanvas.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = "white";
+  ctx.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
+  ctx.drawImage(pdfCanvas, sx, sy, sw, sh, sm, sm, sw, sh);
+}
+
+function canvasToBlob(canvas, type, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(blob => {
+      if (blob) resolve(blob);
+      else reject(new Error("The browser could not create the image blob."));
+    }, type, quality);
+  });
+}
+
+async function writeBlobToImagesFolder(filename, blob) {
+  if (!rootDirHandle) {
+    throw new Error("Choose the main Manlius Racing League folder first.");
+  }
+
+  const yearFolder = await getSubFolder(rootDirHandle, yearSelect.value);
+  const imagesFolder = await yearFolder.getDirectoryHandle("images", { create: true });
+
+  const outHandle = await imagesFolder.getFileHandle(filename, { create: true });
+  const okWrite = await verifyPermission(outHandle, true);
+  if (!okWrite) throw new Error("Permission denied writing the image.");
+
+  const writable = await outHandle.createWritable();
+  await writable.write(blob);
+  await writable.close();
+}
+
+async function generateTop5() {
+  if (!rootDirHandle) {
+    setStatus(top5Status, "Choose the main Manlius Racing League folder first.");
+    return;
+  }
+
+  const year = yearSelect.value;
+  const week = parseInt(weekSelect.value, 10);
+  const pdfName = pdfFileName(year, week);
+  const pngName = top5OutputFileName(year, week);
+
+  try {
+    setStatus(top5Status, `Looking for:\n${year}\\Weekly Updates\\${pdfName}`);
+
+    const yearFolder = await getSubFolder(rootDirHandle, year);
+    const weeklyFolder = await getSubFolder(yearFolder, "Weekly Updates");
+    const pdfHandle = await weeklyFolder.getFileHandle(pdfName, { create: false });
+    const okRead = await verifyPermission(pdfHandle, false);
+    if (!okRead) throw new Error("Permission denied reading the PDF.");
+
+    const pdfFile = await pdfHandle.getFile();
+
+    setStatus(top5Status, "Rendering PDF...");
+    await renderPdfToCanvas(pdfFile);
+
+    setStatus(top5Status, "Cropping Top 5 image...");
+    cropTop5ToOutputCanvas();
+
+    const blob = await canvasToBlob(outputCanvas, "image/png");
+    await writeBlobToImagesFolder(pngName, blob);
+
+    setStatus(top5Status, `Done.\nSaved:\n${year}\\images\\${pngName}`);
+  } catch (err) {
+    setStatus(top5Status, "Error:\n" + err.message +
+      "\n\nCheck that the PDF exists and folders are named exactly:\nWeekly Updates\nimages");
+  }
+}
+
+function openNascarSchedule() {
+  window.open("https://www.nascar.com/nascar-cup-series/2026/schedule/", "_blank", "noopener");
+  setStatus(winnerStatus, "NASCAR schedule opened.\nScroll the winner card into view, then return here and start capture.");
+}
+
+async function startCapture() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+    setStatus(winnerStatus, "This browser does not support tab capture.");
+    return;
+  }
+
+  try {
+    captureStream = await navigator.mediaDevices.getDisplayMedia({
+      video: {
+        displaySurface: "browser"
+      },
+      audio: false,
+      preferCurrentTab: false,
+      selfBrowserSurface: "exclude",
+      surfaceSwitching: "include"
+    });
+
+    captureVideo.srcObject = captureStream;
+    await captureVideo.play();
+
+    captureFrameBtn.disabled = false;
+    stopCaptureBtn.disabled = false;
+    setStatus(winnerStatus,
+      "Capture connected.\nClick Capture Visible Frame when the NASCAR winner card is visible.");
+
+    const [track] = captureStream.getVideoTracks();
+    if (track) {
+      track.addEventListener("ended", stopCapture);
+    }
+  } catch (err) {
+    if (err.name === "NotAllowedError") {
+      setStatus(winnerStatus, "Capture was cancelled or not permitted.");
+    } else {
+      setStatus(winnerStatus, "Capture error:\n" + err.message);
+    }
+  }
+}
+
+function captureVisibleFrame() {
+  if (!captureStream || captureVideo.videoWidth <= 0 || captureVideo.videoHeight <= 0) {
+    setStatus(winnerStatus, "No active capture frame is available.");
+    return;
+  }
+
+  captureCanvas.width = captureVideo.videoWidth;
+  captureCanvas.height = captureVideo.videoHeight;
+
+  const ctx = captureCanvas.getContext("2d");
+  ctx.drawImage(captureVideo, 0, 0, captureCanvas.width, captureCanvas.height);
+
+  captureWrap.classList.remove("hidden");
+  selection = null;
+  selectionBox.style.display = "none";
+  saveWinnerBtn.disabled = true;
+
+  setStatus(winnerStatus,
+    "Frame captured.\nDrag a rectangle around the winner area. The saved image will add 3 pixels on every side.");
+}
+
+function canvasPoint(event) {
+  const rect = captureCanvas.getBoundingClientRect();
+  const scaleX = captureCanvas.width / rect.width;
+  const scaleY = captureCanvas.height / rect.height;
+
+  return {
+    x: Math.max(0, Math.min(captureCanvas.width, (event.clientX - rect.left) * scaleX)),
+    y: Math.max(0, Math.min(captureCanvas.height, (event.clientY - rect.top) * scaleY))
+  };
+}
+
+function updateSelectionBox() {
+  if (!selection) return;
+
+  const rect = captureCanvas.getBoundingClientRect();
+  const scaleX = rect.width / captureCanvas.width;
+  const scaleY = rect.height / captureCanvas.height;
+
+  selectionBox.style.left = `${selection.x * scaleX}px`;
+  selectionBox.style.top = `${selection.y * scaleY}px`;
+  selectionBox.style.width = `${selection.w * scaleX}px`;
+  selectionBox.style.height = `${selection.h * scaleY}px`;
+  selectionBox.style.display = "block";
+}
+
+captureCanvas.addEventListener("pointerdown", event => {
+  dragStart = canvasPoint(event);
+  selection = { x: dragStart.x, y: dragStart.y, w: 0, h: 0 };
+  captureCanvas.setPointerCapture(event.pointerId);
+  updateSelectionBox();
+});
+
+captureCanvas.addEventListener("pointermove", event => {
+  if (!dragStart) return;
+
+  const point = canvasPoint(event);
+  const x = Math.min(dragStart.x, point.x);
+  const y = Math.min(dragStart.y, point.y);
+  const w = Math.abs(point.x - dragStart.x);
+  const h = Math.abs(point.y - dragStart.y);
+
+  selection = { x, y, w, h };
+  updateSelectionBox();
+});
+
+captureCanvas.addEventListener("pointerup", event => {
+  if (!dragStart) return;
+  captureCanvas.releasePointerCapture(event.pointerId);
+  dragStart = null;
+
+  if (selection && selection.w >= 10 && selection.h >= 10) {
+    saveWinnerBtn.disabled = false;
+    setStatus(winnerStatus,
+      `Selection ready: ${Math.round(selection.w)} × ${Math.round(selection.h)} px.\n3 px will be added on every side.`);
+  } else {
+    selection = null;
+    selectionBox.style.display = "none";
+    saveWinnerBtn.disabled = true;
+    setStatus(winnerStatus, "Selection was too small. Drag around the winner area again.");
+  }
+});
+
+async function saveWinnerImage() {
+  const name = winnerName.value.trim();
+
+  if (!name) {
+    setStatus(winnerStatus, "Enter the winner's name first.");
+    winnerName.focus();
+    return;
+  }
+
+  if (!selection) {
+    setStatus(winnerStatus, "Capture a frame and select the winner area first.");
+    return;
+  }
+
+  try {
+    const p = SETTINGS.winnerPadding;
+    const sx = Math.max(0, Math.floor(selection.x) - p);
+    const sy = Math.max(0, Math.floor(selection.y) - p);
+    const ex = Math.min(captureCanvas.width, Math.ceil(selection.x + selection.w) + p);
+    const ey = Math.min(captureCanvas.height, Math.ceil(selection.y + selection.h) + p);
+    const sw = ex - sx;
+    const sh = ey - sy;
+
+    const winnerCanvas = document.createElement("canvas");
+    winnerCanvas.width = sw;
+    winnerCanvas.height = sh;
+
+    const ctx = winnerCanvas.getContext("2d");
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, sw, sh);
+    ctx.drawImage(captureCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
+
+    const blob = await canvasToBlob(
+      winnerCanvas,
+      "image/jpeg",
+      SETTINGS.winnerJpegQuality
+    );
+
+    const filename = winnerOutputFileName(name);
+    await writeBlobToImagesFolder(filename, blob);
+
+    setStatus(winnerStatus,
+      `Done.\nSaved:\n${yearSelect.value}\\images\\${filename}\nCrop includes 3 px on every side.`);
+  } catch (err) {
+    setStatus(winnerStatus, "Error saving winner image:\n" + err.message);
+  }
+}
+
+function stopCapture() {
+  if (captureStream) {
+    captureStream.getTracks().forEach(track => track.stop());
+  }
+
+  captureStream = null;
+  captureVideo.srcObject = null;
+  captureFrameBtn.disabled = true;
+  stopCaptureBtn.disabled = true;
+
+  setStatus(winnerStatus, "Capture stopped.");
+}
+
+document.getElementById("chooseFolderBtn").addEventListener("click", chooseFolder);
+document.getElementById("generateTop5Btn").addEventListener("click", generateTop5);
+document.getElementById("openNascarBtn").addEventListener("click", openNascarSchedule);
+document.getElementById("startCaptureBtn").addEventListener("click", startCapture);
+document.getElementById("captureFrameBtn").addEventListener("click", captureVisibleFrame);
+document.getElementById("saveWinnerBtn").addEventListener("click", saveWinnerImage);
+document.getElementById("stopCaptureBtn").addEventListener("click", stopCapture);
+
+populateDropdowns();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "MRL At a Glance",
+  "version": "1.0.3",
+  "description": "Quick operational status overlay for Manlius Racing League. Extension v004.",
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://manliusracingleague.com/*"
+  ],
+  "action": {
+    "default_title": "MRL At a Glance"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}
