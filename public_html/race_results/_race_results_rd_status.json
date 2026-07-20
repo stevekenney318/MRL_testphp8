@@ -1,0 +1,26 @@
+{
+    "checked_at": "2026-07-19 23:29:03",
+    "year": 2026,
+    "race_number": 21,
+    "race_code": "R21",
+    "race_folder": "R21_NASCAR_Cup_Series_at_North_Wilkesboro_202607195827",
+    "segment": "S3",
+    "status": "OK",
+    "message": "No RD eligibility found.",
+    "completed_race_count": 4,
+    "completed_races": [
+        18,
+        19,
+        20,
+        21
+    ],
+    "team_count": 18,
+    "eligible_count": 0,
+    "manual_required_count": 0,
+    "json_written_count": 0,
+    "email_sent_count": 0,
+    "email_failed_count": 0,
+    "eligible_teams": [],
+    "manual_required_teams": [],
+    "written_at": "2026-07-19T23:29:03"
+}

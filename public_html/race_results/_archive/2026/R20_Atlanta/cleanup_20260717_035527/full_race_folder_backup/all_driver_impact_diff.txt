@@ -1,0 +1,25 @@
+ALL DRIVER IMPACT CLASSIFICATION
+2026 R20 NASCAR Cup Series at Atlanta
+
+Changed all drivers:
+
+Austin Dillon
+PTS: 36 -> 34 (-2)
+BONUS: 6 -> 4 (-2)
+PENALTY: 0 -> 0 (0)
+NET: 36 -> 34 (-2)
+
+Joey Logano
+PTS: 45 -> 43 (-2)
+BONUS: 17 -> 15 (-2)
+PENALTY: 0 -> 0 (0)
+NET: 45 -> 43 (-2)
+
+Tyler Reddick
+PTS: 49 -> 47 (-2)
+BONUS: 20 -> 18 (-2)
+PENALTY: 0 -> 0 (0)
+NET: 49 -> 47 (-2)
+
+Impact classification:
+YES

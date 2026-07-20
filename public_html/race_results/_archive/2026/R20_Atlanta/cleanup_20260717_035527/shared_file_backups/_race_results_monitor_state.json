@@ -1,0 +1,152 @@
+{
+    "byYear": {
+        "2026": {
+            "latest_url": "https:\/\/www.espn.com\/racing\/raceresults\/_\/series\/sprint\/raceId\/202607120029",
+            "last_checked_at": "2026-07-13T01:52:02-04:00",
+            "latest_debug": {
+                "year": 2026,
+                "yearPage": "https:\/\/www.espn.com\/racing\/results\/_\/year\/2026",
+                "httpStatus": 200,
+                "htmlBytes": 92470,
+                "raceCount": 24,
+                "latestUrl": "https:\/\/www.espn.com\/racing\/raceresults\/_\/series\/sprint\/raceId\/202607120029",
+                "latestRaceId": "202607120029"
+            },
+            "final_sent_for_url": "https:\/\/www.espn.com\/racing\/raceresults\/_\/series\/sprint\/raceId\/202607120029",
+            "final_table_hash": "83542a99f86d4b6b7c01347c7e690a3cda4743aa9094d2092cecd2069045f2b9",
+            "final_check": {
+                "is_final": true,
+                "reason": "Non-zero scoring detected in scoring table.",
+                "checked_at": "2026-07-13T01:52:02-04:00",
+                "mode": "dom_table",
+                "hash": "83542a99f86d4b6b7c01347c7e690a3cda4743aa9094d2092cecd2069045f2b9",
+                "rows_checked": 1,
+                "non_zero_counts": {
+                    "PTS": 1,
+                    "BONUS": 0,
+                    "PENALTY": 0
+                },
+                "col_index": {
+                    "PTS": 7,
+                    "BONUS": 8,
+                    "PENALTY": 9
+                },
+                "tables_found": 1,
+                "header_row_found": true,
+                "led_has_column": true,
+                "led_rows_checked": 38,
+                "led_non_zero": 10
+            },
+            "schedule_status": {
+                "ok": true,
+                "message": "Schedule refreshed.",
+                "next_race": {
+                    "year": 2026,
+                    "schedule_sequence": 20,
+                    "date_text": "Sun, Jul 12",
+                    "time_text": "7:00 PM ET",
+                    "start_at": "2026-07-12 19:00:00",
+                    "start_ts": 1783897200,
+                    "start_parse_status": "date_time",
+                    "race_name": "NASCAR Cup Series at Atlanta",
+                    "short_name": "Atlanta",
+                    "track_name": "Echopark Speedway",
+                    "series": "NASCAR Cup Series",
+                    "race_url": "",
+                    "race_id": "",
+                    "is_exhibition": false,
+                    "mrl_points_eligible": true,
+                    "mrl_race_number": 20,
+                    "mrl_race_code": "R20",
+                    "race_number": 20,
+                    "mrl_race_folder": "R20_NASCAR_Cup_Series_at_Atlanta_202607120029",
+                    "mrl_identity_source": "year_index_date_name",
+                    "mrl_race_name": "NASCAR Cup Series at Atlanta",
+                    "mrl_race_url": "https:\/\/www.espn.com\/racing\/raceresults\/_\/series\/sprint\/raceId\/202607120029",
+                    "mrl_race_date": "2026-07-12"
+                },
+                "debug": {
+                    "year": 2026,
+                    "schedule_url": "https:\/\/www.espn.com\/racing\/schedule\/_\/year\/2026",
+                    "http_status": 200,
+                    "html_bytes": 99596,
+                    "race_count": 36,
+                    "mrl_points_race_count": 36,
+                    "generated_at": "2026-07-13T01:52:02-04:00",
+                    "mrl_identity_source": "year_index"
+                }
+            },
+            "current_race_status": {
+                "checked_at": "2026-07-13T01:52:02-04:00",
+                "year": 2026,
+                "race_url": "https:\/\/www.espn.com\/racing\/raceresults\/_\/series\/sprint\/raceId\/202607120029",
+                "race_id": "202607120029",
+                "race_name": "Atlanta",
+                "full_race_name": "NASCAR Cup Series at Atlanta",
+                "status": "",
+                "lap_current": null,
+                "lap_total": null,
+                "lap_status_found": false,
+                "is_final": true,
+                "final_reason": "Non-zero scoring detected in scoring table.",
+                "parse_method": "",
+                "tables_found": 1,
+                "race_result_rows_checked": 1,
+                "source": "RACE_RESULTS_MONITOR v136"
+            },
+            "race_status": {
+                "checked_at": "2026-07-13T01:52:02-04:00",
+                "source": "RACE_RESULTS_MONITOR v136",
+                "mode": "next_scheduled",
+                "label": "Next Race",
+                "race_name": "Atlanta",
+                "full_race_name": "NASCAR Cup Series at Atlanta",
+                "status": "Scheduled - Sunday 7:00 pm",
+                "race_url": "",
+                "race_id": "",
+                "start_at": "2026-07-12 19:00:00",
+                "start_text": "Sunday 7:00 pm",
+                "owned_by": "race_results_monitor",
+                "monitor_owned": true,
+                "final_email_sent": true,
+                "is_final": true,
+                "final_reason": "Non-zero scoring detected in scoring table.",
+                "lap_current": null,
+                "lap_total": null,
+                "lap_status_found": false,
+                "latest_final_race_url": "https:\/\/www.espn.com\/racing\/raceresults\/_\/series\/sprint\/raceId\/202607120029",
+                "latest_final_race_name": "Atlanta",
+                "latest_final_owned_by": "race_results_revision_monitor"
+            },
+            "monitor_ownership": {
+                "updated_at": "2026-07-13T01:52:02-04:00",
+                "source": "RACE_RESULTS_MONITOR v136",
+                "active_monitor_race_url": "",
+                "active_monitor_race_id": "",
+                "latest_results_url": "https:\/\/www.espn.com\/racing\/raceresults\/_\/series\/sprint\/raceId\/202607120029",
+                "latest_results_race_id": "202607120029",
+                "owned_by": "race_results_monitor",
+                "phase": "next_scheduled",
+                "final_email_sent": true,
+                "monitor_owned": true
+            },
+            "final_handoff": {
+                "final_key": "https:\/\/www.espn.com\/racing\/raceresults\/_\/series\/sprint\/raceId\/202607120029",
+                "final_url": "https:\/\/www.espn.com\/racing\/raceresults\/_\/series\/sprint\/raceId\/202607120029",
+                "race_id": "202607120029",
+                "race_name": "NASCAR Cup Series at Atlanta",
+                "race_number": 20,
+                "race_folder": "R20_NASCAR_Cup_Series_at_Atlanta_202607120029",
+                "anchor_at": "2026-07-13T01:52:02-04:00",
+                "anchor_source": "race_results_monitor_snapshot_email",
+                "snapshot_file": "snapshot_20260713_015202674.html",
+                "snapshot_path": "\/home\/u809830586\/domains\/manliusracingleague.com\/public_html\/race_results\/2026\/R20_NASCAR_Cup_Series_at_Atlanta_202607120029\/snapshot_20260713_015202674.html",
+                "email_subject": "[MRL] Results Detected: 2026_R20_Atlanta",
+                "email_sent": true,
+                "email_sent_at": "2026-07-13T01:52:04-04:00",
+                "email_failed_at": "",
+                "updated_at": "2026-07-13T01:52:04-04:00"
+            }
+        }
+    }
+}

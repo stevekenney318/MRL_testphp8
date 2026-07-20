@@ -1,0 +1,508 @@
+{
+    "signature": "RACE_RESULTS_CLASSIFY_REVISIONS v011",
+    "version": "v011",
+    "generated_at": "2026-07-20 08:35:04",
+    "sapi": "litespeed",
+    "source": "race_results_classify_revisions.php",
+    "year": "2026",
+    "race_code_filter": "",
+    "is_full_year_summary": true,
+    "write_artifacts": true,
+    "classified_count": 8,
+    "mrl_impact_count": 1,
+    "all_driver_change_race_count": 7,
+    "mrl_listed_driver_change_race_count": 2,
+    "segment_picked_driver_change_race_count": 1,
+    "mrl_listed_driver_impact_count": 2,
+    "revision_required_count": 1,
+    "review_required_count": 1,
+    "candidate_count": 8,
+    "rows": [
+        {
+            "race_code": "R04",
+            "race_name": "Phoenix",
+            "race_name_full": "NASCAR Cup Series at Phoenix",
+            "race_id": "202603080023",
+            "race_number": 4,
+            "segment": "S1",
+            "classified": true,
+            "mrl_impact": false,
+            "changed_mrl_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "mrl_listed_driver_impact": false,
+            "changed_mrl_listed_drivers_count": 0,
+            "all_driver_impact": true,
+            "changed_all_drivers_count": 1,
+            "driver_pool_count": 23,
+            "mrl_listed_driver_pool_count": 36,
+            "pending_review": false,
+            "revision_detected": false,
+            "revision_status": "",
+            "status_label": "Classified",
+            "change_detected": true,
+            "driver_scoring_change_detected": true,
+            "revision_required": false,
+            "review_required": false,
+            "change_status": "detected_non_mrl_driver_change",
+            "change_status_label": "Non-MRL Driver Change",
+            "display_tag": "",
+            "under_review_flag": false,
+            "previous_snapshot": "snapshot_20260308_204802115.html",
+            "current_snapshot": "snapshot_20260308_205601920.html",
+            "changed_driver_details": [
+                {
+                    "driver": "Austin Hill",
+                    "mrl_listed": false,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 16,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 16
+                    },
+                    "new": {
+                        "pts": 0,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 0
+                    },
+                    "delta": {
+                        "pts": -16,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -16
+                    }
+                }
+            ],
+            "message": "Classification complete."
+        },
+        {
+            "race_code": "R08",
+            "race_name": "Bristol",
+            "race_name_full": "NASCAR Cup Series at Bristol",
+            "race_id": "202604120031",
+            "race_number": 8,
+            "segment": "S1",
+            "classified": true,
+            "mrl_impact": false,
+            "changed_mrl_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "mrl_listed_driver_impact": false,
+            "changed_mrl_listed_drivers_count": 0,
+            "all_driver_impact": true,
+            "changed_all_drivers_count": 1,
+            "driver_pool_count": 23,
+            "mrl_listed_driver_pool_count": 36,
+            "pending_review": false,
+            "revision_detected": false,
+            "revision_status": "",
+            "status_label": "Classified",
+            "change_detected": true,
+            "driver_scoring_change_detected": true,
+            "revision_required": false,
+            "review_required": false,
+            "change_status": "detected_non_mrl_driver_change",
+            "change_status_label": "Non-MRL Driver Change",
+            "display_tag": "",
+            "under_review_flag": false,
+            "previous_snapshot": "snapshot_20260412_190002487.html",
+            "current_snapshot": "snapshot_20260413_030202493.html",
+            "changed_driver_details": [
+                {
+                    "driver": "Chad Finchum",
+                    "mrl_listed": false,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 0,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 0
+                    },
+                    "new": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    },
+                    "delta": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    }
+                }
+            ],
+            "message": "Classification complete."
+        },
+        {
+            "race_code": "R10",
+            "race_name": "Talladega",
+            "race_name_full": "NASCAR Cup Series at Talladega",
+            "race_id": "202604260022",
+            "race_number": 10,
+            "segment": "S2",
+            "classified": true,
+            "mrl_impact": false,
+            "changed_mrl_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "mrl_listed_driver_impact": false,
+            "changed_mrl_listed_drivers_count": 0,
+            "all_driver_impact": true,
+            "changed_all_drivers_count": 1,
+            "driver_pool_count": 21,
+            "mrl_listed_driver_pool_count": 36,
+            "pending_review": false,
+            "revision_detected": false,
+            "revision_status": "",
+            "status_label": "Classified",
+            "change_detected": true,
+            "driver_scoring_change_detected": true,
+            "revision_required": false,
+            "review_required": false,
+            "change_status": "detected_non_mrl_driver_change",
+            "change_status_label": "Non-MRL Driver Change",
+            "display_tag": "",
+            "under_review_flag": false,
+            "previous_snapshot": "snapshot_20260426_193502360.html",
+            "current_snapshot": "snapshot_20260427_040002020.html",
+            "changed_driver_details": [
+                {
+                    "driver": "Chad Finchum",
+                    "mrl_listed": false,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 0,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 0
+                    },
+                    "new": {
+                        "pts": 9,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 9
+                    },
+                    "delta": {
+                        "pts": 9,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 9
+                    }
+                }
+            ],
+            "message": "Classification complete."
+        },
+        {
+            "race_code": "R11",
+            "race_name": "Texas",
+            "race_name_full": "NASCAR Cup Series at Texas",
+            "race_id": "202605030054",
+            "race_number": 11,
+            "segment": "S2",
+            "classified": true,
+            "mrl_impact": false,
+            "changed_mrl_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "mrl_listed_driver_impact": true,
+            "changed_mrl_listed_drivers_count": 1,
+            "all_driver_impact": true,
+            "changed_all_drivers_count": 1,
+            "driver_pool_count": 21,
+            "mrl_listed_driver_pool_count": 36,
+            "pending_review": false,
+            "revision_detected": false,
+            "revision_status": "",
+            "status_label": "Classified",
+            "change_detected": true,
+            "driver_scoring_change_detected": true,
+            "revision_required": false,
+            "review_required": false,
+            "change_status": "detected_mrl_listed_not_segment_picked",
+            "change_status_label": "MRL-Listed Driver Changed - No Segment Impact",
+            "display_tag": "",
+            "under_review_flag": false,
+            "previous_snapshot": "snapshot_20260503_191502071.html",
+            "current_snapshot": "snapshot_20260519_153218173.html",
+            "changed_driver_details": [
+                {
+                    "driver": "Ryan Preece",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 29,
+                        "bonus": 6,
+                        "penalty": 0,
+                        "net": 29
+                    },
+                    "new": {
+                        "pts": 29,
+                        "bonus": 6,
+                        "penalty": 25,
+                        "net": 4
+                    },
+                    "delta": {
+                        "pts": 0,
+                        "bonus": 0,
+                        "penalty": 25,
+                        "net": -25
+                    }
+                }
+            ],
+            "message": "Classification complete."
+        },
+        {
+            "race_code": "R12",
+            "race_name": "Watkins Glen",
+            "race_name_full": "NASCAR Cup Series at Watkins Glen",
+            "race_id": "202605100013",
+            "race_number": 12,
+            "segment": "S2",
+            "classified": true,
+            "mrl_impact": false,
+            "changed_mrl_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "mrl_listed_driver_impact": false,
+            "changed_mrl_listed_drivers_count": 0,
+            "all_driver_impact": true,
+            "changed_all_drivers_count": 1,
+            "driver_pool_count": 21,
+            "mrl_listed_driver_pool_count": 36,
+            "pending_review": false,
+            "revision_detected": false,
+            "revision_status": "",
+            "status_label": "Classified",
+            "change_detected": true,
+            "driver_scoring_change_detected": true,
+            "revision_required": false,
+            "review_required": false,
+            "change_status": "detected_non_mrl_driver_change",
+            "change_status_label": "Non-MRL Driver Change",
+            "display_tag": "",
+            "under_review_flag": false,
+            "previous_snapshot": "snapshot_20260510_182501903.html",
+            "current_snapshot": "snapshot_20260510_183002189.html",
+            "changed_driver_details": [
+                {
+                    "driver": "Josh Bilicki",
+                    "mrl_listed": false,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 3,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 3
+                    },
+                    "new": {
+                        "pts": 0,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 0
+                    },
+                    "delta": {
+                        "pts": -3,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -3
+                    }
+                }
+            ],
+            "message": "Classification complete."
+        },
+        {
+            "race_code": "R15",
+            "race_name": "Michigan",
+            "race_name_full": "NASCAR Cup Series at Michigan",
+            "race_id": "202606070014",
+            "race_number": 15,
+            "segment": "S2",
+            "classified": true,
+            "mrl_impact": false,
+            "changed_mrl_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "mrl_listed_driver_impact": false,
+            "changed_mrl_listed_drivers_count": 0,
+            "all_driver_impact": false,
+            "changed_all_drivers_count": 0,
+            "driver_pool_count": 21,
+            "mrl_listed_driver_pool_count": 36,
+            "pending_review": false,
+            "revision_detected": false,
+            "revision_status": "",
+            "status_label": "Classified",
+            "change_detected": false,
+            "driver_scoring_change_detected": false,
+            "revision_required": false,
+            "review_required": false,
+            "change_status": "classified_no_change",
+            "change_status_label": "No Change",
+            "display_tag": "",
+            "under_review_flag": false,
+            "previous_snapshot": "snapshot_20260607_191302257.html",
+            "current_snapshot": "snapshot_20260607_193602887.html",
+            "changed_driver_details": [],
+            "message": "Classification complete."
+        },
+        {
+            "race_code": "R16",
+            "race_name": "Pocono",
+            "race_name_full": "NASCAR Cup Series at Pocono",
+            "race_id": "202606140011",
+            "race_number": 16,
+            "segment": "S2",
+            "classified": true,
+            "mrl_impact": false,
+            "changed_mrl_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "mrl_listed_driver_impact": false,
+            "changed_mrl_listed_drivers_count": 0,
+            "all_driver_impact": true,
+            "changed_all_drivers_count": 1,
+            "driver_pool_count": 21,
+            "mrl_listed_driver_pool_count": 36,
+            "pending_review": false,
+            "revision_detected": false,
+            "revision_status": "",
+            "status_label": "Classified",
+            "change_detected": true,
+            "driver_scoring_change_detected": true,
+            "revision_required": false,
+            "review_required": false,
+            "change_status": "detected_non_mrl_driver_change",
+            "change_status_label": "Non-MRL Driver Change",
+            "display_tag": "",
+            "under_review_flag": false,
+            "previous_snapshot": "snapshot_20260614_164203146.html",
+            "current_snapshot": "snapshot_20260614_165402155.html",
+            "changed_driver_details": [
+                {
+                    "driver": "Daniel Dye",
+                    "mrl_listed": false,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 8,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 8
+                    },
+                    "new": {
+                        "pts": 0,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 0
+                    },
+                    "delta": {
+                        "pts": -8,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -8
+                    }
+                }
+            ],
+            "message": "Classification complete."
+        },
+        {
+            "race_code": "R20",
+            "race_name": "Atlanta",
+            "race_name_full": "NASCAR Cup Series at Atlanta",
+            "race_id": "202607120029",
+            "race_number": 20,
+            "segment": "S3",
+            "classified": true,
+            "mrl_impact": true,
+            "changed_mrl_drivers_count": 2,
+            "changed_segment_picked_drivers_count": 2,
+            "mrl_listed_driver_impact": true,
+            "changed_mrl_listed_drivers_count": 3,
+            "all_driver_impact": true,
+            "changed_all_drivers_count": 3,
+            "driver_pool_count": 20,
+            "mrl_listed_driver_pool_count": 36,
+            "pending_review": false,
+            "revision_detected": false,
+            "revision_status": "",
+            "status_label": "Classified",
+            "change_detected": true,
+            "driver_scoring_change_detected": true,
+            "revision_required": true,
+            "review_required": true,
+            "change_status": "mrl_impact_revision_required",
+            "change_status_label": "MRL Impact - Revision Required",
+            "display_tag": "",
+            "under_review_flag": false,
+            "previous_snapshot": "snapshot_20260713_022204362.html",
+            "current_snapshot": "snapshot_20260713_022805630.html",
+            "changed_driver_details": [
+                {
+                    "driver": "Austin Dillon",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 36,
+                        "bonus": 6,
+                        "penalty": 0,
+                        "net": 36
+                    },
+                    "new": {
+                        "pts": 34,
+                        "bonus": 4,
+                        "penalty": 0,
+                        "net": 34
+                    },
+                    "delta": {
+                        "pts": -2,
+                        "bonus": -2,
+                        "penalty": 0,
+                        "net": -2
+                    }
+                },
+                {
+                    "driver": "Joey Logano",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 45,
+                        "bonus": 17,
+                        "penalty": 0,
+                        "net": 45
+                    },
+                    "new": {
+                        "pts": 43,
+                        "bonus": 15,
+                        "penalty": 0,
+                        "net": 43
+                    },
+                    "delta": {
+                        "pts": -2,
+                        "bonus": -2,
+                        "penalty": 0,
+                        "net": -2
+                    }
+                },
+                {
+                    "driver": "Tyler Reddick",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 49,
+                        "bonus": 20,
+                        "penalty": 0,
+                        "net": 49
+                    },
+                    "new": {
+                        "pts": 47,
+                        "bonus": 18,
+                        "penalty": 0,
+                        "net": 47
+                    },
+                    "delta": {
+                        "pts": -2,
+                        "bonus": -2,
+                        "penalty": 0,
+                        "net": -2
+                    }
+                }
+            ],
+            "message": "Classification complete."
+        }
+    ]
+}

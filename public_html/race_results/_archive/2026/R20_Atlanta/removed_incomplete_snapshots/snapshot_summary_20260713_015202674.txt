@@ -1,0 +1,11 @@
+RACE RESULTS SNAPSHOT SUMMARY (spoiler-safe)
+Generated: 2026-07-13 01:52:02
+HTML bytes: 89418
+HTML sha256: e64abbfd77ab09a6a0f88d8750bf023202660ce87942f4af946316ea0f2ba224
+__NEXT_DATA__ present: NO
+<table> tags found: 1
+Raw token presence:
+  PTS: YES
+  POINTS: NO
+  BONUS: YES
+  PENALTY: YES

@@ -1,0 +1,21 @@
+SEGMENT-PICKED DRIVER IMPACT CLASSIFICATION
+2026 R20 NASCAR Cup Series at Atlanta
+
+Driver pool size: 20 drivers
+
+Changed segment-picked drivers:
+
+Joey Logano
+PTS: 45 -> 43 (-2)
+BONUS: 17 -> 15 (-2)
+PENALTY: 0 -> 0 (0)
+NET: 45 -> 43 (-2)
+
+Tyler Reddick
+PTS: 49 -> 47 (-2)
+BONUS: 20 -> 18 (-2)
+PENALTY: 0 -> 0 (0)
+NET: 49 -> 47 (-2)
+
+Impact classification:
+YES

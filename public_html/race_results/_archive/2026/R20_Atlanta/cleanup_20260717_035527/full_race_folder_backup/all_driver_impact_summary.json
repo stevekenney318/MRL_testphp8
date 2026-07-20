@@ -1,0 +1,97 @@
+{
+    "year": "2026",
+    "race_code": "R20",
+    "segment": "S3",
+    "race_id": "202607120029",
+    "race_name": "NASCAR Cup Series at Atlanta",
+    "impact": true,
+    "changed_drivers_count": 3,
+    "changed_drivers_label": "All scoring-table drivers",
+    "changed_mrl_listed_drivers_count": 3,
+    "changed_segment_picked_drivers_count": 2,
+    "previous_snapshot": "snapshot_20260713_022204362.html",
+    "current_snapshot": "snapshot_20260713_022805630.html",
+    "previous_snapshot_id": "20260713_022204362",
+    "current_snapshot_id": "20260713_022805630",
+    "pair_key": "snapshot_20260713_022204362.html -> snapshot_20260713_022805630.html",
+    "pair_index": 5,
+    "pair_count": 5,
+    "is_latest_pair": true,
+    "changed_driver_details": [
+        {
+            "driver": "Austin Dillon",
+            "mrl_listed": true,
+            "segment_picked": false,
+            "old": {
+                "pts": 36,
+                "bonus": 6,
+                "penalty": 0,
+                "net": 36
+            },
+            "new": {
+                "pts": 34,
+                "bonus": 4,
+                "penalty": 0,
+                "net": 34
+            },
+            "delta": {
+                "pts": -2,
+                "bonus": -2,
+                "penalty": 0,
+                "net": -2
+            }
+        },
+        {
+            "driver": "Joey Logano",
+            "mrl_listed": true,
+            "segment_picked": true,
+            "old": {
+                "pts": 45,
+                "bonus": 17,
+                "penalty": 0,
+                "net": 45
+            },
+            "new": {
+                "pts": 43,
+                "bonus": 15,
+                "penalty": 0,
+                "net": 43
+            },
+            "delta": {
+                "pts": -2,
+                "bonus": -2,
+                "penalty": 0,
+                "net": -2
+            }
+        },
+        {
+            "driver": "Tyler Reddick",
+            "mrl_listed": true,
+            "segment_picked": true,
+            "old": {
+                "pts": 49,
+                "bonus": 20,
+                "penalty": 0,
+                "net": 49
+            },
+            "new": {
+                "pts": 47,
+                "bonus": 18,
+                "penalty": 0,
+                "net": 47
+            },
+            "delta": {
+                "pts": -2,
+                "bonus": -2,
+                "penalty": 0,
+                "net": -2
+            }
+        }
+    ],
+    "change_detected": true,
+    "driver_scoring_change_detected": true,
+    "revision_required": true,
+    "review_required": true,
+    "change_status": "pending_review_mrl_impact",
+    "change_status_label": "Pending Review - MRL Impact"
+}

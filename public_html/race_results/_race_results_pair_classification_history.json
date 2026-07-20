@@ -1,0 +1,1670 @@
+{
+    "signature": "RACE_RESULTS_CLASSIFY_REVISIONS v011",
+    "version": "v011",
+    "generated_at": "2026-07-20 08:35:04",
+    "sapi": "litespeed",
+    "source": "race_results_classify_revisions.php",
+    "year": "2026",
+    "race_code_filter": "",
+    "is_full_year_summary": true,
+    "write_artifacts": true,
+    "race_history_count": 8,
+    "pair_count": 10,
+    "mrl_impact_pair_count": 3,
+    "all_driver_change_pair_count": 9,
+    "mrl_listed_driver_change_pair_count": 4,
+    "segment_picked_driver_change_pair_count": 3,
+    "rows": [
+        {
+            "race_code": "R04",
+            "race_name": "Phoenix",
+            "race_name_full": "NASCAR Cup Series at Phoenix",
+            "race_id": "202603080023",
+            "race_number": 4,
+            "segment": "S1",
+            "classified": true,
+            "mrl_impact": false,
+            "changed_mrl_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "mrl_listed_driver_impact": false,
+            "changed_mrl_listed_drivers_count": 0,
+            "all_driver_impact": true,
+            "changed_all_drivers_count": 1,
+            "driver_pool_count": 23,
+            "mrl_listed_driver_pool_count": 36,
+            "pending_review": false,
+            "revision_detected": false,
+            "revision_status": "",
+            "status_label": "Classified",
+            "change_detected": true,
+            "driver_scoring_change_detected": true,
+            "revision_required": false,
+            "review_required": false,
+            "change_status": "detected_non_mrl_driver_change",
+            "change_status_label": "Non-MRL Driver Change",
+            "display_tag": "",
+            "under_review_flag": false,
+            "previous_snapshot": "snapshot_20260308_204802115.html",
+            "current_snapshot": "snapshot_20260308_205601920.html",
+            "previous_snapshot_id": "20260308_204802115",
+            "current_snapshot_id": "20260308_205601920",
+            "pair_key": "snapshot_20260308_204802115.html -> snapshot_20260308_205601920.html",
+            "pair_index": 1,
+            "pair_count": 1,
+            "is_latest_pair": true,
+            "changed_driver_details": [
+                {
+                    "driver": "Austin Hill",
+                    "mrl_listed": false,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 16,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 16
+                    },
+                    "new": {
+                        "pts": 0,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 0
+                    },
+                    "delta": {
+                        "pts": -16,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -16
+                    }
+                }
+            ],
+            "message": "Classification complete."
+        },
+        {
+            "race_code": "R08",
+            "race_name": "Bristol",
+            "race_name_full": "NASCAR Cup Series at Bristol",
+            "race_id": "202604120031",
+            "race_number": 8,
+            "segment": "S1",
+            "classified": true,
+            "mrl_impact": false,
+            "changed_mrl_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "mrl_listed_driver_impact": false,
+            "changed_mrl_listed_drivers_count": 0,
+            "all_driver_impact": true,
+            "changed_all_drivers_count": 1,
+            "driver_pool_count": 23,
+            "mrl_listed_driver_pool_count": 36,
+            "pending_review": false,
+            "revision_detected": false,
+            "revision_status": "",
+            "status_label": "Classified",
+            "change_detected": true,
+            "driver_scoring_change_detected": true,
+            "revision_required": false,
+            "review_required": false,
+            "change_status": "detected_non_mrl_driver_change",
+            "change_status_label": "Non-MRL Driver Change",
+            "display_tag": "",
+            "under_review_flag": false,
+            "previous_snapshot": "snapshot_20260412_190002487.html",
+            "current_snapshot": "snapshot_20260413_030202493.html",
+            "previous_snapshot_id": "20260412_190002487",
+            "current_snapshot_id": "20260413_030202493",
+            "pair_key": "snapshot_20260412_190002487.html -> snapshot_20260413_030202493.html",
+            "pair_index": 1,
+            "pair_count": 1,
+            "is_latest_pair": true,
+            "changed_driver_details": [
+                {
+                    "driver": "Chad Finchum",
+                    "mrl_listed": false,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 0,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 0
+                    },
+                    "new": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    },
+                    "delta": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    }
+                }
+            ],
+            "message": "Classification complete."
+        },
+        {
+            "race_code": "R10",
+            "race_name": "Talladega",
+            "race_name_full": "NASCAR Cup Series at Talladega",
+            "race_id": "202604260022",
+            "race_number": 10,
+            "segment": "S2",
+            "classified": true,
+            "mrl_impact": false,
+            "changed_mrl_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "mrl_listed_driver_impact": false,
+            "changed_mrl_listed_drivers_count": 0,
+            "all_driver_impact": true,
+            "changed_all_drivers_count": 1,
+            "driver_pool_count": 21,
+            "mrl_listed_driver_pool_count": 36,
+            "pending_review": false,
+            "revision_detected": false,
+            "revision_status": "",
+            "status_label": "Classified",
+            "change_detected": true,
+            "driver_scoring_change_detected": true,
+            "revision_required": false,
+            "review_required": false,
+            "change_status": "detected_non_mrl_driver_change",
+            "change_status_label": "Non-MRL Driver Change",
+            "display_tag": "",
+            "under_review_flag": false,
+            "previous_snapshot": "snapshot_20260426_193502360.html",
+            "current_snapshot": "snapshot_20260427_040002020.html",
+            "previous_snapshot_id": "20260426_193502360",
+            "current_snapshot_id": "20260427_040002020",
+            "pair_key": "snapshot_20260426_193502360.html -> snapshot_20260427_040002020.html",
+            "pair_index": 1,
+            "pair_count": 1,
+            "is_latest_pair": true,
+            "changed_driver_details": [
+                {
+                    "driver": "Chad Finchum",
+                    "mrl_listed": false,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 0,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 0
+                    },
+                    "new": {
+                        "pts": 9,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 9
+                    },
+                    "delta": {
+                        "pts": 9,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 9
+                    }
+                }
+            ],
+            "message": "Classification complete."
+        },
+        {
+            "race_code": "R11",
+            "race_name": "Texas",
+            "race_name_full": "NASCAR Cup Series at Texas",
+            "race_id": "202605030054",
+            "race_number": 11,
+            "segment": "S2",
+            "classified": true,
+            "mrl_impact": false,
+            "changed_mrl_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "mrl_listed_driver_impact": true,
+            "changed_mrl_listed_drivers_count": 1,
+            "all_driver_impact": true,
+            "changed_all_drivers_count": 1,
+            "driver_pool_count": 21,
+            "mrl_listed_driver_pool_count": 36,
+            "pending_review": false,
+            "revision_detected": false,
+            "revision_status": "",
+            "status_label": "Classified",
+            "change_detected": true,
+            "driver_scoring_change_detected": true,
+            "revision_required": false,
+            "review_required": false,
+            "change_status": "detected_mrl_listed_not_segment_picked",
+            "change_status_label": "MRL-Listed Driver Changed - No Segment Impact",
+            "display_tag": "",
+            "under_review_flag": false,
+            "previous_snapshot": "snapshot_20260503_191502071.html",
+            "current_snapshot": "snapshot_20260519_153218173.html",
+            "previous_snapshot_id": "20260503_191502071",
+            "current_snapshot_id": "20260519_153218173",
+            "pair_key": "snapshot_20260503_191502071.html -> snapshot_20260519_153218173.html",
+            "pair_index": 1,
+            "pair_count": 1,
+            "is_latest_pair": true,
+            "changed_driver_details": [
+                {
+                    "driver": "Ryan Preece",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 29,
+                        "bonus": 6,
+                        "penalty": 0,
+                        "net": 29
+                    },
+                    "new": {
+                        "pts": 29,
+                        "bonus": 6,
+                        "penalty": 25,
+                        "net": 4
+                    },
+                    "delta": {
+                        "pts": 0,
+                        "bonus": 0,
+                        "penalty": 25,
+                        "net": -25
+                    }
+                }
+            ],
+            "message": "Classification complete."
+        },
+        {
+            "race_code": "R12",
+            "race_name": "Watkins Glen",
+            "race_name_full": "NASCAR Cup Series at Watkins Glen",
+            "race_id": "202605100013",
+            "race_number": 12,
+            "segment": "S2",
+            "classified": true,
+            "mrl_impact": false,
+            "changed_mrl_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "mrl_listed_driver_impact": false,
+            "changed_mrl_listed_drivers_count": 0,
+            "all_driver_impact": true,
+            "changed_all_drivers_count": 1,
+            "driver_pool_count": 21,
+            "mrl_listed_driver_pool_count": 36,
+            "pending_review": false,
+            "revision_detected": false,
+            "revision_status": "",
+            "status_label": "Classified",
+            "change_detected": true,
+            "driver_scoring_change_detected": true,
+            "revision_required": false,
+            "review_required": false,
+            "change_status": "detected_non_mrl_driver_change",
+            "change_status_label": "Non-MRL Driver Change",
+            "display_tag": "",
+            "under_review_flag": false,
+            "previous_snapshot": "snapshot_20260510_182501903.html",
+            "current_snapshot": "snapshot_20260510_183002189.html",
+            "previous_snapshot_id": "20260510_182501903",
+            "current_snapshot_id": "20260510_183002189",
+            "pair_key": "snapshot_20260510_182501903.html -> snapshot_20260510_183002189.html",
+            "pair_index": 1,
+            "pair_count": 1,
+            "is_latest_pair": true,
+            "changed_driver_details": [
+                {
+                    "driver": "Josh Bilicki",
+                    "mrl_listed": false,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 3,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 3
+                    },
+                    "new": {
+                        "pts": 0,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 0
+                    },
+                    "delta": {
+                        "pts": -3,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -3
+                    }
+                }
+            ],
+            "message": "Classification complete."
+        },
+        {
+            "race_code": "R15",
+            "race_name": "Michigan",
+            "race_name_full": "NASCAR Cup Series at Michigan",
+            "race_id": "202606070014",
+            "race_number": 15,
+            "segment": "S2",
+            "classified": true,
+            "mrl_impact": false,
+            "changed_mrl_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "mrl_listed_driver_impact": false,
+            "changed_mrl_listed_drivers_count": 0,
+            "all_driver_impact": false,
+            "changed_all_drivers_count": 0,
+            "driver_pool_count": 21,
+            "mrl_listed_driver_pool_count": 36,
+            "pending_review": false,
+            "revision_detected": false,
+            "revision_status": "",
+            "status_label": "Classified",
+            "change_detected": false,
+            "driver_scoring_change_detected": false,
+            "revision_required": false,
+            "review_required": false,
+            "change_status": "classified_no_change",
+            "change_status_label": "No Change",
+            "display_tag": "",
+            "under_review_flag": false,
+            "previous_snapshot": "snapshot_20260607_191302257.html",
+            "current_snapshot": "snapshot_20260607_193602887.html",
+            "previous_snapshot_id": "20260607_191302257",
+            "current_snapshot_id": "20260607_193602887",
+            "pair_key": "snapshot_20260607_191302257.html -> snapshot_20260607_193602887.html",
+            "pair_index": 1,
+            "pair_count": 1,
+            "is_latest_pair": true,
+            "changed_driver_details": [],
+            "message": "Classification complete."
+        },
+        {
+            "race_code": "R16",
+            "race_name": "Pocono",
+            "race_name_full": "NASCAR Cup Series at Pocono",
+            "race_id": "202606140011",
+            "race_number": 16,
+            "segment": "S2",
+            "classified": true,
+            "mrl_impact": false,
+            "changed_mrl_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "mrl_listed_driver_impact": false,
+            "changed_mrl_listed_drivers_count": 0,
+            "all_driver_impact": true,
+            "changed_all_drivers_count": 1,
+            "driver_pool_count": 21,
+            "mrl_listed_driver_pool_count": 36,
+            "pending_review": false,
+            "revision_detected": false,
+            "revision_status": "",
+            "status_label": "Classified",
+            "change_detected": true,
+            "driver_scoring_change_detected": true,
+            "revision_required": false,
+            "review_required": false,
+            "change_status": "detected_non_mrl_driver_change",
+            "change_status_label": "Non-MRL Driver Change",
+            "display_tag": "",
+            "under_review_flag": false,
+            "previous_snapshot": "snapshot_20260614_164203146.html",
+            "current_snapshot": "snapshot_20260614_165402155.html",
+            "previous_snapshot_id": "20260614_164203146",
+            "current_snapshot_id": "20260614_165402155",
+            "pair_key": "snapshot_20260614_164203146.html -> snapshot_20260614_165402155.html",
+            "pair_index": 1,
+            "pair_count": 1,
+            "is_latest_pair": true,
+            "changed_driver_details": [
+                {
+                    "driver": "Daniel Dye",
+                    "mrl_listed": false,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 8,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 8
+                    },
+                    "new": {
+                        "pts": 0,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 0
+                    },
+                    "delta": {
+                        "pts": -8,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -8
+                    }
+                }
+            ],
+            "message": "Classification complete."
+        },
+        {
+            "race_code": "R20",
+            "race_name": "Atlanta",
+            "race_name_full": "NASCAR Cup Series at Atlanta",
+            "race_id": "202607120029",
+            "race_number": 20,
+            "segment": "S3",
+            "classified": true,
+            "mrl_impact": true,
+            "changed_mrl_drivers_count": 19,
+            "changed_segment_picked_drivers_count": 19,
+            "mrl_listed_driver_impact": true,
+            "changed_mrl_listed_drivers_count": 31,
+            "all_driver_impact": true,
+            "changed_all_drivers_count": 31,
+            "driver_pool_count": 20,
+            "mrl_listed_driver_pool_count": 36,
+            "pending_review": false,
+            "revision_detected": false,
+            "revision_status": "",
+            "status_label": "Classified",
+            "change_detected": true,
+            "driver_scoring_change_detected": true,
+            "revision_required": true,
+            "review_required": true,
+            "change_status": "mrl_impact_revision_required",
+            "change_status_label": "MRL Impact - Revision Required",
+            "display_tag": "",
+            "under_review_flag": false,
+            "previous_snapshot": "snapshot_20260713_020404456.html",
+            "current_snapshot": "snapshot_20260713_021609696.html",
+            "previous_snapshot_id": "20260713_020404456",
+            "current_snapshot_id": "20260713_021609696",
+            "pair_key": "snapshot_20260713_020404456.html -> snapshot_20260713_021609696.html",
+            "pair_index": 1,
+            "pair_count": 3,
+            "is_latest_pair": false,
+            "changed_driver_details": [
+                {
+                    "driver": "Alex Bowman",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 13,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 13
+                    },
+                    "new": {
+                        "pts": 15,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 15
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Austin Cindric",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 21,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 21
+                    },
+                    "new": {
+                        "pts": 36,
+                        "bonus": 14,
+                        "penalty": 0,
+                        "net": 36
+                    },
+                    "delta": {
+                        "pts": 15,
+                        "bonus": 14,
+                        "penalty": 0,
+                        "net": 15
+                    }
+                },
+                {
+                    "driver": "Austin Dillon",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 33,
+                        "bonus": 5,
+                        "penalty": 0,
+                        "net": 33
+                    },
+                    "new": {
+                        "pts": 34,
+                        "bonus": 5,
+                        "penalty": 0,
+                        "net": 34
+                    },
+                    "delta": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    }
+                },
+                {
+                    "driver": "Brad Keselowski",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 9,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 9
+                    },
+                    "new": {
+                        "pts": 11,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 11
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Bubba Wallace",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 6,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 6
+                    },
+                    "new": {
+                        "pts": 9,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 9
+                    },
+                    "delta": {
+                        "pts": 3,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 3
+                    }
+                },
+                {
+                    "driver": "Carson Hocevar",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 38,
+                        "bonus": 4,
+                        "penalty": 0,
+                        "net": 38
+                    },
+                    "new": {
+                        "pts": 39,
+                        "bonus": 4,
+                        "penalty": 0,
+                        "net": 39
+                    },
+                    "delta": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    }
+                },
+                {
+                    "driver": "Chase Briscoe",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    },
+                    "new": {
+                        "pts": 4,
+                        "bonus": 3,
+                        "penalty": 0,
+                        "net": 4
+                    },
+                    "delta": {
+                        "pts": 3,
+                        "bonus": 3,
+                        "penalty": 0,
+                        "net": 3
+                    }
+                },
+                {
+                    "driver": "Chase Elliott",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 22,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 22
+                    },
+                    "new": {
+                        "pts": 26,
+                        "bonus": 3,
+                        "penalty": 0,
+                        "net": 26
+                    },
+                    "delta": {
+                        "pts": 4,
+                        "bonus": 3,
+                        "penalty": 0,
+                        "net": 4
+                    }
+                },
+                {
+                    "driver": "Chris Buescher",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 25,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 25
+                    },
+                    "new": {
+                        "pts": 27,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 27
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Christopher Bell",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 38,
+                        "bonus": 3,
+                        "penalty": 0,
+                        "net": 38
+                    },
+                    "new": {
+                        "pts": 39,
+                        "bonus": 3,
+                        "penalty": 0,
+                        "net": 39
+                    },
+                    "delta": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    }
+                },
+                {
+                    "driver": "Cody Ware",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 5,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 5
+                    },
+                    "new": {
+                        "pts": 6,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 6
+                    },
+                    "delta": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    }
+                },
+                {
+                    "driver": "Cole Custer",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 18,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 18
+                    },
+                    "new": {
+                        "pts": 20,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 20
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Connor Zilisch",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 7,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 7
+                    },
+                    "new": {
+                        "pts": 9,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 9
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Daniel Suarez",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 14,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 14
+                    },
+                    "new": {
+                        "pts": 22,
+                        "bonus": 6,
+                        "penalty": 0,
+                        "net": 22
+                    },
+                    "delta": {
+                        "pts": 8,
+                        "bonus": 6,
+                        "penalty": 0,
+                        "net": 8
+                    }
+                },
+                {
+                    "driver": "Denny Hamlin",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 23,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 23
+                    },
+                    "new": {
+                        "pts": 27,
+                        "bonus": 3,
+                        "penalty": 0,
+                        "net": 27
+                    },
+                    "delta": {
+                        "pts": 4,
+                        "bonus": 3,
+                        "penalty": 0,
+                        "net": 4
+                    }
+                },
+                {
+                    "driver": "Erik Jones",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 34,
+                        "bonus": 2,
+                        "penalty": 0,
+                        "net": 34
+                    },
+                    "new": {
+                        "pts": 35,
+                        "bonus": 2,
+                        "penalty": 0,
+                        "net": 35
+                    },
+                    "delta": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    }
+                },
+                {
+                    "driver": "Joey Logano",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 42,
+                        "bonus": 16,
+                        "penalty": 0,
+                        "net": 42
+                    },
+                    "new": {
+                        "pts": 43,
+                        "bonus": 16,
+                        "penalty": 0,
+                        "net": 43
+                    },
+                    "delta": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    }
+                },
+                {
+                    "driver": "John Hunter Nemechek",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 17,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 17
+                    },
+                    "new": {
+                        "pts": 19,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 19
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Josh Berry",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 10,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 10
+                    },
+                    "new": {
+                        "pts": 12,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 12
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Kyle Larson",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 3,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 3
+                    },
+                    "new": {
+                        "pts": 11,
+                        "bonus": 8,
+                        "penalty": 0,
+                        "net": 11
+                    },
+                    "delta": {
+                        "pts": 8,
+                        "bonus": 8,
+                        "penalty": 0,
+                        "net": 8
+                    }
+                },
+                {
+                    "driver": "Michael McDowell",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 20,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 20
+                    },
+                    "new": {
+                        "pts": 22,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 22
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Noah Gragson",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 8,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 8
+                    },
+                    "new": {
+                        "pts": 19,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 19
+                    },
+                    "delta": {
+                        "pts": 11,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 11
+                    }
+                },
+                {
+                    "driver": "Ricky Stenhouse Jr.",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 12,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 12
+                    },
+                    "new": {
+                        "pts": 14,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 14
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Ross Chastain",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 24,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 24
+                    },
+                    "new": {
+                        "pts": 26,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 26
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Ryan Preece",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 11,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 11
+                    },
+                    "new": {
+                        "pts": 13,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 13
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Shane van Gisbergen",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 31,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 31
+                    },
+                    "new": {
+                        "pts": 32,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 32
+                    },
+                    "delta": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    }
+                },
+                {
+                    "driver": "Todd Gilliland",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 16,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 16
+                    },
+                    "new": {
+                        "pts": 18,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 18
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Ty Dillon",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 15,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 15
+                    },
+                    "new": {
+                        "pts": 17,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 17
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Ty Gibbs",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 37,
+                        "bonus": 4,
+                        "penalty": 0,
+                        "net": 37
+                    },
+                    "new": {
+                        "pts": 38,
+                        "bonus": 4,
+                        "penalty": 0,
+                        "net": 38
+                    },
+                    "delta": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    }
+                },
+                {
+                    "driver": "Tyler Reddick",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 46,
+                        "bonus": 19,
+                        "penalty": 0,
+                        "net": 46
+                    },
+                    "new": {
+                        "pts": 47,
+                        "bonus": 19,
+                        "penalty": 0,
+                        "net": 47
+                    },
+                    "delta": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    }
+                },
+                {
+                    "driver": "William Byron",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 19,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 19
+                    },
+                    "new": {
+                        "pts": 21,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 21
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                }
+            ],
+            "message": "Classification complete."
+        },
+        {
+            "race_code": "R20",
+            "race_name": "Atlanta",
+            "race_name_full": "NASCAR Cup Series at Atlanta",
+            "race_id": "202607120029",
+            "race_number": 20,
+            "segment": "S3",
+            "classified": true,
+            "mrl_impact": true,
+            "changed_mrl_drivers_count": 11,
+            "changed_segment_picked_drivers_count": 11,
+            "mrl_listed_driver_impact": true,
+            "changed_mrl_listed_drivers_count": 14,
+            "all_driver_impact": true,
+            "changed_all_drivers_count": 14,
+            "driver_pool_count": 20,
+            "mrl_listed_driver_pool_count": 36,
+            "pending_review": false,
+            "revision_detected": false,
+            "revision_status": "",
+            "status_label": "Classified",
+            "change_detected": true,
+            "driver_scoring_change_detected": true,
+            "revision_required": true,
+            "review_required": true,
+            "change_status": "mrl_impact_revision_required",
+            "change_status_label": "MRL Impact - Revision Required",
+            "display_tag": "",
+            "under_review_flag": false,
+            "previous_snapshot": "snapshot_20260713_021609696.html",
+            "current_snapshot": "snapshot_20260713_022204362.html",
+            "previous_snapshot_id": "20260713_021609696",
+            "current_snapshot_id": "20260713_022204362",
+            "pair_key": "snapshot_20260713_021609696.html -> snapshot_20260713_022204362.html",
+            "pair_index": 2,
+            "pair_count": 3,
+            "is_latest_pair": false,
+            "changed_driver_details": [
+                {
+                    "driver": "Austin Cindric",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 36,
+                        "bonus": 14,
+                        "penalty": 0,
+                        "net": 36
+                    },
+                    "new": {
+                        "pts": 36,
+                        "bonus": 13,
+                        "penalty": 0,
+                        "net": 36
+                    },
+                    "delta": {
+                        "pts": 0,
+                        "bonus": -1,
+                        "penalty": 0,
+                        "net": 0
+                    }
+                },
+                {
+                    "driver": "Austin Dillon",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 34,
+                        "bonus": 5,
+                        "penalty": 0,
+                        "net": 34
+                    },
+                    "new": {
+                        "pts": 36,
+                        "bonus": 6,
+                        "penalty": 0,
+                        "net": 36
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Carson Hocevar",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 39,
+                        "bonus": 4,
+                        "penalty": 0,
+                        "net": 39
+                    },
+                    "new": {
+                        "pts": 39,
+                        "bonus": 5,
+                        "penalty": 0,
+                        "net": 39
+                    },
+                    "delta": {
+                        "pts": 0,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 0
+                    }
+                },
+                {
+                    "driver": "Chase Elliott",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 26,
+                        "bonus": 3,
+                        "penalty": 0,
+                        "net": 26
+                    },
+                    "new": {
+                        "pts": 26,
+                        "bonus": 2,
+                        "penalty": 0,
+                        "net": 26
+                    },
+                    "delta": {
+                        "pts": 0,
+                        "bonus": -1,
+                        "penalty": 0,
+                        "net": 0
+                    }
+                },
+                {
+                    "driver": "Chris Buescher",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 27,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 27
+                    },
+                    "new": {
+                        "pts": 27,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 27
+                    },
+                    "delta": {
+                        "pts": 0,
+                        "bonus": -1,
+                        "penalty": 0,
+                        "net": 0
+                    }
+                },
+                {
+                    "driver": "Christopher Bell",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 39,
+                        "bonus": 3,
+                        "penalty": 0,
+                        "net": 39
+                    },
+                    "new": {
+                        "pts": 39,
+                        "bonus": 4,
+                        "penalty": 0,
+                        "net": 39
+                    },
+                    "delta": {
+                        "pts": 0,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 0
+                    }
+                },
+                {
+                    "driver": "Denny Hamlin",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 27,
+                        "bonus": 3,
+                        "penalty": 0,
+                        "net": 27
+                    },
+                    "new": {
+                        "pts": 27,
+                        "bonus": 2,
+                        "penalty": 0,
+                        "net": 27
+                    },
+                    "delta": {
+                        "pts": 0,
+                        "bonus": -1,
+                        "penalty": 0,
+                        "net": 0
+                    }
+                },
+                {
+                    "driver": "Erik Jones",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 35,
+                        "bonus": 2,
+                        "penalty": 0,
+                        "net": 35
+                    },
+                    "new": {
+                        "pts": 35,
+                        "bonus": 3,
+                        "penalty": 0,
+                        "net": 35
+                    },
+                    "delta": {
+                        "pts": 0,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 0
+                    }
+                },
+                {
+                    "driver": "Joey Logano",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 43,
+                        "bonus": 16,
+                        "penalty": 0,
+                        "net": 43
+                    },
+                    "new": {
+                        "pts": 45,
+                        "bonus": 17,
+                        "penalty": 0,
+                        "net": 45
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Noah Gragson",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 19,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 19
+                    },
+                    "new": {
+                        "pts": 10,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 10
+                    },
+                    "delta": {
+                        "pts": -9,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -9
+                    }
+                },
+                {
+                    "driver": "Ross Chastain",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 26,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 26
+                    },
+                    "new": {
+                        "pts": 26,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 26
+                    },
+                    "delta": {
+                        "pts": 0,
+                        "bonus": -1,
+                        "penalty": 0,
+                        "net": 0
+                    }
+                },
+                {
+                    "driver": "Shane van Gisbergen",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 32,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 32
+                    },
+                    "new": {
+                        "pts": 32,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 32
+                    },
+                    "delta": {
+                        "pts": 0,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 0
+                    }
+                },
+                {
+                    "driver": "Ty Gibbs",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 38,
+                        "bonus": 4,
+                        "penalty": 0,
+                        "net": 38
+                    },
+                    "new": {
+                        "pts": 38,
+                        "bonus": 5,
+                        "penalty": 0,
+                        "net": 38
+                    },
+                    "delta": {
+                        "pts": 0,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 0
+                    }
+                },
+                {
+                    "driver": "Tyler Reddick",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 47,
+                        "bonus": 19,
+                        "penalty": 0,
+                        "net": 47
+                    },
+                    "new": {
+                        "pts": 49,
+                        "bonus": 20,
+                        "penalty": 0,
+                        "net": 49
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                }
+            ],
+            "message": "Classification complete."
+        },
+        {
+            "race_code": "R20",
+            "race_name": "Atlanta",
+            "race_name_full": "NASCAR Cup Series at Atlanta",
+            "race_id": "202607120029",
+            "race_number": 20,
+            "segment": "S3",
+            "classified": true,
+            "mrl_impact": true,
+            "changed_mrl_drivers_count": 2,
+            "changed_segment_picked_drivers_count": 2,
+            "mrl_listed_driver_impact": true,
+            "changed_mrl_listed_drivers_count": 3,
+            "all_driver_impact": true,
+            "changed_all_drivers_count": 3,
+            "driver_pool_count": 20,
+            "mrl_listed_driver_pool_count": 36,
+            "pending_review": false,
+            "revision_detected": false,
+            "revision_status": "",
+            "status_label": "Classified",
+            "change_detected": true,
+            "driver_scoring_change_detected": true,
+            "revision_required": true,
+            "review_required": true,
+            "change_status": "mrl_impact_revision_required",
+            "change_status_label": "MRL Impact - Revision Required",
+            "display_tag": "",
+            "under_review_flag": false,
+            "previous_snapshot": "snapshot_20260713_022204362.html",
+            "current_snapshot": "snapshot_20260713_022805630.html",
+            "previous_snapshot_id": "20260713_022204362",
+            "current_snapshot_id": "20260713_022805630",
+            "pair_key": "snapshot_20260713_022204362.html -> snapshot_20260713_022805630.html",
+            "pair_index": 3,
+            "pair_count": 3,
+            "is_latest_pair": true,
+            "changed_driver_details": [
+                {
+                    "driver": "Austin Dillon",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 36,
+                        "bonus": 6,
+                        "penalty": 0,
+                        "net": 36
+                    },
+                    "new": {
+                        "pts": 34,
+                        "bonus": 4,
+                        "penalty": 0,
+                        "net": 34
+                    },
+                    "delta": {
+                        "pts": -2,
+                        "bonus": -2,
+                        "penalty": 0,
+                        "net": -2
+                    }
+                },
+                {
+                    "driver": "Joey Logano",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 45,
+                        "bonus": 17,
+                        "penalty": 0,
+                        "net": 45
+                    },
+                    "new": {
+                        "pts": 43,
+                        "bonus": 15,
+                        "penalty": 0,
+                        "net": 43
+                    },
+                    "delta": {
+                        "pts": -2,
+                        "bonus": -2,
+                        "penalty": 0,
+                        "net": -2
+                    }
+                },
+                {
+                    "driver": "Tyler Reddick",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 49,
+                        "bonus": 20,
+                        "penalty": 0,
+                        "net": 49
+                    },
+                    "new": {
+                        "pts": 47,
+                        "bonus": 18,
+                        "penalty": 0,
+                        "net": 47
+                    },
+                    "delta": {
+                        "pts": -2,
+                        "bonus": -2,
+                        "penalty": 0,
+                        "net": -2
+                    }
+                }
+            ],
+            "message": "Classification complete."
+        }
+    ]
+}

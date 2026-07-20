@@ -1,0 +1,3892 @@
+{
+    "signature": "WEEKLY_STANDINGS_RELEASE_HISTORY v003",
+    "version": "v002",
+    "generated_at": "2026-07-17 00:00:05",
+    "timezone": "America/New_York",
+    "source": "race_results_revision_monitor.php",
+    "scope": "local_mrl_artifacts_only",
+    "notes": [
+        "Public weekly standings Audit panels should use simple release/update/supersedes language.",
+        "This metadata may contain technical IDs and file references for admin/debug use, but public pages do not need to display all fields.",
+        "Every legitimate saved race result snapshot is represented as a release-history version. Updated versions supersede the prior version for the same race/week.",
+        "MRL Impact controls downstream revision needs; it does not control whether a release-history version exists."
+    ],
+    "year": "2026",
+    "output_file": "2026/_weekly_standings_release_history.json",
+    "race_history_count": 20,
+    "release_count": 32,
+    "updated_release_count": 7,
+    "pending_release_count": 6,
+    "pair_history_matched_count": 12,
+    "releases": [
+        {
+            "release_id": "20260228_062935357_R01",
+            "generated_id": "20260228_062935357_R01",
+            "race_code": "R01",
+            "race_number": 1,
+            "race_id": "202602150001",
+            "race_name": "Daytona 500",
+            "short_name": "Daytona 500",
+            "segment": "S1",
+            "release_type": "initial",
+            "source_type": "initial",
+            "status": "released",
+            "public_status": "Official standings release",
+            "released_at": "2026-02-28 06:29:35",
+            "released_at_display": "Feb 28, 2026 6:29 AM",
+            "reason_public": "Initial standings release for R01 Daytona 500.",
+            "supersedes": null,
+            "mrl_impact": null,
+            "change_status": "",
+            "change_status_label": "",
+            "changed_mrl_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "changed_all_drivers_count": null,
+            "changed_driver_details": [],
+            "snapshot_id": "20260228_062935357",
+            "snapshot_file": "snapshot_20260228_062935357.html",
+            "previous_snapshot": "",
+            "current_snapshot": "snapshot_20260228_062935357.html",
+            "snapshot_index": 1,
+            "snapshot_count": 1,
+            "is_current_snapshot": true,
+            "pair_history_matched": false,
+            "debug": {
+                "race_folder": "R01_Daytona_500_202602150001",
+                "race_folder_rel": "2026/R01_Daytona_500_202602150001",
+                "builder_note": "Bootstrapped initial release from first legitimate saved race result snapshot.",
+                "pair_key": ""
+            },
+            "release_sequence": 1,
+            "display_version": "v1",
+            "version_label": "v1",
+            "is_current_release": true,
+            "release_status": "current",
+            "release_status_label": "Current",
+            "superseded_by_release_id": "",
+            "superseded_by_version": "",
+            "released_at_short": "2/28/26 6:29am",
+            "display_change_label": "",
+            "version_dropdown_label": "v1 (2/28/26 6:29am)"
+        },
+        {
+            "release_id": "20260228_062935485_R02",
+            "generated_id": "20260228_062935485_R02",
+            "race_code": "R02",
+            "race_number": 2,
+            "race_id": "202602220025",
+            "race_name": "NASCAR Cup Series at Atlanta",
+            "short_name": "Atlanta",
+            "segment": "S1",
+            "release_type": "initial",
+            "source_type": "initial",
+            "status": "released",
+            "public_status": "Official standings release",
+            "released_at": "2026-02-28 06:29:35",
+            "released_at_display": "Feb 28, 2026 6:29 AM",
+            "reason_public": "Initial standings release for R02 Atlanta.",
+            "supersedes": null,
+            "mrl_impact": null,
+            "change_status": "",
+            "change_status_label": "",
+            "changed_mrl_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "changed_all_drivers_count": null,
+            "changed_driver_details": [],
+            "snapshot_id": "20260228_062935485",
+            "snapshot_file": "snapshot_20260228_062935485.html",
+            "previous_snapshot": "",
+            "current_snapshot": "snapshot_20260228_062935485.html",
+            "snapshot_index": 1,
+            "snapshot_count": 1,
+            "is_current_snapshot": true,
+            "pair_history_matched": false,
+            "debug": {
+                "race_folder": "R02_NASCAR_Cup_Series_at_Atlanta_202602220025",
+                "race_folder_rel": "2026/R02_NASCAR_Cup_Series_at_Atlanta_202602220025",
+                "builder_note": "Bootstrapped initial release from first legitimate saved race result snapshot.",
+                "pair_key": ""
+            },
+            "release_sequence": 1,
+            "display_version": "v1",
+            "version_label": "v1",
+            "is_current_release": true,
+            "release_status": "current",
+            "release_status_label": "Current",
+            "superseded_by_release_id": "",
+            "superseded_by_version": "",
+            "released_at_short": "2/28/26 6:29am",
+            "display_change_label": "",
+            "version_dropdown_label": "v1 (2/28/26 6:29am)"
+        },
+        {
+            "release_id": "20260301_191502838_R03",
+            "generated_id": "20260301_191502838_R03",
+            "race_code": "R03",
+            "race_number": 3,
+            "race_id": "202603013998",
+            "race_name": "NASCAR Cup Series at Circuit of the Americas",
+            "short_name": "COTA",
+            "segment": "S1",
+            "release_type": "initial",
+            "source_type": "initial",
+            "status": "released",
+            "public_status": "Official standings release",
+            "released_at": "2026-03-01 19:15:02",
+            "released_at_display": "Mar 1, 2026 7:15 PM",
+            "reason_public": "Initial standings release for R03 COTA.",
+            "supersedes": null,
+            "mrl_impact": null,
+            "change_status": "",
+            "change_status_label": "",
+            "changed_mrl_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "changed_all_drivers_count": null,
+            "changed_driver_details": [],
+            "snapshot_id": "20260301_191502838",
+            "snapshot_file": "snapshot_20260301_191502838.html",
+            "previous_snapshot": "",
+            "current_snapshot": "snapshot_20260301_191502838.html",
+            "snapshot_index": 1,
+            "snapshot_count": 1,
+            "is_current_snapshot": true,
+            "pair_history_matched": false,
+            "debug": {
+                "race_folder": "R03_NASCAR_Cup_Series_at_Circuit_of_the_Americas_202603013998",
+                "race_folder_rel": "2026/R03_NASCAR_Cup_Series_at_Circuit_of_the_Americas_202603013998",
+                "builder_note": "Bootstrapped initial release from first legitimate saved race result snapshot.",
+                "pair_key": ""
+            },
+            "release_sequence": 1,
+            "display_version": "v1",
+            "version_label": "v1",
+            "is_current_release": true,
+            "release_status": "current",
+            "release_status_label": "Current",
+            "superseded_by_release_id": "",
+            "superseded_by_version": "",
+            "released_at_short": "3/1/26 7:15pm",
+            "display_change_label": "",
+            "version_dropdown_label": "v1 (3/1/26 7:15pm)"
+        },
+        {
+            "release_id": "20260308_204802115_R04",
+            "generated_id": "20260308_204802115_R04",
+            "race_code": "R04",
+            "race_number": 4,
+            "race_id": "202603080023",
+            "race_name": "NASCAR Cup Series at Phoenix",
+            "short_name": "Phoenix",
+            "segment": "S1",
+            "release_type": "initial",
+            "source_type": "initial",
+            "status": "released",
+            "public_status": "Official standings release",
+            "released_at": "2026-03-08 20:48:02",
+            "released_at_display": "Mar 8, 2026 8:48 PM",
+            "reason_public": "Initial standings release for R04 Phoenix.",
+            "supersedes": null,
+            "mrl_impact": null,
+            "change_status": "",
+            "change_status_label": "",
+            "changed_mrl_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "changed_all_drivers_count": null,
+            "changed_driver_details": [],
+            "snapshot_id": "20260308_204802115",
+            "snapshot_file": "snapshot_20260308_204802115.html",
+            "previous_snapshot": "",
+            "current_snapshot": "snapshot_20260308_204802115.html",
+            "snapshot_index": 1,
+            "snapshot_count": 2,
+            "is_current_snapshot": false,
+            "pair_history_matched": false,
+            "debug": {
+                "race_folder": "R04_NASCAR_Cup_Series_at_Phoenix_202603080023",
+                "race_folder_rel": "2026/R04_NASCAR_Cup_Series_at_Phoenix_202603080023",
+                "builder_note": "Bootstrapped initial release from first legitimate saved race result snapshot.",
+                "pair_key": ""
+            },
+            "release_sequence": 1,
+            "display_version": "v1",
+            "version_label": "v1",
+            "is_current_release": false,
+            "release_status": "superseded",
+            "release_status_label": "Superseded",
+            "superseded_by_release_id": "20260308_205601920_R04",
+            "superseded_by_version": "v2",
+            "released_at_short": "3/8/26 8:48pm",
+            "display_change_label": "",
+            "version_dropdown_label": "v1 (3/8/26 8:48pm)"
+        },
+        {
+            "release_id": "20260308_205601920_R04",
+            "generated_id": "20260308_205601920_R04",
+            "race_code": "R04",
+            "race_number": 4,
+            "race_id": "202603080023",
+            "race_name": "NASCAR Cup Series at Phoenix",
+            "short_name": "Phoenix",
+            "segment": "S1",
+            "release_type": "updated",
+            "source_type": "direct_revision",
+            "status": "released",
+            "public_status": "Informational result update",
+            "released_at": "2026-03-08 20:56:01",
+            "released_at_display": "Mar 8, 2026 8:56 PM",
+            "reason_public": "Race results were updated after the previous release; MRL standings were not affected.",
+            "supersedes": {
+                "release_id": "20260308_204802115_R04",
+                "generated_id": "20260308_204802115_R04",
+                "released_at": "2026-03-08 20:48:02",
+                "released_at_display": "Mar 8, 2026 8:48 PM",
+                "snapshot_id": "20260308_204802115",
+                "snapshot_file": "snapshot_20260308_204802115.html"
+            },
+            "mrl_impact": false,
+            "change_status": "detected_non_mrl_driver_change",
+            "change_status_label": "Non-MRL Driver Change",
+            "changed_mrl_drivers_count": 0,
+            "changed_mrl_listed_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "changed_all_drivers_count": 1,
+            "changed_driver_details": [
+                {
+                    "driver": "Austin Hill",
+                    "mrl_listed": false,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 16,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 16
+                    },
+                    "new": {
+                        "pts": 0,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 0
+                    },
+                    "delta": {
+                        "pts": -16,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -16
+                    }
+                }
+            ],
+            "snapshot_id": "20260308_205601920",
+            "snapshot_file": "snapshot_20260308_205601920.html",
+            "previous_snapshot": "snapshot_20260308_204802115.html",
+            "current_snapshot": "snapshot_20260308_205601920.html",
+            "snapshot_index": 2,
+            "snapshot_count": 2,
+            "is_current_snapshot": true,
+            "pair_history_matched": true,
+            "debug": {
+                "race_folder": "R04_NASCAR_Cup_Series_at_Phoenix_202603080023",
+                "race_folder_rel": "2026/R04_NASCAR_Cup_Series_at_Phoenix_202603080023",
+                "builder_note": "Bootstrapped updated release from adjacent saved race result snapshot pair.",
+                "pair_key": "snapshot_20260308_204802115.html -> snapshot_20260308_205601920.html"
+            },
+            "release_sequence": 2,
+            "display_version": "v2",
+            "version_label": "v2",
+            "is_current_release": true,
+            "release_status": "current",
+            "release_status_label": "Current",
+            "superseded_by_release_id": "",
+            "superseded_by_version": "",
+            "released_at_short": "3/8/26 8:56pm",
+            "display_change_label": "Non-MRL Driver Change",
+            "version_dropdown_label": "v2 (3/8/26 8:56pm)"
+        },
+        {
+            "release_id": "20260315_191201598_R05",
+            "generated_id": "20260315_191201598_R05",
+            "race_code": "R05",
+            "race_number": 5,
+            "race_id": "202603150028",
+            "race_name": "NASCAR Cup Series at Las Vegas",
+            "short_name": "Las Vegas",
+            "segment": "S1",
+            "release_type": "initial",
+            "source_type": "initial",
+            "status": "released",
+            "public_status": "Official standings release",
+            "released_at": "2026-03-15 19:12:01",
+            "released_at_display": "Mar 15, 2026 7:12 PM",
+            "reason_public": "Initial standings release for R05 Las Vegas.",
+            "supersedes": null,
+            "mrl_impact": null,
+            "change_status": "",
+            "change_status_label": "",
+            "changed_mrl_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "changed_all_drivers_count": null,
+            "changed_driver_details": [],
+            "snapshot_id": "20260315_191201598",
+            "snapshot_file": "snapshot_20260315_191201598.html",
+            "previous_snapshot": "",
+            "current_snapshot": "snapshot_20260315_191201598.html",
+            "snapshot_index": 1,
+            "snapshot_count": 1,
+            "is_current_snapshot": true,
+            "pair_history_matched": false,
+            "debug": {
+                "race_folder": "R05_NASCAR_Cup_Series_at_Las_Vegas_202603150028",
+                "race_folder_rel": "2026/R05_NASCAR_Cup_Series_at_Las_Vegas_202603150028",
+                "builder_note": "Bootstrapped initial release from first legitimate saved race result snapshot.",
+                "pair_key": ""
+            },
+            "release_sequence": 1,
+            "display_version": "v1",
+            "version_label": "v1",
+            "is_current_release": true,
+            "release_status": "current",
+            "release_status_label": "Current",
+            "superseded_by_release_id": "",
+            "superseded_by_version": "",
+            "released_at_short": "3/15/26 7:12pm",
+            "display_change_label": "",
+            "version_dropdown_label": "v1 (3/15/26 7:12pm)"
+        },
+        {
+            "release_id": "20260322_191801913_R06",
+            "generated_id": "20260322_191801913_R06",
+            "race_code": "R06",
+            "race_number": 6,
+            "race_id": "202603220030",
+            "race_name": "NASCAR Cup Series at Darlington",
+            "short_name": "Darlington",
+            "segment": "S1",
+            "release_type": "initial",
+            "source_type": "initial",
+            "status": "released",
+            "public_status": "Official standings release",
+            "released_at": "2026-03-22 19:18:01",
+            "released_at_display": "Mar 22, 2026 7:18 PM",
+            "reason_public": "Initial standings release for R06 Darlington.",
+            "supersedes": null,
+            "mrl_impact": null,
+            "change_status": "",
+            "change_status_label": "",
+            "changed_mrl_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "changed_all_drivers_count": null,
+            "changed_driver_details": [],
+            "snapshot_id": "20260322_191801913",
+            "snapshot_file": "snapshot_20260322_191801913.html",
+            "previous_snapshot": "",
+            "current_snapshot": "snapshot_20260322_191801913.html",
+            "snapshot_index": 1,
+            "snapshot_count": 1,
+            "is_current_snapshot": true,
+            "pair_history_matched": false,
+            "debug": {
+                "race_folder": "R06_NASCAR_Cup_Series_at_Darlington_202603220030",
+                "race_folder_rel": "2026/R06_NASCAR_Cup_Series_at_Darlington_202603220030",
+                "builder_note": "Bootstrapped initial release from first legitimate saved race result snapshot.",
+                "pair_key": ""
+            },
+            "release_sequence": 1,
+            "display_version": "v1",
+            "version_label": "v1",
+            "is_current_release": true,
+            "release_status": "current",
+            "release_status_label": "Current",
+            "superseded_by_release_id": "",
+            "superseded_by_version": "",
+            "released_at_short": "3/22/26 7:18pm",
+            "display_change_label": "",
+            "version_dropdown_label": "v1 (3/22/26 7:18pm)"
+        },
+        {
+            "release_id": "20260329_185602388_R07",
+            "generated_id": "20260329_185602388_R07",
+            "race_code": "R07",
+            "race_number": 7,
+            "race_id": "202603290015",
+            "race_name": "NASCAR Cup Series at Martinsville",
+            "short_name": "Martinsville",
+            "segment": "S1",
+            "release_type": "initial",
+            "source_type": "initial",
+            "status": "released",
+            "public_status": "Official standings release",
+            "released_at": "2026-03-29 18:56:02",
+            "released_at_display": "Mar 29, 2026 6:56 PM",
+            "reason_public": "Initial standings release for R07 Martinsville.",
+            "supersedes": null,
+            "mrl_impact": null,
+            "change_status": "",
+            "change_status_label": "",
+            "changed_mrl_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "changed_all_drivers_count": null,
+            "changed_driver_details": [],
+            "snapshot_id": "20260329_185602388",
+            "snapshot_file": "snapshot_20260329_185602388.html",
+            "previous_snapshot": "",
+            "current_snapshot": "snapshot_20260329_185602388.html",
+            "snapshot_index": 1,
+            "snapshot_count": 1,
+            "is_current_snapshot": true,
+            "pair_history_matched": false,
+            "debug": {
+                "race_folder": "R07_NASCAR_Cup_Series_at_Martinsville_202603290015",
+                "race_folder_rel": "2026/R07_NASCAR_Cup_Series_at_Martinsville_202603290015",
+                "builder_note": "Bootstrapped initial release from first legitimate saved race result snapshot.",
+                "pair_key": ""
+            },
+            "release_sequence": 1,
+            "display_version": "v1",
+            "version_label": "v1",
+            "is_current_release": true,
+            "release_status": "current",
+            "release_status_label": "Current",
+            "superseded_by_release_id": "",
+            "superseded_by_version": "",
+            "released_at_short": "3/29/26 6:56pm",
+            "display_change_label": "",
+            "version_dropdown_label": "v1 (3/29/26 6:56pm)"
+        },
+        {
+            "release_id": "20260412_190002487_R08",
+            "generated_id": "20260412_190002487_R08",
+            "race_code": "R08",
+            "race_number": 8,
+            "race_id": "202604120031",
+            "race_name": "NASCAR Cup Series at Bristol",
+            "short_name": "Bristol",
+            "segment": "S1",
+            "release_type": "initial",
+            "source_type": "initial",
+            "status": "released",
+            "public_status": "Official standings release",
+            "released_at": "2026-04-12 19:00:02",
+            "released_at_display": "Apr 12, 2026 7:00 PM",
+            "reason_public": "Initial standings release for R08 Bristol.",
+            "supersedes": null,
+            "mrl_impact": null,
+            "change_status": "",
+            "change_status_label": "",
+            "changed_mrl_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "changed_all_drivers_count": null,
+            "changed_driver_details": [],
+            "snapshot_id": "20260412_190002487",
+            "snapshot_file": "snapshot_20260412_190002487.html",
+            "previous_snapshot": "",
+            "current_snapshot": "snapshot_20260412_190002487.html",
+            "snapshot_index": 1,
+            "snapshot_count": 2,
+            "is_current_snapshot": false,
+            "pair_history_matched": false,
+            "debug": {
+                "race_folder": "R08_NASCAR_Cup_Series_at_Bristol_202604120031",
+                "race_folder_rel": "2026/R08_NASCAR_Cup_Series_at_Bristol_202604120031",
+                "builder_note": "Bootstrapped initial release from first legitimate saved race result snapshot.",
+                "pair_key": ""
+            },
+            "release_sequence": 1,
+            "display_version": "v1",
+            "version_label": "v1",
+            "is_current_release": false,
+            "release_status": "superseded",
+            "release_status_label": "Superseded",
+            "superseded_by_release_id": "20260413_030202493_R08",
+            "superseded_by_version": "v2",
+            "released_at_short": "4/12/26 7:00pm",
+            "display_change_label": "",
+            "version_dropdown_label": "v1 (4/12/26 7:00pm)"
+        },
+        {
+            "release_id": "20260413_030202493_R08",
+            "generated_id": "20260413_030202493_R08",
+            "race_code": "R08",
+            "race_number": 8,
+            "race_id": "202604120031",
+            "race_name": "NASCAR Cup Series at Bristol",
+            "short_name": "Bristol",
+            "segment": "S1",
+            "release_type": "updated",
+            "source_type": "direct_revision",
+            "status": "released",
+            "public_status": "Informational result update",
+            "released_at": "2026-04-13 03:02:02",
+            "released_at_display": "Apr 13, 2026 3:02 AM",
+            "reason_public": "Race results were updated after the previous release; MRL standings were not affected.",
+            "supersedes": {
+                "release_id": "20260412_190002487_R08",
+                "generated_id": "20260412_190002487_R08",
+                "released_at": "2026-04-12 19:00:02",
+                "released_at_display": "Apr 12, 2026 7:00 PM",
+                "snapshot_id": "20260412_190002487",
+                "snapshot_file": "snapshot_20260412_190002487.html"
+            },
+            "mrl_impact": false,
+            "change_status": "detected_non_mrl_driver_change",
+            "change_status_label": "Non-MRL Driver Change",
+            "changed_mrl_drivers_count": 0,
+            "changed_mrl_listed_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "changed_all_drivers_count": 1,
+            "changed_driver_details": [
+                {
+                    "driver": "Chad Finchum",
+                    "mrl_listed": false,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 0,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 0
+                    },
+                    "new": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    },
+                    "delta": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    }
+                }
+            ],
+            "snapshot_id": "20260413_030202493",
+            "snapshot_file": "snapshot_20260413_030202493.html",
+            "previous_snapshot": "snapshot_20260412_190002487.html",
+            "current_snapshot": "snapshot_20260413_030202493.html",
+            "snapshot_index": 2,
+            "snapshot_count": 2,
+            "is_current_snapshot": true,
+            "pair_history_matched": true,
+            "debug": {
+                "race_folder": "R08_NASCAR_Cup_Series_at_Bristol_202604120031",
+                "race_folder_rel": "2026/R08_NASCAR_Cup_Series_at_Bristol_202604120031",
+                "builder_note": "Bootstrapped updated release from adjacent saved race result snapshot pair.",
+                "pair_key": "snapshot_20260412_190002487.html -> snapshot_20260413_030202493.html"
+            },
+            "release_sequence": 2,
+            "display_version": "v2",
+            "version_label": "v2",
+            "is_current_release": true,
+            "release_status": "current",
+            "release_status_label": "Current",
+            "superseded_by_release_id": "",
+            "superseded_by_version": "",
+            "released_at_short": "4/13/26 3:02am",
+            "display_change_label": "Non-MRL Driver Change",
+            "version_dropdown_label": "v2 (4/13/26 3:02am)"
+        },
+        {
+            "release_id": "20260419_190602571_R09",
+            "generated_id": "20260419_190602571_R09",
+            "race_code": "R09",
+            "race_number": 9,
+            "race_id": "202604190757",
+            "race_name": "NASCAR Cup Series at Kansas",
+            "short_name": "Kansas",
+            "segment": "S2",
+            "release_type": "initial",
+            "source_type": "initial",
+            "status": "released",
+            "public_status": "Official standings release",
+            "released_at": "2026-04-19 19:06:02",
+            "released_at_display": "Apr 19, 2026 7:06 PM",
+            "reason_public": "Initial standings release for R09 Kansas.",
+            "supersedes": null,
+            "mrl_impact": null,
+            "change_status": "",
+            "change_status_label": "",
+            "changed_mrl_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "changed_all_drivers_count": null,
+            "changed_driver_details": [],
+            "snapshot_id": "20260419_190602571",
+            "snapshot_file": "snapshot_20260419_190602571.html",
+            "previous_snapshot": "",
+            "current_snapshot": "snapshot_20260419_190602571.html",
+            "snapshot_index": 1,
+            "snapshot_count": 1,
+            "is_current_snapshot": true,
+            "pair_history_matched": false,
+            "debug": {
+                "race_folder": "R09_NASCAR_Cup_Series_at_Kansas_202604190757",
+                "race_folder_rel": "2026/R09_NASCAR_Cup_Series_at_Kansas_202604190757",
+                "builder_note": "Bootstrapped initial release from first legitimate saved race result snapshot.",
+                "pair_key": ""
+            },
+            "release_sequence": 1,
+            "display_version": "v1",
+            "version_label": "v1",
+            "is_current_release": true,
+            "release_status": "current",
+            "release_status_label": "Current",
+            "superseded_by_release_id": "",
+            "superseded_by_version": "",
+            "released_at_short": "4/19/26 7:06pm",
+            "display_change_label": "",
+            "version_dropdown_label": "v1 (4/19/26 7:06pm)"
+        },
+        {
+            "release_id": "20260426_193502360_R10",
+            "generated_id": "20260426_193502360_R10",
+            "race_code": "R10",
+            "race_number": 10,
+            "race_id": "202604260022",
+            "race_name": "NASCAR Cup Series at Talladega",
+            "short_name": "Talladega",
+            "segment": "S2",
+            "release_type": "initial",
+            "source_type": "initial",
+            "status": "released",
+            "public_status": "Official standings release",
+            "released_at": "2026-04-26 19:35:02",
+            "released_at_display": "Apr 26, 2026 7:35 PM",
+            "reason_public": "Initial standings release for R10 Talladega.",
+            "supersedes": null,
+            "mrl_impact": null,
+            "change_status": "",
+            "change_status_label": "",
+            "changed_mrl_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "changed_all_drivers_count": null,
+            "changed_driver_details": [],
+            "snapshot_id": "20260426_193502360",
+            "snapshot_file": "snapshot_20260426_193502360.html",
+            "previous_snapshot": "",
+            "current_snapshot": "snapshot_20260426_193502360.html",
+            "snapshot_index": 1,
+            "snapshot_count": 2,
+            "is_current_snapshot": false,
+            "pair_history_matched": false,
+            "debug": {
+                "race_folder": "R10_NASCAR_Cup_Series_at_Talladega_202604260022",
+                "race_folder_rel": "2026/R10_NASCAR_Cup_Series_at_Talladega_202604260022",
+                "builder_note": "Bootstrapped initial release from first legitimate saved race result snapshot.",
+                "pair_key": ""
+            },
+            "release_sequence": 1,
+            "display_version": "v1",
+            "version_label": "v1",
+            "is_current_release": false,
+            "release_status": "superseded",
+            "release_status_label": "Superseded",
+            "superseded_by_release_id": "20260427_040002020_R10",
+            "superseded_by_version": "v2",
+            "released_at_short": "4/26/26 7:35pm",
+            "display_change_label": "",
+            "version_dropdown_label": "v1 (4/26/26 7:35pm)"
+        },
+        {
+            "release_id": "20260427_040002020_R10",
+            "generated_id": "20260427_040002020_R10",
+            "race_code": "R10",
+            "race_number": 10,
+            "race_id": "202604260022",
+            "race_name": "NASCAR Cup Series at Talladega",
+            "short_name": "Talladega",
+            "segment": "S2",
+            "release_type": "updated",
+            "source_type": "direct_revision",
+            "status": "released",
+            "public_status": "Informational result update",
+            "released_at": "2026-04-27 04:00:02",
+            "released_at_display": "Apr 27, 2026 4:00 AM",
+            "reason_public": "Race results were updated after the previous release; MRL standings were not affected.",
+            "supersedes": {
+                "release_id": "20260426_193502360_R10",
+                "generated_id": "20260426_193502360_R10",
+                "released_at": "2026-04-26 19:35:02",
+                "released_at_display": "Apr 26, 2026 7:35 PM",
+                "snapshot_id": "20260426_193502360",
+                "snapshot_file": "snapshot_20260426_193502360.html"
+            },
+            "mrl_impact": false,
+            "change_status": "detected_non_mrl_driver_change",
+            "change_status_label": "Non-MRL Driver Change",
+            "changed_mrl_drivers_count": 0,
+            "changed_mrl_listed_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "changed_all_drivers_count": 1,
+            "changed_driver_details": [
+                {
+                    "driver": "Chad Finchum",
+                    "mrl_listed": false,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 0,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 0
+                    },
+                    "new": {
+                        "pts": 9,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 9
+                    },
+                    "delta": {
+                        "pts": 9,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 9
+                    }
+                }
+            ],
+            "snapshot_id": "20260427_040002020",
+            "snapshot_file": "snapshot_20260427_040002020.html",
+            "previous_snapshot": "snapshot_20260426_193502360.html",
+            "current_snapshot": "snapshot_20260427_040002020.html",
+            "snapshot_index": 2,
+            "snapshot_count": 2,
+            "is_current_snapshot": true,
+            "pair_history_matched": true,
+            "debug": {
+                "race_folder": "R10_NASCAR_Cup_Series_at_Talladega_202604260022",
+                "race_folder_rel": "2026/R10_NASCAR_Cup_Series_at_Talladega_202604260022",
+                "builder_note": "Bootstrapped updated release from adjacent saved race result snapshot pair.",
+                "pair_key": "snapshot_20260426_193502360.html -> snapshot_20260427_040002020.html"
+            },
+            "release_sequence": 2,
+            "display_version": "v2",
+            "version_label": "v2",
+            "is_current_release": true,
+            "release_status": "current",
+            "release_status_label": "Current",
+            "superseded_by_release_id": "",
+            "superseded_by_version": "",
+            "released_at_short": "4/27/26 4:00am",
+            "display_change_label": "Non-MRL Driver Change",
+            "version_dropdown_label": "v2 (4/27/26 4:00am)"
+        },
+        {
+            "release_id": "20260503_191502071_R11",
+            "generated_id": "20260503_191502071_R11",
+            "race_code": "R11",
+            "race_number": 11,
+            "race_id": "202605030054",
+            "race_name": "NASCAR Cup Series at Texas",
+            "short_name": "Texas",
+            "segment": "S2",
+            "release_type": "initial",
+            "source_type": "initial",
+            "status": "released",
+            "public_status": "Official standings release",
+            "released_at": "2026-05-03 19:15:02",
+            "released_at_display": "May 3, 2026 7:15 PM",
+            "reason_public": "Initial standings release for R11 Texas.",
+            "supersedes": null,
+            "mrl_impact": null,
+            "change_status": "",
+            "change_status_label": "",
+            "changed_mrl_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "changed_all_drivers_count": null,
+            "changed_driver_details": [],
+            "snapshot_id": "20260503_191502071",
+            "snapshot_file": "snapshot_20260503_191502071.html",
+            "previous_snapshot": "",
+            "current_snapshot": "snapshot_20260503_191502071.html",
+            "snapshot_index": 1,
+            "snapshot_count": 2,
+            "is_current_snapshot": false,
+            "pair_history_matched": false,
+            "debug": {
+                "race_folder": "R11_NASCAR_Cup_Series_at_Texas_202605030054",
+                "race_folder_rel": "2026/R11_NASCAR_Cup_Series_at_Texas_202605030054",
+                "builder_note": "Bootstrapped initial release from first legitimate saved race result snapshot.",
+                "pair_key": ""
+            },
+            "release_sequence": 1,
+            "display_version": "v1",
+            "version_label": "v1",
+            "is_current_release": false,
+            "release_status": "superseded",
+            "release_status_label": "Superseded",
+            "superseded_by_release_id": "20260519_153218173_R11",
+            "superseded_by_version": "v2",
+            "released_at_short": "5/3/26 7:15pm",
+            "display_change_label": "",
+            "version_dropdown_label": "v1 (5/3/26 7:15pm)"
+        },
+        {
+            "release_id": "20260519_153218173_R11",
+            "generated_id": "20260519_153218173_R11",
+            "race_code": "R11",
+            "race_number": 11,
+            "race_id": "202605030054",
+            "race_name": "NASCAR Cup Series at Texas",
+            "short_name": "Texas",
+            "segment": "S2",
+            "release_type": "updated",
+            "source_type": "direct_revision",
+            "status": "released",
+            "public_status": "Informational result update",
+            "released_at": "2026-05-19 15:32:18",
+            "released_at_display": "May 19, 2026 3:32 PM",
+            "reason_public": "Race results were updated after the previous release; MRL standings were not affected.",
+            "supersedes": {
+                "release_id": "20260503_191502071_R11",
+                "generated_id": "20260503_191502071_R11",
+                "released_at": "2026-05-03 19:15:02",
+                "released_at_display": "May 3, 2026 7:15 PM",
+                "snapshot_id": "20260503_191502071",
+                "snapshot_file": "snapshot_20260503_191502071.html"
+            },
+            "mrl_impact": false,
+            "change_status": "detected_mrl_listed_not_segment_picked",
+            "change_status_label": "MRL-Listed Driver Changed - No Segment Impact",
+            "changed_mrl_drivers_count": 0,
+            "changed_mrl_listed_drivers_count": 1,
+            "changed_segment_picked_drivers_count": 0,
+            "changed_all_drivers_count": 1,
+            "changed_driver_details": [
+                {
+                    "driver": "Ryan Preece",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 29,
+                        "bonus": 6,
+                        "penalty": 0,
+                        "net": 29
+                    },
+                    "new": {
+                        "pts": 29,
+                        "bonus": 6,
+                        "penalty": 25,
+                        "net": 4
+                    },
+                    "delta": {
+                        "pts": 0,
+                        "bonus": 0,
+                        "penalty": 25,
+                        "net": -25
+                    }
+                }
+            ],
+            "snapshot_id": "20260519_153218173",
+            "snapshot_file": "snapshot_20260519_153218173.html",
+            "previous_snapshot": "snapshot_20260503_191502071.html",
+            "current_snapshot": "snapshot_20260519_153218173.html",
+            "snapshot_index": 2,
+            "snapshot_count": 2,
+            "is_current_snapshot": true,
+            "pair_history_matched": true,
+            "debug": {
+                "race_folder": "R11_NASCAR_Cup_Series_at_Texas_202605030054",
+                "race_folder_rel": "2026/R11_NASCAR_Cup_Series_at_Texas_202605030054",
+                "builder_note": "Bootstrapped updated release from adjacent saved race result snapshot pair.",
+                "pair_key": "snapshot_20260503_191502071.html -> snapshot_20260519_153218173.html"
+            },
+            "release_sequence": 2,
+            "display_version": "v2",
+            "version_label": "v2",
+            "is_current_release": true,
+            "release_status": "current",
+            "release_status_label": "Current",
+            "superseded_by_release_id": "",
+            "superseded_by_version": "",
+            "released_at_short": "5/19/26 3:32pm",
+            "display_change_label": "MRL Driver - No Team, No Impact",
+            "version_dropdown_label": "v2 (5/19/26 3:32pm)"
+        },
+        {
+            "release_id": "20260510_182501903_R12",
+            "generated_id": "20260510_182501903_R12",
+            "race_code": "R12",
+            "race_number": 12,
+            "race_id": "202605100013",
+            "race_name": "NASCAR Cup Series at Watkins Glen",
+            "short_name": "Watkins Glen",
+            "segment": "S2",
+            "release_type": "initial",
+            "source_type": "initial",
+            "status": "released",
+            "public_status": "Official standings release",
+            "released_at": "2026-05-10 18:25:01",
+            "released_at_display": "May 10, 2026 6:25 PM",
+            "reason_public": "Initial standings release for R12 Watkins Glen.",
+            "supersedes": null,
+            "mrl_impact": null,
+            "change_status": "",
+            "change_status_label": "",
+            "changed_mrl_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "changed_all_drivers_count": null,
+            "changed_driver_details": [],
+            "snapshot_id": "20260510_182501903",
+            "snapshot_file": "snapshot_20260510_182501903.html",
+            "previous_snapshot": "",
+            "current_snapshot": "snapshot_20260510_182501903.html",
+            "snapshot_index": 1,
+            "snapshot_count": 2,
+            "is_current_snapshot": false,
+            "pair_history_matched": false,
+            "debug": {
+                "race_folder": "R12_NASCAR_Cup_Series_at_Watkins_Glen_202605100013",
+                "race_folder_rel": "2026/R12_NASCAR_Cup_Series_at_Watkins_Glen_202605100013",
+                "builder_note": "Bootstrapped initial release from first legitimate saved race result snapshot.",
+                "pair_key": ""
+            },
+            "release_sequence": 1,
+            "display_version": "v1",
+            "version_label": "v1",
+            "is_current_release": false,
+            "release_status": "superseded",
+            "release_status_label": "Superseded",
+            "superseded_by_release_id": "20260510_183002189_R12",
+            "superseded_by_version": "v2",
+            "released_at_short": "5/10/26 6:25pm",
+            "display_change_label": "",
+            "version_dropdown_label": "v1 (5/10/26 6:25pm)"
+        },
+        {
+            "release_id": "20260510_183002189_R12",
+            "generated_id": "20260510_183002189_R12",
+            "race_code": "R12",
+            "race_number": 12,
+            "race_id": "202605100013",
+            "race_name": "NASCAR Cup Series at Watkins Glen",
+            "short_name": "Watkins Glen",
+            "segment": "S2",
+            "release_type": "updated",
+            "source_type": "direct_revision",
+            "status": "released",
+            "public_status": "Informational result update",
+            "released_at": "2026-05-10 18:30:02",
+            "released_at_display": "May 10, 2026 6:30 PM",
+            "reason_public": "Race results were updated after the previous release; MRL standings were not affected.",
+            "supersedes": {
+                "release_id": "20260510_182501903_R12",
+                "generated_id": "20260510_182501903_R12",
+                "released_at": "2026-05-10 18:25:01",
+                "released_at_display": "May 10, 2026 6:25 PM",
+                "snapshot_id": "20260510_182501903",
+                "snapshot_file": "snapshot_20260510_182501903.html"
+            },
+            "mrl_impact": false,
+            "change_status": "detected_non_mrl_driver_change",
+            "change_status_label": "Non-MRL Driver Change",
+            "changed_mrl_drivers_count": 0,
+            "changed_mrl_listed_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "changed_all_drivers_count": 1,
+            "changed_driver_details": [
+                {
+                    "driver": "Josh Bilicki",
+                    "mrl_listed": false,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 3,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 3
+                    },
+                    "new": {
+                        "pts": 0,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 0
+                    },
+                    "delta": {
+                        "pts": -3,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -3
+                    }
+                }
+            ],
+            "snapshot_id": "20260510_183002189",
+            "snapshot_file": "snapshot_20260510_183002189.html",
+            "previous_snapshot": "snapshot_20260510_182501903.html",
+            "current_snapshot": "snapshot_20260510_183002189.html",
+            "snapshot_index": 2,
+            "snapshot_count": 2,
+            "is_current_snapshot": true,
+            "pair_history_matched": true,
+            "debug": {
+                "race_folder": "R12_NASCAR_Cup_Series_at_Watkins_Glen_202605100013",
+                "race_folder_rel": "2026/R12_NASCAR_Cup_Series_at_Watkins_Glen_202605100013",
+                "builder_note": "Bootstrapped updated release from adjacent saved race result snapshot pair.",
+                "pair_key": "snapshot_20260510_182501903.html -> snapshot_20260510_183002189.html"
+            },
+            "release_sequence": 2,
+            "display_version": "v2",
+            "version_label": "v2",
+            "is_current_release": true,
+            "release_status": "current",
+            "release_status_label": "Current",
+            "superseded_by_release_id": "",
+            "superseded_by_version": "",
+            "released_at_short": "5/10/26 6:30pm",
+            "display_change_label": "Non-MRL Driver Change",
+            "version_dropdown_label": "v2 (5/10/26 6:30pm)"
+        },
+        {
+            "release_id": "20260525_000301941_R13",
+            "generated_id": "20260525_000301941_R13",
+            "race_code": "R13",
+            "race_number": 13,
+            "race_id": "202605240003",
+            "race_name": "NASCAR Cup Series at Charlotte",
+            "short_name": "Charlotte",
+            "segment": "S2",
+            "release_type": "initial",
+            "source_type": "initial",
+            "status": "released",
+            "public_status": "Official standings release",
+            "released_at": "2026-05-25 00:03:01",
+            "released_at_display": "May 25, 2026 12:03 AM",
+            "reason_public": "Initial standings release for R13 Charlotte.",
+            "supersedes": null,
+            "mrl_impact": null,
+            "change_status": "",
+            "change_status_label": "",
+            "changed_mrl_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "changed_all_drivers_count": null,
+            "changed_driver_details": [],
+            "snapshot_id": "20260525_000301941",
+            "snapshot_file": "snapshot_20260525_000301941.html",
+            "previous_snapshot": "",
+            "current_snapshot": "snapshot_20260525_000301941.html",
+            "snapshot_index": 1,
+            "snapshot_count": 1,
+            "is_current_snapshot": true,
+            "pair_history_matched": false,
+            "debug": {
+                "race_folder": "R13_NASCAR_Cup_Series_at_Charlotte_202605240003",
+                "race_folder_rel": "2026/R13_NASCAR_Cup_Series_at_Charlotte_202605240003",
+                "builder_note": "Bootstrapped initial release from first legitimate saved race result snapshot.",
+                "pair_key": ""
+            },
+            "release_sequence": 1,
+            "display_version": "v1",
+            "version_label": "v1",
+            "is_current_release": true,
+            "release_status": "current",
+            "release_status_label": "Current",
+            "superseded_by_release_id": "",
+            "superseded_by_version": "",
+            "released_at_short": "5/25/26 12:03am",
+            "display_change_label": "",
+            "version_dropdown_label": "v1 (5/25/26 12:03am)"
+        },
+        {
+            "release_id": "20260601_013601912_R14",
+            "generated_id": "20260601_013601912_R14",
+            "race_code": "R14",
+            "race_number": 14,
+            "race_id": "202605314001",
+            "race_name": "NASCAR Cup Series at Nashville",
+            "short_name": "Nashville",
+            "segment": "S2",
+            "release_type": "initial",
+            "source_type": "initial",
+            "status": "released",
+            "public_status": "Official standings release",
+            "released_at": "2026-06-01 01:36:01",
+            "released_at_display": "Jun 1, 2026 1:36 AM",
+            "reason_public": "Initial standings release for R14 Nashville.",
+            "supersedes": null,
+            "mrl_impact": null,
+            "change_status": "",
+            "change_status_label": "",
+            "changed_mrl_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "changed_all_drivers_count": null,
+            "changed_driver_details": [],
+            "snapshot_id": "20260601_013601912",
+            "snapshot_file": "snapshot_20260601_013601912.html",
+            "previous_snapshot": "",
+            "current_snapshot": "snapshot_20260601_013601912.html",
+            "snapshot_index": 1,
+            "snapshot_count": 1,
+            "is_current_snapshot": true,
+            "pair_history_matched": false,
+            "debug": {
+                "race_folder": "R14_NASCAR_Cup_Series_at_Nashville_202605314001",
+                "race_folder_rel": "2026/R14_NASCAR_Cup_Series_at_Nashville_202605314001",
+                "builder_note": "Bootstrapped initial release from first legitimate saved race result snapshot.",
+                "pair_key": ""
+            },
+            "release_sequence": 1,
+            "display_version": "v1",
+            "version_label": "v1",
+            "is_current_release": true,
+            "release_status": "current",
+            "release_status_label": "Current",
+            "superseded_by_release_id": "",
+            "superseded_by_version": "",
+            "released_at_short": "6/1/26 1:36am",
+            "display_change_label": "",
+            "version_dropdown_label": "v1 (6/1/26 1:36am)"
+        },
+        {
+            "release_id": "20260607_191302257_R15",
+            "generated_id": "20260607_191302257_R15",
+            "race_code": "R15",
+            "race_number": 15,
+            "race_id": "202606070014",
+            "race_name": "NASCAR Cup Series at Michigan",
+            "short_name": "Michigan",
+            "segment": "S2",
+            "release_type": "initial",
+            "source_type": "initial",
+            "status": "released",
+            "public_status": "Official standings release",
+            "released_at": "2026-06-07 19:13:02",
+            "released_at_display": "Jun 7, 2026 7:13 PM",
+            "reason_public": "Initial standings release for R15 Michigan.",
+            "supersedes": null,
+            "mrl_impact": null,
+            "change_status": "",
+            "change_status_label": "",
+            "changed_mrl_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "changed_all_drivers_count": null,
+            "changed_driver_details": [],
+            "snapshot_id": "20260607_191302257",
+            "snapshot_file": "snapshot_20260607_191302257.html",
+            "previous_snapshot": "",
+            "current_snapshot": "snapshot_20260607_191302257.html",
+            "snapshot_index": 1,
+            "snapshot_count": 2,
+            "is_current_snapshot": false,
+            "pair_history_matched": false,
+            "debug": {
+                "race_folder": "R15_NASCAR_Cup_Series_at_Michigan_202606070014",
+                "race_folder_rel": "2026/R15_NASCAR_Cup_Series_at_Michigan_202606070014",
+                "builder_note": "Bootstrapped initial release from first legitimate saved race result snapshot.",
+                "pair_key": ""
+            },
+            "release_sequence": 1,
+            "display_version": "v1",
+            "version_label": "v1",
+            "is_current_release": false,
+            "release_status": "superseded",
+            "release_status_label": "Superseded",
+            "superseded_by_release_id": "20260607_193602887_R15",
+            "superseded_by_version": "v2",
+            "released_at_short": "6/7/26 7:13pm",
+            "display_change_label": "",
+            "version_dropdown_label": "v1 (6/7/26 7:13pm)"
+        },
+        {
+            "release_id": "20260607_193602887_R15",
+            "generated_id": "20260607_193602887_R15",
+            "race_code": "R15",
+            "race_number": 15,
+            "race_id": "202606070014",
+            "race_name": "NASCAR Cup Series at Michigan",
+            "short_name": "Michigan",
+            "segment": "S2",
+            "release_type": "updated",
+            "source_type": "direct_revision",
+            "status": "released",
+            "public_status": "Informational result update",
+            "released_at": "2026-06-07 19:36:02",
+            "released_at_display": "Jun 7, 2026 7:36 PM",
+            "reason_public": "Race results were updated after the previous release; MRL standings were not affected.",
+            "supersedes": {
+                "release_id": "20260607_191302257_R15",
+                "generated_id": "20260607_191302257_R15",
+                "released_at": "2026-06-07 19:13:02",
+                "released_at_display": "Jun 7, 2026 7:13 PM",
+                "snapshot_id": "20260607_191302257",
+                "snapshot_file": "snapshot_20260607_191302257.html"
+            },
+            "mrl_impact": false,
+            "change_status": "classified_no_change",
+            "change_status_label": "No Change",
+            "changed_mrl_drivers_count": 0,
+            "changed_mrl_listed_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "changed_all_drivers_count": 0,
+            "changed_driver_details": [],
+            "snapshot_id": "20260607_193602887",
+            "snapshot_file": "snapshot_20260607_193602887.html",
+            "previous_snapshot": "snapshot_20260607_191302257.html",
+            "current_snapshot": "snapshot_20260607_193602887.html",
+            "snapshot_index": 2,
+            "snapshot_count": 2,
+            "is_current_snapshot": true,
+            "pair_history_matched": true,
+            "debug": {
+                "race_folder": "R15_NASCAR_Cup_Series_at_Michigan_202606070014",
+                "race_folder_rel": "2026/R15_NASCAR_Cup_Series_at_Michigan_202606070014",
+                "builder_note": "Bootstrapped updated release from adjacent saved race result snapshot pair.",
+                "pair_key": "snapshot_20260607_191302257.html -> snapshot_20260607_193602887.html"
+            },
+            "release_sequence": 2,
+            "display_version": "v2",
+            "version_label": "v2",
+            "is_current_release": true,
+            "release_status": "current",
+            "release_status_label": "Current",
+            "superseded_by_release_id": "",
+            "superseded_by_version": "",
+            "released_at_short": "6/7/26 7:36pm",
+            "display_change_label": "No Change",
+            "version_dropdown_label": "v2 (6/7/26 7:36pm)"
+        },
+        {
+            "release_id": "20260614_164203146_R16",
+            "generated_id": "20260614_164203146_R16",
+            "race_code": "R16",
+            "race_number": 16,
+            "race_id": "202606140011",
+            "race_name": "NASCAR Cup Series at Pocono",
+            "short_name": "Pocono",
+            "segment": "S2",
+            "release_type": "initial",
+            "source_type": "initial",
+            "status": "released",
+            "public_status": "Official standings release",
+            "released_at": "2026-06-14 16:42:03",
+            "released_at_display": "Jun 14, 2026 4:42 PM",
+            "reason_public": "Initial standings release for R16 Pocono.",
+            "supersedes": null,
+            "mrl_impact": null,
+            "change_status": "",
+            "change_status_label": "",
+            "changed_mrl_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "changed_all_drivers_count": null,
+            "changed_driver_details": [],
+            "snapshot_id": "20260614_164203146",
+            "snapshot_file": "snapshot_20260614_164203146.html",
+            "previous_snapshot": "",
+            "current_snapshot": "snapshot_20260614_164203146.html",
+            "snapshot_index": 1,
+            "snapshot_count": 2,
+            "is_current_snapshot": false,
+            "pair_history_matched": false,
+            "debug": {
+                "race_folder": "R16_NASCAR_Cup_Series_at_Pocono_202606140011",
+                "race_folder_rel": "2026/R16_NASCAR_Cup_Series_at_Pocono_202606140011",
+                "builder_note": "Bootstrapped initial release from first legitimate saved race result snapshot.",
+                "pair_key": ""
+            },
+            "release_sequence": 1,
+            "display_version": "v1",
+            "version_label": "v1",
+            "is_current_release": false,
+            "release_status": "superseded",
+            "release_status_label": "Superseded",
+            "superseded_by_release_id": "20260614_165402155_R16",
+            "superseded_by_version": "v2",
+            "released_at_short": "6/14/26 4:42pm",
+            "display_change_label": "",
+            "version_dropdown_label": "v1 (6/14/26 4:42pm)"
+        },
+        {
+            "release_id": "20260614_165402155_R16",
+            "generated_id": "20260614_165402155_R16",
+            "race_code": "R16",
+            "race_number": 16,
+            "race_id": "202606140011",
+            "race_name": "NASCAR Cup Series at Pocono",
+            "short_name": "Pocono",
+            "segment": "S2",
+            "release_type": "updated",
+            "source_type": "direct_revision",
+            "status": "released",
+            "public_status": "Informational result update",
+            "released_at": "2026-06-14 16:54:02",
+            "released_at_display": "Jun 14, 2026 4:54 PM",
+            "reason_public": "Race results were updated after the previous release; MRL standings were not affected.",
+            "supersedes": {
+                "release_id": "20260614_164203146_R16",
+                "generated_id": "20260614_164203146_R16",
+                "released_at": "2026-06-14 16:42:03",
+                "released_at_display": "Jun 14, 2026 4:42 PM",
+                "snapshot_id": "20260614_164203146",
+                "snapshot_file": "snapshot_20260614_164203146.html"
+            },
+            "mrl_impact": false,
+            "change_status": "detected_non_mrl_driver_change",
+            "change_status_label": "Non-MRL Driver Change",
+            "changed_mrl_drivers_count": 0,
+            "changed_mrl_listed_drivers_count": 0,
+            "changed_segment_picked_drivers_count": 0,
+            "changed_all_drivers_count": 1,
+            "changed_driver_details": [
+                {
+                    "driver": "Daniel Dye",
+                    "mrl_listed": false,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 8,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 8
+                    },
+                    "new": {
+                        "pts": 0,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 0
+                    },
+                    "delta": {
+                        "pts": -8,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -8
+                    }
+                }
+            ],
+            "snapshot_id": "20260614_165402155",
+            "snapshot_file": "snapshot_20260614_165402155.html",
+            "previous_snapshot": "snapshot_20260614_164203146.html",
+            "current_snapshot": "snapshot_20260614_165402155.html",
+            "snapshot_index": 2,
+            "snapshot_count": 2,
+            "is_current_snapshot": true,
+            "pair_history_matched": true,
+            "debug": {
+                "race_folder": "R16_NASCAR_Cup_Series_at_Pocono_202606140011",
+                "race_folder_rel": "2026/R16_NASCAR_Cup_Series_at_Pocono_202606140011",
+                "builder_note": "Bootstrapped updated release from adjacent saved race result snapshot pair.",
+                "pair_key": "snapshot_20260614_164203146.html -> snapshot_20260614_165402155.html"
+            },
+            "release_sequence": 2,
+            "display_version": "v2",
+            "version_label": "v2",
+            "is_current_release": true,
+            "release_status": "current",
+            "release_status_label": "Current",
+            "superseded_by_release_id": "",
+            "superseded_by_version": "",
+            "released_at_short": "6/14/26 4:54pm",
+            "display_change_label": "Non-MRL Driver Change",
+            "version_dropdown_label": "v2 (6/14/26 4:54pm)"
+        },
+        {
+            "release_id": "20260621_210202663_R17",
+            "generated_id": "20260621_210202663_R17",
+            "race_code": "R17",
+            "race_number": 17,
+            "race_id": "202606214266",
+            "race_name": "NASCAR Cup Series at San Diego",
+            "short_name": "San Diego",
+            "segment": "S2",
+            "release_type": "initial",
+            "source_type": "initial",
+            "status": "released",
+            "public_status": "Official standings release",
+            "released_at": "2026-06-21 21:02:02",
+            "released_at_display": "Jun 21, 2026 9:02 PM",
+            "reason_public": "Initial standings release for R17 San Diego.",
+            "supersedes": null,
+            "mrl_impact": null,
+            "change_status": "",
+            "change_status_label": "",
+            "changed_mrl_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "changed_all_drivers_count": null,
+            "changed_driver_details": [],
+            "snapshot_id": "20260621_210202663",
+            "snapshot_file": "snapshot_20260621_210202663.html",
+            "previous_snapshot": "",
+            "current_snapshot": "snapshot_20260621_210202663.html",
+            "snapshot_index": 1,
+            "snapshot_count": 1,
+            "is_current_snapshot": true,
+            "pair_history_matched": false,
+            "debug": {
+                "race_folder": "R17_NASCAR_Cup_Series_at_San_Diego_202606214266",
+                "race_folder_rel": "2026/R17_NASCAR_Cup_Series_at_San_Diego_202606214266",
+                "builder_note": "Bootstrapped initial release from first legitimate saved race result snapshot.",
+                "pair_key": ""
+            },
+            "release_sequence": 1,
+            "display_version": "v1",
+            "version_label": "v1",
+            "is_current_release": true,
+            "release_status": "current",
+            "release_status_label": "Current",
+            "superseded_by_release_id": "",
+            "superseded_by_version": "",
+            "released_at_short": "6/21/26 9:02pm",
+            "display_change_label": "",
+            "version_dropdown_label": "v1 (6/21/26 9:02pm)"
+        },
+        {
+            "release_id": "20260628_192404614_R18",
+            "generated_id": "20260628_192404614_R18",
+            "race_code": "R18",
+            "race_number": 18,
+            "race_id": "202606280008",
+            "race_name": "NASCAR Cup Series at Sonoma",
+            "short_name": "Sonoma",
+            "segment": "S3",
+            "release_type": "pending_review",
+            "source_type": "initial",
+            "status": "released",
+            "public_status": "Official standings release",
+            "released_at": "2026-06-28 19:24:04",
+            "released_at_display": "Jun 28, 2026 7:24 PM",
+            "reason_public": "Results generated automatically and awaiting league release.",
+            "supersedes": null,
+            "mrl_impact": null,
+            "change_status": "",
+            "change_status_label": "",
+            "changed_mrl_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "changed_all_drivers_count": null,
+            "changed_driver_details": [],
+            "snapshot_id": "20260628_192404614",
+            "snapshot_file": "snapshot_20260628_192404614.html",
+            "previous_snapshot": "",
+            "current_snapshot": "snapshot_20260628_192404614.html",
+            "snapshot_index": 1,
+            "snapshot_count": 1,
+            "is_current_snapshot": true,
+            "pair_history_matched": false,
+            "debug": {
+                "race_folder": "R18_NASCAR_Cup_Series_at_Sonoma_202606280008",
+                "race_folder_rel": "2026/R18_NASCAR_Cup_Series_at_Sonoma_202606280008",
+                "builder_note": "Automatically recorded by race_results_monitor after first final-result snapshot capture.",
+                "pair_key": ""
+            },
+            "release_sequence": 1,
+            "display_version": "v1",
+            "version_label": "v1",
+            "is_current_release": true,
+            "release_status": "current",
+            "release_status_label": "Current",
+            "superseded_by_release_id": "",
+            "superseded_by_version": "",
+            "released_at_short": "6/28/26 7:24pm",
+            "display_change_label": "",
+            "version_dropdown_label": "v1 (6/28/26 7:24pm)",
+            "pending_review_events": [
+                {
+                    "event_at": "2026-07-05 01:20:16",
+                    "event_at_display": "Jul 5, 2026 1:20 AM",
+                    "action": "remove_pending",
+                    "reason": "Approved SK 7/5/2026 1:20:12 am",
+                    "user_id": 1,
+                    "source": "weekly_pending_review_admin.php"
+                }
+            ],
+            "manual_pending_review": false,
+            "pending_review": false,
+            "under_review": false,
+            "pending_review_removed_reason": "Approved SK 7/5/2026 1:20:12 am",
+            "pending_review_updated_at": "2026-07-05 01:20:16"
+        },
+        {
+            "release_id": "20260705_224504020_R19",
+            "generated_id": "20260705_224504020_R19",
+            "race_code": "R19",
+            "race_number": 19,
+            "race_id": "202607050038",
+            "race_name": "NASCAR Cup Series at Chicago",
+            "short_name": "Chicago",
+            "segment": "S3",
+            "release_type": "initial",
+            "source_type": "initial",
+            "status": "released",
+            "public_status": "Official standings release",
+            "released_at": "2026-07-05 22:45:04",
+            "released_at_display": "Jul 5, 2026 10:45 PM",
+            "reason_public": "Initial standings release for R19 Chicago.",
+            "supersedes": null,
+            "mrl_impact": null,
+            "change_status": "",
+            "change_status_label": "",
+            "changed_mrl_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "changed_all_drivers_count": null,
+            "changed_driver_details": [],
+            "snapshot_id": "20260705_224504020",
+            "snapshot_file": "snapshot_20260705_224504020.html",
+            "previous_snapshot": "",
+            "current_snapshot": "snapshot_20260705_224504020.html",
+            "snapshot_index": 1,
+            "snapshot_count": 1,
+            "is_current_snapshot": true,
+            "pair_history_matched": false,
+            "debug": {
+                "race_folder": "R19_NASCAR_Cup_Series_at_Chicago_202607050038",
+                "race_folder_rel": "2026/R19_NASCAR_Cup_Series_at_Chicago_202607050038",
+                "builder_note": "Automatically recorded by race_results_monitor after first final-result snapshot capture. Pending Review is now manual release metadata only.",
+                "pair_key": ""
+            },
+            "release_sequence": 1,
+            "display_version": "v1",
+            "version_label": "v1",
+            "is_current_release": true,
+            "release_status": "current",
+            "release_status_label": "Current",
+            "superseded_by_release_id": "",
+            "superseded_by_version": "",
+            "released_at_short": "7/5/26 10:45pm",
+            "display_change_label": "",
+            "version_dropdown_label": "v1 (7/5/26 10:45pm)",
+            "pending_review_events": [
+                {
+                    "event_at": "2026-07-11 17:45:25",
+                    "event_at_display": "Jul 11, 2026 5:45 PM",
+                    "action": "add_pending",
+                    "reason": "just a test 20260711_174524014",
+                    "user_id": 1,
+                    "source": "weekly_pending_review_admin.php"
+                },
+                {
+                    "event_at": "2026-07-11 17:46:24",
+                    "event_at_display": "Jul 11, 2026 5:46 PM",
+                    "action": "remove_pending",
+                    "reason": "it was just a test",
+                    "user_id": 1,
+                    "source": "weekly_pending_review_admin.php"
+                },
+                {
+                    "event_at": "2026-07-11 17:56:25",
+                    "event_at_display": "Jul 11, 2026 5:56 PM",
+                    "action": "remove_pending",
+                    "reason": "it was just a test",
+                    "user_id": 1,
+                    "source": "weekly_pending_review_admin.php"
+                },
+                {
+                    "event_at": "2026-07-11 17:56:41",
+                    "event_at_display": "Jul 11, 2026 5:56 PM",
+                    "action": "add_pending",
+                    "reason": "just a test 20260711_174524014",
+                    "user_id": 1,
+                    "source": "weekly_pending_review_admin.php"
+                },
+                {
+                    "event_at": "2026-07-11 17:56:49",
+                    "event_at_display": "Jul 11, 2026 5:56 PM",
+                    "action": "add_pending",
+                    "reason": "just a test 20260711_174524014",
+                    "user_id": 1,
+                    "source": "weekly_pending_review_admin.php"
+                },
+                {
+                    "event_at": "2026-07-11 17:57:56",
+                    "event_at_display": "Jul 11, 2026 5:57 PM",
+                    "action": "remove_pending",
+                    "reason": "was just testing 20260711_175755281",
+                    "user_id": 1,
+                    "source": "weekly_pending_review_admin.php"
+                }
+            ],
+            "manual_pending_review": false,
+            "pending_review": false,
+            "under_review": false,
+            "pending_review_reason": "just a test 20260711_174524014",
+            "pending_review_updated_at": "2026-07-11 17:57:56",
+            "pending_review_removed_reason": "was just testing 20260711_175755281"
+        },
+        {
+            "release_id": "20260713_015202674_R20",
+            "generated_id": "20260713_015202674_R20",
+            "race_code": "R20",
+            "race_number": 20,
+            "race_id": "202607120029",
+            "race_name": "NASCAR Cup Series at Atlanta",
+            "short_name": "Atlanta",
+            "segment": "S3",
+            "release_type": "initial",
+            "source_type": "initial",
+            "status": "released",
+            "public_status": "Official standings release",
+            "released_at": "2026-07-13 01:52:02",
+            "released_at_display": "Jul 13, 2026 1:52 AM",
+            "reason_public": "Initial standings release for R20 Atlanta.",
+            "supersedes": null,
+            "mrl_impact": null,
+            "change_status": "",
+            "change_status_label": "",
+            "changed_mrl_drivers_count": null,
+            "changed_mrl_listed_drivers_count": null,
+            "changed_segment_picked_drivers_count": null,
+            "changed_all_drivers_count": null,
+            "changed_driver_details": [],
+            "snapshot_id": "20260713_015202674",
+            "snapshot_file": "snapshot_20260713_015202674.html",
+            "previous_snapshot": "",
+            "current_snapshot": "snapshot_20260713_015202674.html",
+            "snapshot_index": 1,
+            "snapshot_count": 1,
+            "is_current_snapshot": false,
+            "pair_history_matched": false,
+            "debug": {
+                "race_folder": "R20_NASCAR_Cup_Series_at_Atlanta_202607120029",
+                "race_folder_rel": "2026/R20_NASCAR_Cup_Series_at_Atlanta_202607120029",
+                "builder_note": "Automatically recorded by race_results_monitor after first final-result snapshot capture. Pending Review is now manual release metadata only.",
+                "pair_key": ""
+            },
+            "release_sequence": 1,
+            "display_version": "v1",
+            "version_label": "v1",
+            "is_current_release": false,
+            "release_status": "superseded",
+            "release_status_label": "Superseded",
+            "superseded_by_release_id": "20260713_015804895_R20",
+            "superseded_by_version": "v2",
+            "released_at_short": "7/13/26 1:52am",
+            "display_change_label": "",
+            "version_dropdown_label": "v1 (7/13/26 1:52am)"
+        },
+        {
+            "release_id": "20260713_015804895_R20",
+            "generated_id": "20260713_015804895_R20",
+            "race_code": "R20",
+            "race_number": 20,
+            "race_id": "202607120029",
+            "race_name": "NASCAR Cup Series at Atlanta",
+            "short_name": "Atlanta",
+            "segment": "S3",
+            "release_type": "pending_review",
+            "source_type": "direct_revision",
+            "status": "pending_review",
+            "public_status": "Pending league review",
+            "released_at": "2026-07-13 01:58:04",
+            "released_at_display": "Jul 13, 2026 1:58 AM",
+            "reason_public": "Results generated automatically and awaiting league release.",
+            "supersedes": {
+                "release_id": "20260713_015202674_R20",
+                "generated_id": "20260713_015202674_R20",
+                "released_at": "2026-07-13 01:52:02",
+                "released_at_display": "Jul 13, 2026 1:52 AM",
+                "snapshot_id": "20260713_015202674",
+                "snapshot_file": "snapshot_20260713_015202674.html"
+            },
+            "mrl_impact": true,
+            "change_status": "mrl_impact_revision_required",
+            "change_status_label": "MRL Impact - Revision Required",
+            "changed_mrl_drivers_count": 17,
+            "changed_mrl_listed_drivers_count": 28,
+            "changed_segment_picked_drivers_count": 17,
+            "changed_all_drivers_count": 28,
+            "changed_driver_details": [
+                {
+                    "driver": "Alex Bowman",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 14,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 14
+                    },
+                    "new": {
+                        "pts": 13,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 13
+                    },
+                    "delta": {
+                        "pts": -1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -1
+                    }
+                },
+                {
+                    "driver": "Austin Cindric",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 22,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 22
+                    },
+                    "new": {
+                        "pts": 21,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 21
+                    },
+                    "delta": {
+                        "pts": -1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -1
+                    }
+                },
+                {
+                    "driver": "Austin Dillon",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 29,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 29
+                    },
+                    "new": {
+                        "pts": 28,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 28
+                    },
+                    "delta": {
+                        "pts": -1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -1
+                    }
+                },
+                {
+                    "driver": "Brad Keselowski",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 10,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 10
+                    },
+                    "new": {
+                        "pts": 9,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 9
+                    },
+                    "delta": {
+                        "pts": -1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -1
+                    }
+                },
+                {
+                    "driver": "Bubba Wallace",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 35,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 35
+                    },
+                    "new": {
+                        "pts": 6,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 6
+                    },
+                    "delta": {
+                        "pts": -29,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -29
+                    }
+                },
+                {
+                    "driver": "Carson Hocevar",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 33,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 33
+                    },
+                    "new": {
+                        "pts": 34,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 34
+                    },
+                    "delta": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    }
+                },
+                {
+                    "driver": "Chase Elliott",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 23,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 23
+                    },
+                    "new": {
+                        "pts": 22,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 22
+                    },
+                    "delta": {
+                        "pts": -1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -1
+                    }
+                },
+                {
+                    "driver": "Chris Buescher",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 26,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 26
+                    },
+                    "new": {
+                        "pts": 25,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 25
+                    },
+                    "delta": {
+                        "pts": -1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -1
+                    }
+                },
+                {
+                    "driver": "Christopher Bell",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 34,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 34
+                    },
+                    "new": {
+                        "pts": 35,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 35
+                    },
+                    "delta": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    }
+                },
+                {
+                    "driver": "Cole Custer",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 19,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 19
+                    },
+                    "new": {
+                        "pts": 18,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 18
+                    },
+                    "delta": {
+                        "pts": -1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -1
+                    }
+                },
+                {
+                    "driver": "Connor Zilisch",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 8,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 8
+                    },
+                    "new": {
+                        "pts": 7,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 7
+                    },
+                    "delta": {
+                        "pts": -1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -1
+                    }
+                },
+                {
+                    "driver": "Daniel Suarez",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 15,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 15
+                    },
+                    "new": {
+                        "pts": 14,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 14
+                    },
+                    "delta": {
+                        "pts": -1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -1
+                    }
+                },
+                {
+                    "driver": "Denny Hamlin",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 24,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 24
+                    },
+                    "new": {
+                        "pts": 23,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 23
+                    },
+                    "delta": {
+                        "pts": -1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -1
+                    }
+                },
+                {
+                    "driver": "Erik Jones",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 31,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 31
+                    },
+                    "new": {
+                        "pts": 32,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 32
+                    },
+                    "delta": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    }
+                },
+                {
+                    "driver": "Joey Logano",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 27,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 27
+                    },
+                    "new": {
+                        "pts": 26,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 26
+                    },
+                    "delta": {
+                        "pts": -1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -1
+                    }
+                },
+                {
+                    "driver": "John Hunter Nemechek",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 18,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 18
+                    },
+                    "new": {
+                        "pts": 17,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 17
+                    },
+                    "delta": {
+                        "pts": -1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -1
+                    }
+                },
+                {
+                    "driver": "Josh Berry",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 11,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 11
+                    },
+                    "new": {
+                        "pts": 10,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 10
+                    },
+                    "delta": {
+                        "pts": -1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -1
+                    }
+                },
+                {
+                    "driver": "Michael McDowell",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 21,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 21
+                    },
+                    "new": {
+                        "pts": 20,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 20
+                    },
+                    "delta": {
+                        "pts": -1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -1
+                    }
+                },
+                {
+                    "driver": "Noah Gragson",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 9,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 9
+                    },
+                    "new": {
+                        "pts": 8,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 8
+                    },
+                    "delta": {
+                        "pts": -1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -1
+                    }
+                },
+                {
+                    "driver": "Ricky Stenhouse Jr.",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 13,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 13
+                    },
+                    "new": {
+                        "pts": 12,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 12
+                    },
+                    "delta": {
+                        "pts": -1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -1
+                    }
+                },
+                {
+                    "driver": "Ross Chastain",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 25,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 25
+                    },
+                    "new": {
+                        "pts": 24,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 24
+                    },
+                    "delta": {
+                        "pts": -1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -1
+                    }
+                },
+                {
+                    "driver": "Ryan Preece",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 12,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 12
+                    },
+                    "new": {
+                        "pts": 11,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 11
+                    },
+                    "delta": {
+                        "pts": -1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -1
+                    }
+                },
+                {
+                    "driver": "Shane van Gisbergen",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 30,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 30
+                    },
+                    "new": {
+                        "pts": 31,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 31
+                    },
+                    "delta": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    }
+                },
+                {
+                    "driver": "Todd Gilliland",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 17,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 17
+                    },
+                    "new": {
+                        "pts": 16,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 16
+                    },
+                    "delta": {
+                        "pts": -1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -1
+                    }
+                },
+                {
+                    "driver": "Ty Dillon",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 16,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 16
+                    },
+                    "new": {
+                        "pts": 15,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 15
+                    },
+                    "delta": {
+                        "pts": -1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -1
+                    }
+                },
+                {
+                    "driver": "Ty Gibbs",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 32,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 32
+                    },
+                    "new": {
+                        "pts": 33,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 33
+                    },
+                    "delta": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    }
+                },
+                {
+                    "driver": "Tyler Reddick",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 28,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 28
+                    },
+                    "new": {
+                        "pts": 27,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 27
+                    },
+                    "delta": {
+                        "pts": -1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -1
+                    }
+                },
+                {
+                    "driver": "William Byron",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 20,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 20
+                    },
+                    "new": {
+                        "pts": 19,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 19
+                    },
+                    "delta": {
+                        "pts": -1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -1
+                    }
+                }
+            ],
+            "snapshot_id": "20260713_015804895",
+            "snapshot_file": "snapshot_20260713_015804895.html",
+            "previous_snapshot": "snapshot_20260713_015202674.html",
+            "current_snapshot": "snapshot_20260713_015804895.html",
+            "snapshot_index": 2,
+            "snapshot_count": 2,
+            "is_current_snapshot": false,
+            "pair_history_matched": true,
+            "debug": {
+                "race_folder": "R20_NASCAR_Cup_Series_at_Atlanta_202607120029",
+                "race_folder_rel": "2026/R20_NASCAR_Cup_Series_at_Atlanta_202607120029",
+                "builder_note": "Automatically recorded by race_results_revision_monitor after changed race-result snapshot classification.",
+                "pair_key": "snapshot_20260713_015202674.html -> snapshot_20260713_015804895.html"
+            },
+            "release_sequence": 2,
+            "display_version": "v2",
+            "version_label": "v2",
+            "is_current_release": false,
+            "release_status": "superseded",
+            "release_status_label": "Superseded",
+            "superseded_by_release_id": "20260713_020404456_R20",
+            "superseded_by_version": "v3",
+            "released_at_short": "7/13/26 1:58am",
+            "display_change_label": "MRL Impact - Revision Required",
+            "version_dropdown_label": "v2 (7/13/26 1:58am)"
+        },
+        {
+            "release_id": "20260713_020404456_R20",
+            "generated_id": "20260713_020404456_R20",
+            "race_code": "R20",
+            "race_number": 20,
+            "race_id": "202607120029",
+            "race_name": "NASCAR Cup Series at Atlanta",
+            "short_name": "Atlanta",
+            "segment": "S3",
+            "release_type": "pending_review",
+            "source_type": "direct_revision",
+            "status": "pending_review",
+            "public_status": "Pending league review",
+            "released_at": "2026-07-13 02:04:04",
+            "released_at_display": "Jul 13, 2026 2:04 AM",
+            "reason_public": "Results generated automatically and awaiting league release.",
+            "supersedes": {
+                "release_id": "20260713_015804895_R20",
+                "generated_id": "20260713_015804895_R20",
+                "released_at": "2026-07-13 01:58:04",
+                "released_at_display": "Jul 13, 2026 1:58 AM",
+                "snapshot_id": "20260713_015804895",
+                "snapshot_file": "snapshot_20260713_015804895.html"
+            },
+            "mrl_impact": true,
+            "change_status": "pending_review_mrl_impact",
+            "change_status_label": "Pending Review - MRL Impact",
+            "changed_mrl_drivers_count": 6,
+            "changed_mrl_listed_drivers_count": 8,
+            "changed_segment_picked_drivers_count": 6,
+            "changed_all_drivers_count": 8,
+            "changed_driver_details": [
+                {
+                    "driver": "Austin Dillon",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 28,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 28
+                    },
+                    "new": {
+                        "pts": 33,
+                        "bonus": 5,
+                        "penalty": 0,
+                        "net": 33
+                    },
+                    "delta": {
+                        "pts": 5,
+                        "bonus": 5,
+                        "penalty": 0,
+                        "net": 5
+                    }
+                },
+                {
+                    "driver": "Carson Hocevar",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 34,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 34
+                    },
+                    "new": {
+                        "pts": 38,
+                        "bonus": 4,
+                        "penalty": 0,
+                        "net": 38
+                    },
+                    "delta": {
+                        "pts": 4,
+                        "bonus": 4,
+                        "penalty": 0,
+                        "net": 4
+                    }
+                },
+                {
+                    "driver": "Christopher Bell",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 35,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 35
+                    },
+                    "new": {
+                        "pts": 38,
+                        "bonus": 3,
+                        "penalty": 0,
+                        "net": 38
+                    },
+                    "delta": {
+                        "pts": 3,
+                        "bonus": 3,
+                        "penalty": 0,
+                        "net": 3
+                    }
+                },
+                {
+                    "driver": "Erik Jones",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 32,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 32
+                    },
+                    "new": {
+                        "pts": 34,
+                        "bonus": 2,
+                        "penalty": 0,
+                        "net": 34
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 2,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Joey Logano",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 26,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 26
+                    },
+                    "new": {
+                        "pts": 42,
+                        "bonus": 16,
+                        "penalty": 0,
+                        "net": 42
+                    },
+                    "delta": {
+                        "pts": 16,
+                        "bonus": 16,
+                        "penalty": 0,
+                        "net": 16
+                    }
+                },
+                {
+                    "driver": "Ryan Blaney",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 55,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 55
+                    },
+                    "new": {
+                        "pts": 75,
+                        "bonus": 20,
+                        "penalty": 0,
+                        "net": 75
+                    },
+                    "delta": {
+                        "pts": 20,
+                        "bonus": 20,
+                        "penalty": 0,
+                        "net": 20
+                    }
+                },
+                {
+                    "driver": "Ty Gibbs",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 33,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 33
+                    },
+                    "new": {
+                        "pts": 37,
+                        "bonus": 4,
+                        "penalty": 0,
+                        "net": 37
+                    },
+                    "delta": {
+                        "pts": 4,
+                        "bonus": 4,
+                        "penalty": 0,
+                        "net": 4
+                    }
+                },
+                {
+                    "driver": "Tyler Reddick",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 27,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 27
+                    },
+                    "new": {
+                        "pts": 46,
+                        "bonus": 19,
+                        "penalty": 0,
+                        "net": 46
+                    },
+                    "delta": {
+                        "pts": 19,
+                        "bonus": 19,
+                        "penalty": 0,
+                        "net": 19
+                    }
+                }
+            ],
+            "snapshot_id": "20260713_020404456",
+            "snapshot_file": "snapshot_20260713_020404456.html",
+            "previous_snapshot": "snapshot_20260713_015804895.html",
+            "current_snapshot": "snapshot_20260713_020404456.html",
+            "snapshot_index": 3,
+            "snapshot_count": 3,
+            "is_current_snapshot": false,
+            "pair_history_matched": true,
+            "debug": {
+                "race_folder": "R20_NASCAR_Cup_Series_at_Atlanta_202607120029",
+                "race_folder_rel": "2026/R20_NASCAR_Cup_Series_at_Atlanta_202607120029",
+                "builder_note": "Automatically recorded by race_results_revision_monitor after changed race-result snapshot classification.",
+                "pair_key": "snapshot_20260713_015804895.html -> snapshot_20260713_020404456.html"
+            },
+            "release_sequence": 3,
+            "display_version": "v3",
+            "version_label": "v3",
+            "is_current_release": false,
+            "release_status": "superseded",
+            "release_status_label": "Superseded",
+            "superseded_by_release_id": "20260713_021609696_R20",
+            "superseded_by_version": "v4",
+            "released_at_short": "7/13/26 2:04am",
+            "display_change_label": "MRL Impact - Results Changed",
+            "version_dropdown_label": "v3 (7/13/26 2:04am)"
+        },
+        {
+            "release_id": "20260713_021609696_R20",
+            "generated_id": "20260713_021609696_R20",
+            "race_code": "R20",
+            "race_number": 20,
+            "race_id": "202607120029",
+            "race_name": "NASCAR Cup Series at Atlanta",
+            "short_name": "Atlanta",
+            "segment": "S3",
+            "release_type": "pending_review",
+            "source_type": "direct_revision",
+            "status": "pending_review",
+            "public_status": "Pending league review",
+            "released_at": "2026-07-13 02:16:09",
+            "released_at_display": "Jul 13, 2026 2:16 AM",
+            "reason_public": "Results generated automatically and awaiting league release.",
+            "supersedes": {
+                "release_id": "20260713_020404456_R20",
+                "generated_id": "20260713_020404456_R20",
+                "released_at": "2026-07-13 02:04:04",
+                "released_at_display": "Jul 13, 2026 2:04 AM",
+                "snapshot_id": "20260713_020404456",
+                "snapshot_file": "snapshot_20260713_020404456.html"
+            },
+            "mrl_impact": true,
+            "change_status": "pending_review_mrl_impact",
+            "change_status_label": "Pending Review - MRL Impact",
+            "changed_mrl_drivers_count": 19,
+            "changed_mrl_listed_drivers_count": 31,
+            "changed_segment_picked_drivers_count": 19,
+            "changed_all_drivers_count": 31,
+            "changed_driver_details": [
+                {
+                    "driver": "Alex Bowman",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 13,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 13
+                    },
+                    "new": {
+                        "pts": 15,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 15
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Austin Cindric",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 21,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 21
+                    },
+                    "new": {
+                        "pts": 36,
+                        "bonus": 14,
+                        "penalty": 0,
+                        "net": 36
+                    },
+                    "delta": {
+                        "pts": 15,
+                        "bonus": 14,
+                        "penalty": 0,
+                        "net": 15
+                    }
+                },
+                {
+                    "driver": "Austin Dillon",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 33,
+                        "bonus": 5,
+                        "penalty": 0,
+                        "net": 33
+                    },
+                    "new": {
+                        "pts": 34,
+                        "bonus": 5,
+                        "penalty": 0,
+                        "net": 34
+                    },
+                    "delta": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    }
+                },
+                {
+                    "driver": "Brad Keselowski",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 9,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 9
+                    },
+                    "new": {
+                        "pts": 11,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 11
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Bubba Wallace",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 6,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 6
+                    },
+                    "new": {
+                        "pts": 9,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 9
+                    },
+                    "delta": {
+                        "pts": 3,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 3
+                    }
+                },
+                {
+                    "driver": "Carson Hocevar",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 38,
+                        "bonus": 4,
+                        "penalty": 0,
+                        "net": 38
+                    },
+                    "new": {
+                        "pts": 39,
+                        "bonus": 4,
+                        "penalty": 0,
+                        "net": 39
+                    },
+                    "delta": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    }
+                },
+                {
+                    "driver": "Chase Briscoe",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    },
+                    "new": {
+                        "pts": 4,
+                        "bonus": 3,
+                        "penalty": 0,
+                        "net": 4
+                    },
+                    "delta": {
+                        "pts": 3,
+                        "bonus": 3,
+                        "penalty": 0,
+                        "net": 3
+                    }
+                },
+                {
+                    "driver": "Chase Elliott",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 22,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 22
+                    },
+                    "new": {
+                        "pts": 26,
+                        "bonus": 3,
+                        "penalty": 0,
+                        "net": 26
+                    },
+                    "delta": {
+                        "pts": 4,
+                        "bonus": 3,
+                        "penalty": 0,
+                        "net": 4
+                    }
+                },
+                {
+                    "driver": "Chris Buescher",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 25,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 25
+                    },
+                    "new": {
+                        "pts": 27,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 27
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Christopher Bell",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 38,
+                        "bonus": 3,
+                        "penalty": 0,
+                        "net": 38
+                    },
+                    "new": {
+                        "pts": 39,
+                        "bonus": 3,
+                        "penalty": 0,
+                        "net": 39
+                    },
+                    "delta": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    }
+                },
+                {
+                    "driver": "Cody Ware",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 5,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 5
+                    },
+                    "new": {
+                        "pts": 6,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 6
+                    },
+                    "delta": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    }
+                },
+                {
+                    "driver": "Cole Custer",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 18,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 18
+                    },
+                    "new": {
+                        "pts": 20,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 20
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Connor Zilisch",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 7,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 7
+                    },
+                    "new": {
+                        "pts": 9,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 9
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Daniel Suarez",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 14,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 14
+                    },
+                    "new": {
+                        "pts": 22,
+                        "bonus": 6,
+                        "penalty": 0,
+                        "net": 22
+                    },
+                    "delta": {
+                        "pts": 8,
+                        "bonus": 6,
+                        "penalty": 0,
+                        "net": 8
+                    }
+                },
+                {
+                    "driver": "Denny Hamlin",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 23,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 23
+                    },
+                    "new": {
+                        "pts": 27,
+                        "bonus": 3,
+                        "penalty": 0,
+                        "net": 27
+                    },
+                    "delta": {
+                        "pts": 4,
+                        "bonus": 3,
+                        "penalty": 0,
+                        "net": 4
+                    }
+                },
+                {
+                    "driver": "Erik Jones",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 34,
+                        "bonus": 2,
+                        "penalty": 0,
+                        "net": 34
+                    },
+                    "new": {
+                        "pts": 35,
+                        "bonus": 2,
+                        "penalty": 0,
+                        "net": 35
+                    },
+                    "delta": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    }
+                },
+                {
+                    "driver": "Joey Logano",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 42,
+                        "bonus": 16,
+                        "penalty": 0,
+                        "net": 42
+                    },
+                    "new": {
+                        "pts": 43,
+                        "bonus": 16,
+                        "penalty": 0,
+                        "net": 43
+                    },
+                    "delta": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    }
+                },
+                {
+                    "driver": "John Hunter Nemechek",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 17,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 17
+                    },
+                    "new": {
+                        "pts": 19,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 19
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Josh Berry",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 10,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 10
+                    },
+                    "new": {
+                        "pts": 12,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 12
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Kyle Larson",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 3,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 3
+                    },
+                    "new": {
+                        "pts": 11,
+                        "bonus": 8,
+                        "penalty": 0,
+                        "net": 11
+                    },
+                    "delta": {
+                        "pts": 8,
+                        "bonus": 8,
+                        "penalty": 0,
+                        "net": 8
+                    }
+                },
+                {
+                    "driver": "Michael McDowell",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 20,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 20
+                    },
+                    "new": {
+                        "pts": 22,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 22
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Noah Gragson",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 8,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 8
+                    },
+                    "new": {
+                        "pts": 19,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 19
+                    },
+                    "delta": {
+                        "pts": 11,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 11
+                    }
+                },
+                {
+                    "driver": "Ricky Stenhouse Jr.",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 12,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 12
+                    },
+                    "new": {
+                        "pts": 14,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 14
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Ross Chastain",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 24,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 24
+                    },
+                    "new": {
+                        "pts": 26,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 26
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Ryan Preece",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 11,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 11
+                    },
+                    "new": {
+                        "pts": 13,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 13
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Shane van Gisbergen",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 31,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 31
+                    },
+                    "new": {
+                        "pts": 32,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 32
+                    },
+                    "delta": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    }
+                },
+                {
+                    "driver": "Todd Gilliland",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 16,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 16
+                    },
+                    "new": {
+                        "pts": 18,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 18
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Ty Dillon",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 15,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 15
+                    },
+                    "new": {
+                        "pts": 17,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 17
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Ty Gibbs",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 37,
+                        "bonus": 4,
+                        "penalty": 0,
+                        "net": 37
+                    },
+                    "new": {
+                        "pts": 38,
+                        "bonus": 4,
+                        "penalty": 0,
+                        "net": 38
+                    },
+                    "delta": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    }
+                },
+                {
+                    "driver": "Tyler Reddick",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 46,
+                        "bonus": 19,
+                        "penalty": 0,
+                        "net": 46
+                    },
+                    "new": {
+                        "pts": 47,
+                        "bonus": 19,
+                        "penalty": 0,
+                        "net": 47
+                    },
+                    "delta": {
+                        "pts": 1,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 1
+                    }
+                },
+                {
+                    "driver": "William Byron",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 19,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 19
+                    },
+                    "new": {
+                        "pts": 21,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 21
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                }
+            ],
+            "snapshot_id": "20260713_021609696",
+            "snapshot_file": "snapshot_20260713_021609696.html",
+            "previous_snapshot": "snapshot_20260713_020404456.html",
+            "current_snapshot": "snapshot_20260713_021609696.html",
+            "snapshot_index": 4,
+            "snapshot_count": 4,
+            "is_current_snapshot": false,
+            "pair_history_matched": true,
+            "debug": {
+                "race_folder": "R20_NASCAR_Cup_Series_at_Atlanta_202607120029",
+                "race_folder_rel": "2026/R20_NASCAR_Cup_Series_at_Atlanta_202607120029",
+                "builder_note": "Automatically recorded by race_results_revision_monitor after changed race-result snapshot classification.",
+                "pair_key": "snapshot_20260713_020404456.html -> snapshot_20260713_021609696.html"
+            },
+            "release_sequence": 4,
+            "display_version": "v4",
+            "version_label": "v4",
+            "is_current_release": false,
+            "release_status": "superseded",
+            "release_status_label": "Superseded",
+            "superseded_by_release_id": "20260713_022204362_R20",
+            "superseded_by_version": "v5",
+            "released_at_short": "7/13/26 2:16am",
+            "display_change_label": "MRL Impact - Results Changed",
+            "version_dropdown_label": "v4 (7/13/26 2:16am)"
+        },
+        {
+            "release_id": "20260713_022204362_R20",
+            "generated_id": "20260713_022204362_R20",
+            "race_code": "R20",
+            "race_number": 20,
+            "race_id": "202607120029",
+            "race_name": "NASCAR Cup Series at Atlanta",
+            "short_name": "Atlanta",
+            "segment": "S3",
+            "release_type": "pending_review",
+            "source_type": "direct_revision",
+            "status": "pending_review",
+            "public_status": "Pending league review",
+            "released_at": "2026-07-13 02:22:04",
+            "released_at_display": "Jul 13, 2026 2:22 AM",
+            "reason_public": "Results generated automatically and awaiting league release.",
+            "supersedes": {
+                "release_id": "20260713_021609696_R20",
+                "generated_id": "20260713_021609696_R20",
+                "released_at": "2026-07-13 02:16:09",
+                "released_at_display": "Jul 13, 2026 2:16 AM",
+                "snapshot_id": "20260713_021609696",
+                "snapshot_file": "snapshot_20260713_021609696.html"
+            },
+            "mrl_impact": true,
+            "change_status": "pending_review_mrl_impact",
+            "change_status_label": "Pending Review - MRL Impact",
+            "changed_mrl_drivers_count": 11,
+            "changed_mrl_listed_drivers_count": 14,
+            "changed_segment_picked_drivers_count": 11,
+            "changed_all_drivers_count": 14,
+            "changed_driver_details": [
+                {
+                    "driver": "Austin Cindric",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 36,
+                        "bonus": 14,
+                        "penalty": 0,
+                        "net": 36
+                    },
+                    "new": {
+                        "pts": 36,
+                        "bonus": 13,
+                        "penalty": 0,
+                        "net": 36
+                    },
+                    "delta": {
+                        "pts": 0,
+                        "bonus": -1,
+                        "penalty": 0,
+                        "net": 0
+                    }
+                },
+                {
+                    "driver": "Austin Dillon",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 34,
+                        "bonus": 5,
+                        "penalty": 0,
+                        "net": 34
+                    },
+                    "new": {
+                        "pts": 36,
+                        "bonus": 6,
+                        "penalty": 0,
+                        "net": 36
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Carson Hocevar",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 39,
+                        "bonus": 4,
+                        "penalty": 0,
+                        "net": 39
+                    },
+                    "new": {
+                        "pts": 39,
+                        "bonus": 5,
+                        "penalty": 0,
+                        "net": 39
+                    },
+                    "delta": {
+                        "pts": 0,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 0
+                    }
+                },
+                {
+                    "driver": "Chase Elliott",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 26,
+                        "bonus": 3,
+                        "penalty": 0,
+                        "net": 26
+                    },
+                    "new": {
+                        "pts": 26,
+                        "bonus": 2,
+                        "penalty": 0,
+                        "net": 26
+                    },
+                    "delta": {
+                        "pts": 0,
+                        "bonus": -1,
+                        "penalty": 0,
+                        "net": 0
+                    }
+                },
+                {
+                    "driver": "Chris Buescher",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 27,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 27
+                    },
+                    "new": {
+                        "pts": 27,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 27
+                    },
+                    "delta": {
+                        "pts": 0,
+                        "bonus": -1,
+                        "penalty": 0,
+                        "net": 0
+                    }
+                },
+                {
+                    "driver": "Christopher Bell",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 39,
+                        "bonus": 3,
+                        "penalty": 0,
+                        "net": 39
+                    },
+                    "new": {
+                        "pts": 39,
+                        "bonus": 4,
+                        "penalty": 0,
+                        "net": 39
+                    },
+                    "delta": {
+                        "pts": 0,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 0
+                    }
+                },
+                {
+                    "driver": "Denny Hamlin",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 27,
+                        "bonus": 3,
+                        "penalty": 0,
+                        "net": 27
+                    },
+                    "new": {
+                        "pts": 27,
+                        "bonus": 2,
+                        "penalty": 0,
+                        "net": 27
+                    },
+                    "delta": {
+                        "pts": 0,
+                        "bonus": -1,
+                        "penalty": 0,
+                        "net": 0
+                    }
+                },
+                {
+                    "driver": "Erik Jones",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 35,
+                        "bonus": 2,
+                        "penalty": 0,
+                        "net": 35
+                    },
+                    "new": {
+                        "pts": 35,
+                        "bonus": 3,
+                        "penalty": 0,
+                        "net": 35
+                    },
+                    "delta": {
+                        "pts": 0,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 0
+                    }
+                },
+                {
+                    "driver": "Joey Logano",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 43,
+                        "bonus": 16,
+                        "penalty": 0,
+                        "net": 43
+                    },
+                    "new": {
+                        "pts": 45,
+                        "bonus": 17,
+                        "penalty": 0,
+                        "net": 45
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                },
+                {
+                    "driver": "Noah Gragson",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 19,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 19
+                    },
+                    "new": {
+                        "pts": 10,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 10
+                    },
+                    "delta": {
+                        "pts": -9,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": -9
+                    }
+                },
+                {
+                    "driver": "Ross Chastain",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 26,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 26
+                    },
+                    "new": {
+                        "pts": 26,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 26
+                    },
+                    "delta": {
+                        "pts": 0,
+                        "bonus": -1,
+                        "penalty": 0,
+                        "net": 0
+                    }
+                },
+                {
+                    "driver": "Shane van Gisbergen",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 32,
+                        "bonus": 0,
+                        "penalty": 0,
+                        "net": 32
+                    },
+                    "new": {
+                        "pts": 32,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 32
+                    },
+                    "delta": {
+                        "pts": 0,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 0
+                    }
+                },
+                {
+                    "driver": "Ty Gibbs",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 38,
+                        "bonus": 4,
+                        "penalty": 0,
+                        "net": 38
+                    },
+                    "new": {
+                        "pts": 38,
+                        "bonus": 5,
+                        "penalty": 0,
+                        "net": 38
+                    },
+                    "delta": {
+                        "pts": 0,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 0
+                    }
+                },
+                {
+                    "driver": "Tyler Reddick",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 47,
+                        "bonus": 19,
+                        "penalty": 0,
+                        "net": 47
+                    },
+                    "new": {
+                        "pts": 49,
+                        "bonus": 20,
+                        "penalty": 0,
+                        "net": 49
+                    },
+                    "delta": {
+                        "pts": 2,
+                        "bonus": 1,
+                        "penalty": 0,
+                        "net": 2
+                    }
+                }
+            ],
+            "snapshot_id": "20260713_022204362",
+            "snapshot_file": "snapshot_20260713_022204362.html",
+            "previous_snapshot": "snapshot_20260713_021609696.html",
+            "current_snapshot": "snapshot_20260713_022204362.html",
+            "snapshot_index": 5,
+            "snapshot_count": 5,
+            "is_current_snapshot": false,
+            "pair_history_matched": true,
+            "debug": {
+                "race_folder": "R20_NASCAR_Cup_Series_at_Atlanta_202607120029",
+                "race_folder_rel": "2026/R20_NASCAR_Cup_Series_at_Atlanta_202607120029",
+                "builder_note": "Automatically recorded by race_results_revision_monitor after changed race-result snapshot classification.",
+                "pair_key": "snapshot_20260713_021609696.html -> snapshot_20260713_022204362.html"
+            },
+            "release_sequence": 5,
+            "display_version": "v5",
+            "version_label": "v5",
+            "is_current_release": false,
+            "release_status": "superseded",
+            "release_status_label": "Superseded",
+            "superseded_by_release_id": "20260713_022805630_R20",
+            "superseded_by_version": "v6",
+            "released_at_short": "7/13/26 2:22am",
+            "display_change_label": "MRL Impact - Results Changed",
+            "version_dropdown_label": "v5 (7/13/26 2:22am)"
+        },
+        {
+            "release_id": "20260713_022805630_R20",
+            "generated_id": "20260713_022805630_R20",
+            "race_code": "R20",
+            "race_number": 20,
+            "race_id": "202607120029",
+            "race_name": "NASCAR Cup Series at Atlanta",
+            "short_name": "Atlanta",
+            "segment": "S3",
+            "release_type": "pending_review",
+            "source_type": "direct_revision",
+            "status": "pending_review",
+            "public_status": "Pending league review",
+            "released_at": "2026-07-13 02:28:05",
+            "released_at_display": "Jul 13, 2026 2:28 AM",
+            "reason_public": "Results generated automatically and awaiting league release.",
+            "supersedes": {
+                "release_id": "20260713_022204362_R20",
+                "generated_id": "20260713_022204362_R20",
+                "released_at": "2026-07-13 02:22:04",
+                "released_at_display": "Jul 13, 2026 2:22 AM",
+                "snapshot_id": "20260713_022204362",
+                "snapshot_file": "snapshot_20260713_022204362.html"
+            },
+            "mrl_impact": true,
+            "change_status": "pending_review_mrl_impact",
+            "change_status_label": "Pending Review - MRL Impact",
+            "changed_mrl_drivers_count": 2,
+            "changed_mrl_listed_drivers_count": 3,
+            "changed_segment_picked_drivers_count": 2,
+            "changed_all_drivers_count": 3,
+            "changed_driver_details": [
+                {
+                    "driver": "Austin Dillon",
+                    "mrl_listed": true,
+                    "segment_picked": false,
+                    "old": {
+                        "pts": 36,
+                        "bonus": 6,
+                        "penalty": 0,
+                        "net": 36
+                    },
+                    "new": {
+                        "pts": 34,
+                        "bonus": 4,
+                        "penalty": 0,
+                        "net": 34
+                    },
+                    "delta": {
+                        "pts": -2,
+                        "bonus": -2,
+                        "penalty": 0,
+                        "net": -2
+                    }
+                },
+                {
+                    "driver": "Joey Logano",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 45,
+                        "bonus": 17,
+                        "penalty": 0,
+                        "net": 45
+                    },
+                    "new": {
+                        "pts": 43,
+                        "bonus": 15,
+                        "penalty": 0,
+                        "net": 43
+                    },
+                    "delta": {
+                        "pts": -2,
+                        "bonus": -2,
+                        "penalty": 0,
+                        "net": -2
+                    }
+                },
+                {
+                    "driver": "Tyler Reddick",
+                    "mrl_listed": true,
+                    "segment_picked": true,
+                    "old": {
+                        "pts": 49,
+                        "bonus": 20,
+                        "penalty": 0,
+                        "net": 49
+                    },
+                    "new": {
+                        "pts": 47,
+                        "bonus": 18,
+                        "penalty": 0,
+                        "net": 47
+                    },
+                    "delta": {
+                        "pts": -2,
+                        "bonus": -2,
+                        "penalty": 0,
+                        "net": -2
+                    }
+                }
+            ],
+            "snapshot_id": "20260713_022805630",
+            "snapshot_file": "snapshot_20260713_022805630.html",
+            "previous_snapshot": "snapshot_20260713_022204362.html",
+            "current_snapshot": "snapshot_20260713_022805630.html",
+            "snapshot_index": 6,
+            "snapshot_count": 6,
+            "is_current_snapshot": true,
+            "pair_history_matched": true,
+            "debug": {
+                "race_folder": "R20_NASCAR_Cup_Series_at_Atlanta_202607120029",
+                "race_folder_rel": "2026/R20_NASCAR_Cup_Series_at_Atlanta_202607120029",
+                "builder_note": "Automatically recorded by race_results_revision_monitor after changed race-result snapshot classification.",
+                "pair_key": "snapshot_20260713_022204362.html -> snapshot_20260713_022805630.html"
+            },
+            "release_sequence": 6,
+            "display_version": "v6",
+            "version_label": "v6",
+            "is_current_release": true,
+            "release_status": "current",
+            "release_status_label": "Current",
+            "superseded_by_release_id": "",
+            "superseded_by_version": "",
+            "released_at_short": "7/13/26 2:28am",
+            "display_change_label": "MRL Impact - Results Changed",
+            "version_dropdown_label": "v6 (7/13/26 2:28am)"
+        }
+    ],
+    "manual_pending_review_admin_last_update": "2026-07-11 17:57:56"
+}
