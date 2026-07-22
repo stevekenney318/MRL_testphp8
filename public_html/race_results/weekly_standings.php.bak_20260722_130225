@@ -28,16 +28,10 @@ if ($isTestSite) {
 /**
  * weekly_standings.php
  *
- * VERSION: v065
- * LAST MODIFIED: 7/22/2026 12:56:21 pm
+ * VERSION: v064
+ * LAST MODIFIED: 7/22/2026 12:27:54 pm
  *
  * CHANGELOG:
- *
- * v065 (7/22/2026 12:56:21 pm)
- *   - CHANGE: Print Full now includes the top race controls and release/version identification row while keeping Print, Print Full, and Spreadsheet action buttons out of the PDF.
- *   - FIX: Validation and audit panels now use the full available page width, and long snapshot names wrap instead of forcing the panel beyond the page.
- *   - FIX: Full-print validation/debug tables use tighter print sizing and wrapping so long snapshot and winner values remain inside the landscape page.
- *   - FIX: Full-print report panels are allowed to fragment together across pages so all four main standings columns begin and continue side-by-side instead of Weekly Winners advancing a page ahead.
  *
  * v064 (7/22/2026 12:27:54 pm)
  *   - NEW: Added a Print Full button for a complete archival report with Validation, Audit Trail, Pending Review, and all standings detail rows expanded automatically.
@@ -2953,10 +2947,8 @@ if ($exportMode === 'xlsx') {
             background: rgba(46, 139, 87, 0.18);
             border: 2px solid rgba(46, 139, 87, 0.85);
             border-radius: 8px;
-            width: 100%;
-            max-width: none;
+            max-width: 970px;
             box-sizing: border-box;
-            overflow: hidden;
         }
 
         .validation-btn {
@@ -3057,8 +3049,7 @@ if ($exportMode === 'xlsx') {
             border: 2px solid #9ec5fe;
             color: #25364a;
             border-radius: 8px;
-            width: 100%;
-            max-width: none;
+            max-width: 980px;
             box-sizing: border-box;
             overflow-x: auto;
         }
@@ -3153,9 +3144,7 @@ if ($exportMode === 'xlsx') {
         }
 
         .details-meta .chunk {
-            min-width: 0;
-            white-space: normal;
-            overflow-wrap: anywhere;
+            white-space: nowrap;
         }
 
         .details-meta strong {
@@ -3458,23 +3447,6 @@ if ($exportMode === 'xlsx') {
                 display: none !important;
             }
 
-            body.full-print-mode .top-controls {
-                display: grid !important;
-                grid-template-columns: minmax(0, auto) minmax(0, 1fr) !important;
-                grid-template-areas: "primary status" !important;
-                gap: 6px 10px;
-                margin-bottom: 3px;
-            }
-
-            body.full-print-mode .top-controls-actions {
-                display: none !important;
-            }
-
-            body.full-print-mode .release-version-row {
-                display: block !important;
-                margin-bottom: 5px;
-            }
-
             body.full-print-mode .pending-review-panel,
             body.full-print-mode .audit-panel,
             body.full-print-mode .details-content {
@@ -3488,22 +3460,7 @@ if ($exportMode === 'xlsx') {
             body.full-print-mode .details-content,
             body.full-print-mode .pending-review-panel,
             body.full-print-mode .audit-panel,
-            body.full-print-mode .team-detail-row {
-                break-inside: avoid;
-                page-break-inside: avoid;
-            }
-
-            body.full-print-mode .report-grid,
-            body.full-print-mode .report-panel,
-            body.full-print-mode .table-wrap,
-            body.full-print-mode table,
-            body.full-print-mode tbody,
             body.full-print-mode tr {
-                break-inside: auto;
-                page-break-inside: auto;
-            }
-
-            body.full-print-mode .team-detail-row {
                 break-inside: avoid;
                 page-break-inside: avoid;
             }
@@ -3552,67 +3509,6 @@ if ($exportMode === 'xlsx') {
             .winner-footnote,
             .table-footnote {
                 font-size: 9px;
-            }
-
-            body.full-print-mode .details-content.validation-report-panel,
-            body.full-print-mode .audit-panel,
-            body.full-print-mode .pending-review-panel {
-                width: 100%;
-                max-width: none;
-                box-sizing: border-box;
-            }
-
-            body.full-print-mode .details-meta {
-                gap: 3px 10px;
-                font-size: 9px;
-                line-height: 1.15;
-            }
-
-            body.full-print-mode .details-meta .chunk {
-                white-space: normal;
-                overflow-wrap: anywhere;
-            }
-
-            body.full-print-mode .validation-columns {
-                gap: 7px;
-                margin-bottom: 6px;
-            }
-
-            body.full-print-mode .validation-column {
-                min-width: 0;
-                flex: 1 1 0;
-                font-size: 8px;
-                overflow-wrap: anywhere;
-            }
-
-            body.full-print-mode .validation-column h3,
-            body.full-print-mode .debug-title {
-                font-size: 10px;
-            }
-
-            body.full-print-mode .details-content table {
-                font-size: 7px;
-                table-layout: fixed;
-            }
-
-            body.full-print-mode .details-content th,
-            body.full-print-mode .details-content td {
-                padding: 1px 2px;
-                white-space: normal;
-                overflow-wrap: anywhere;
-                word-break: break-word;
-            }
-
-            body.full-print-mode .report-grid {
-                grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-                page-break-inside: auto;
-                break-inside: auto;
-            }
-
-            body.full-print-mode .report-panel {
-                min-width: 0;
-                page-break-inside: auto;
-                break-inside: auto;
             }
         }
 
