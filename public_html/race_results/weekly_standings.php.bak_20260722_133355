@@ -29,13 +29,9 @@ if ($isTestSite) {
  * weekly_standings.php
  *
  * VERSION: v065
- * LAST MODIFIED: 7/22/2026 1:24:58 pm
+ * LAST MODIFIED: 7/22/2026 12:56:21 pm
  *
  * CHANGELOG:
- *
- * v065 (7/22/2026 1:24:58 pm)
- *   - POLISH: Full-print Validation debug-table columns now use targeted landscape widths that more closely match the onscreen layout.
- *   - POLISH: Snapshot Used entries remain centered and on one line in Print Full while narrow numeric columns use only the space they need.
  *
  * v065 (7/22/2026 12:56:21 pm)
  *   - CHANGE: Print Full now includes the top race controls and release/version identification row while keeping Print, Print Full, and Spreadsheet action buttons out of the PDF.
@@ -3606,34 +3602,6 @@ if ($exportMode === 'xlsx') {
                 overflow-wrap: anywhere;
                 word-break: break-word;
             }
-
-            /* Full-print debug table: match the roomy onscreen proportions. */
-            body.full-print-mode .details-content table th:nth-child(1),
-            body.full-print-mode .details-content table td:nth-child(1) { width: 18%; }
-
-            body.full-print-mode .details-content table th:nth-child(2),
-            body.full-print-mode .details-content table td:nth-child(2) { width: 4%; }
-
-            body.full-print-mode .details-content table th:nth-child(3),
-            body.full-print-mode .details-content table td:nth-child(3) { width: 8%; }
-
-            body.full-print-mode .details-content table th:nth-child(4),
-            body.full-print-mode .details-content table td:nth-child(4) { width: 7%; }
-
-            body.full-print-mode .details-content table th:nth-child(5),
-            body.full-print-mode .details-content table td:nth-child(5) {
-                width: 38%;
-                white-space: nowrap;
-                overflow-wrap: normal;
-                word-break: normal;
-                text-align: center;
-            }
-
-            body.full-print-mode .details-content table th:nth-child(6),
-            body.full-print-mode .details-content table td:nth-child(6) { width: 20%; }
-
-            body.full-print-mode .details-content table th:nth-child(7),
-            body.full-print-mode .details-content table td:nth-child(7) { width: 5%; }
 
             body.full-print-mode .report-grid {
                 grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
