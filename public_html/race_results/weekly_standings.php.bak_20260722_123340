@@ -28,16 +28,10 @@ if ($isTestSite) {
 /**
  * weekly_standings.php
  *
- * VERSION: v064
- * LAST MODIFIED: 7/22/2026 12:27:54 pm
+ * VERSION: v063
+ * LAST MODIFIED: 7/22/2026 12:05:24 pm
  *
  * CHANGELOG:
- *
- * v064 (7/22/2026 12:27:54 pm)
- *   - NEW: Added a Print Full button for a complete archival report with Validation, Audit Trail, Pending Review, and all standings detail rows expanded automatically.
- *   - CHANGE: Full-report PDF filenames include _full_ before the selected snapshot timestamp so they remain separate from clean report PDFs.
- *   - CHANGE: Full-report printing restores every panel and detail row to its prior on-screen state after the print dialog closes.
- *   - POLISH: Added full-report print page-break protection to reduce awkward row/detail splitting across pages.
  *
  * v063 (7/22/2026 12:05:24 pm)
  *   - FIX: Clean PDF printing now excludes the release/version control row in addition to the existing page controls and detail panels.
@@ -2605,19 +2599,6 @@ if (!is_string($weeklyExportFilenameBase) || $weeklyExportFilenameBase === '') {
     $weeklyExportFilenameBase = 'weekly_standings';
 }
 
-$weeklyFullExportFilenameBase = 'weekly_standings_' . $selectedYear . '_' . $selectedRaceCode;
-if ($selectedRaceMeta['raceLabel'] !== '') {
-    $weeklyFullExportFilenameBase .= '_' . $selectedRaceMeta['raceLabel'];
-}
-$weeklyFullExportFilenameBase .= '_full';
-if ($selectedSnapshotId !== '') {
-    $weeklyFullExportFilenameBase .= '_' . $selectedSnapshotId;
-}
-$weeklyFullExportFilenameBase = preg_replace('/[^A-Za-z0-9_\-]/', '_', $weeklyFullExportFilenameBase);
-if (!is_string($weeklyFullExportFilenameBase) || $weeklyFullExportFilenameBase === '') {
-    $weeklyFullExportFilenameBase = 'weekly_standings_full';
-}
-
 $exportMode = isset($_GET['export']) ? trim((string)$_GET['export']) : '';
 if ($exportMode === 'xlsx') {
     $weeklyExcelRows = [];
@@ -3447,24 +3428,6 @@ if ($exportMode === 'xlsx') {
                 display: none !important;
             }
 
-            body.full-print-mode .pending-review-panel,
-            body.full-print-mode .audit-panel,
-            body.full-print-mode .details-content {
-                display: block !important;
-            }
-
-            body.full-print-mode .team-detail-row {
-                display: table-row !important;
-            }
-
-            body.full-print-mode .details-content,
-            body.full-print-mode .pending-review-panel,
-            body.full-print-mode .audit-panel,
-            body.full-print-mode tr {
-                break-inside: avoid;
-                page-break-inside: avoid;
-            }
-
             #resultsArea {
                 display: block !important;
             }
@@ -3708,11 +3671,6 @@ if ($exportMode === 'xlsx') {
                     id="weeklyPrintBtn"
                     onclick="printWeeklyReport()"
                     <?php echo ($selectedRace === null ? 'disabled' : ''); ?>>Print</button>
-            <button type="button"
-                    class="report-action-btn"
-                    id="weeklyFullPrintBtn"
-                    onclick="printFullWeeklyReport()"
-                    <?php echo ($selectedRace === null ? 'disabled' : ''); ?>>Print Full</button>
             <button type="button"
                     class="report-action-btn"
                     id="weeklySpreadsheetBtn"
@@ -4416,13 +4374,10 @@ function rrsgRaceNumberFromCode(code) {
 
 var rrsgOriginalDocumentTitle = document.title;
 var rrsgWeeklyExportFilenameBase = <?php echo json_encode($weeklyExportFilenameBase, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
-var rrsgWeeklyFullExportFilenameBase = <?php echo json_encode($weeklyFullExportFilenameBase, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
-var rrsgActivePrintFilenameBase = rrsgWeeklyExportFilenameBase;
-var rrsgFullPrintState = null;
 
 function rrsgPreparePrintTitle() {
-    if (rrsgActivePrintFilenameBase) {
-        document.title = rrsgActivePrintFilenameBase;
+    if (rrsgWeeklyExportFilenameBase) {
+        document.title = rrsgWeeklyExportFilenameBase;
     }
 }
 
@@ -4430,88 +4385,9 @@ function rrsgRestorePrintTitle() {
     document.title = rrsgOriginalDocumentTitle;
 }
 
-function rrsgRememberElementDisplay(element) {
-    return element ? element.style.display : null;
-}
-
-function rrsgRestoreElementDisplay(element, displayValue) {
-    if (element && displayValue !== null) {
-        element.style.display = displayValue;
-    }
-}
-
-function rrsgRestoreFullPrintState() {
-    var i;
-
-    if (!rrsgFullPrintState) {
-        return;
-    }
-
-    document.body.classList.remove('full-print-mode');
-    rrsgRestoreElementDisplay(rrsgFullPrintState.details, rrsgFullPrintState.detailsDisplay);
-    rrsgRestoreElementDisplay(rrsgFullPrintState.audit, rrsgFullPrintState.auditDisplay);
-    rrsgRestoreElementDisplay(rrsgFullPrintState.review, rrsgFullPrintState.reviewDisplay);
-
-    for (i = 0; i < rrsgFullPrintState.rows.length; i++) {
-        rrsgFullPrintState.rows[i].element.style.display = rrsgFullPrintState.rows[i].display;
-    }
-
-    rrsgFullPrintState = null;
-    rrsgActivePrintFilenameBase = rrsgWeeklyExportFilenameBase;
-}
-
-function rrsgAfterPrintCleanup() {
-    rrsgRestorePrintTitle();
-    rrsgRestoreFullPrintState();
-}
-
 function printWeeklyReport() {
-    rrsgActivePrintFilenameBase = rrsgWeeklyExportFilenameBase;
     rrsgPreparePrintTitle();
     window.print();
-}
-
-function printFullWeeklyReport() {
-    var details = document.getElementById('detailsContent');
-    var audit = document.getElementById('auditPanel');
-    var review = document.getElementById('reviewPanel');
-    var rows = document.getElementsByClassName('team-detail-row');
-    var rowStates = [];
-    var i;
-
-    if (rrsgFullPrintState) {
-        return;
-    }
-
-    for (i = 0; i < rows.length; i++) {
-        rowStates.push({
-            element: rows[i],
-            display: rows[i].style.display
-        });
-        rows[i].style.display = 'table-row';
-    }
-
-    rrsgFullPrintState = {
-        details: details,
-        detailsDisplay: rrsgRememberElementDisplay(details),
-        audit: audit,
-        auditDisplay: rrsgRememberElementDisplay(audit),
-        review: review,
-        reviewDisplay: rrsgRememberElementDisplay(review),
-        rows: rowStates
-    };
-
-    if (details) details.style.display = 'block';
-    if (audit) audit.style.display = 'block';
-    if (review) review.style.display = 'block';
-
-    document.body.classList.add('full-print-mode');
-    rrsgActivePrintFilenameBase = rrsgWeeklyFullExportFilenameBase;
-    rrsgPreparePrintTitle();
-
-    window.requestAnimationFrame(function () {
-        window.print();
-    });
 }
 
 function exportWeeklyStandingsXlsx() {
@@ -4817,7 +4693,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 window.addEventListener('resize', rrsgAlignReleaseVersionRowSoon);
 window.addEventListener('beforeprint', rrsgPreparePrintTitle);
-window.addEventListener('afterprint', rrsgAfterPrintCleanup);
+window.addEventListener('afterprint', rrsgRestorePrintTitle);
 </script>
 <?php include $_SERVER['DOCUMENT_ROOT'] . '/footer-light.php'; ?>
 </body>
