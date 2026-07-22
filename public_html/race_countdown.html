@@ -1,8 +1,8 @@
 <!--
   race_countdown.html
 
-  VERSION: v003
-  LAST MODIFIED: 6/13/2026 5:52:28 pm
+  VERSION: v004
+  LAST MODIFIED: 7/21/2026 2:19:13 am
 
   Purpose:
   - Dynamically reads /race_results/_race_results_schedule.json
@@ -14,6 +14,10 @@
   fetch('/race_countdown.html', { cache: 'no-store' })
 
   CHANGELOG:
+  v004 (7/21/2026)
+  - FIX: Keeps each countdown box horizontally centered when the file is opened standalone.
+  - SAFE: Preserves the existing WordPress side-panel layout by only changing the box's horizontal margin from 0 to auto.
+
   v003 (6/13/2026)
   - FIX: Only shows End of Segment text when the visible list includes that segment's final race.
   - CHANGE: Tightens segment divider spacing so the blue line sits between segment labels.
@@ -373,7 +377,7 @@
 }
 
 .mrl-countdown .mrl-box{
-  margin:-16px 0 !important;
+  margin:-16px auto !important;
 }
 
 .mrl-segment-group{
