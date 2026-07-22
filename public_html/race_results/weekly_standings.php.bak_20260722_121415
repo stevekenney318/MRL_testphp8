@@ -28,15 +28,10 @@ if ($isTestSite) {
 /**
  * weekly_standings.php
  *
- * VERSION: v063
- * LAST MODIFIED: 7/22/2026 12:05:24 pm
+ * VERSION: v062
+ * LAST MODIFIED: 7/5/2026 12:47:15 am
  *
  * CHANGELOG:
- *
- * v063 (7/22/2026 12:05:24 pm)
- *   - FIX: Clean PDF printing now excludes the release/version control row in addition to the existing page controls and detail panels.
- *   - CHANGE: Spreadsheet filenames now include the selected snapshot timestamp through milliseconds.
- *   - CHANGE: Print/PDF filenames now use the same race-based, snapshot-timestamped naming pattern as spreadsheet exports.
  *
  * v062 (7/5/2026 12:47:15 am)
  *   - CHANGE: Pending Review now uses release-level metadata instead of automatic race-folder under_review.flag state.
@@ -2584,21 +2579,6 @@ $segmentSummaryRows = rrsg_ranked_summary_rows($segmentStandings, 'total', $segm
 $seasonSummaryRows = rrsg_ranked_summary_rows($seasonStandings, 'total', $seasonTieMap);
 $weeklyWinnerSummaryRows = rrsg_weekly_winner_summary_rows($pointRaces, $weeklyWinners, $selectedRaceNumber);
 
-$weeklyExportFilenameBase = 'weekly_standings_' . $selectedYear . '_' . $selectedRaceCode;
-if ($selectedRaceMeta['raceLabel'] !== '') {
-    $weeklyExportFilenameBase .= '_' . $selectedRaceMeta['raceLabel'];
-}
-
-$selectedSnapshotId = rrsg_snapshot_id_from_file((string)$selectedRaceMeta['snapshotFile']);
-if ($selectedSnapshotId !== '') {
-    $weeklyExportFilenameBase .= '_' . $selectedSnapshotId;
-}
-
-$weeklyExportFilenameBase = preg_replace('/[^A-Za-z0-9_\-]/', '_', $weeklyExportFilenameBase);
-if (!is_string($weeklyExportFilenameBase) || $weeklyExportFilenameBase === '') {
-    $weeklyExportFilenameBase = 'weekly_standings';
-}
-
 $exportMode = isset($_GET['export']) ? trim((string)$_GET['export']) : '';
 if ($exportMode === 'xlsx') {
     $weeklyExcelRows = [];
@@ -2665,8 +2645,13 @@ if ($exportMode === 'xlsx') {
         ],
     ];
 
+    $filenameBase = 'weekly_standings_' . $selectedYear . '_' . $selectedRaceCode;
+    if ($selectedRaceMeta['raceLabel'] !== '') {
+        $filenameBase .= '_' . $selectedRaceMeta['raceLabel'];
+    }
+
     rrsg_send_weekly_standings_xlsx(
-        $weeklyExportFilenameBase,
+        $filenameBase,
         $tables,
         'Copyright © 2017-' . $selectedYear . ' Manlius Racing League — All rights reserved.'
     );
@@ -3419,7 +3404,6 @@ if ($exportMode === 'xlsx') {
             }
 
             .top-controls,
-            .release-version-row,
             .pending-review-panel,
             .audit-panel,
             .race-placeholder,
@@ -4372,21 +4356,7 @@ function rrsgRaceNumberFromCode(code) {
 }
 
 
-var rrsgOriginalDocumentTitle = document.title;
-var rrsgWeeklyExportFilenameBase = <?php echo json_encode($weeklyExportFilenameBase, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
-
-function rrsgPreparePrintTitle() {
-    if (rrsgWeeklyExportFilenameBase) {
-        document.title = rrsgWeeklyExportFilenameBase;
-    }
-}
-
-function rrsgRestorePrintTitle() {
-    document.title = rrsgOriginalDocumentTitle;
-}
-
 function printWeeklyReport() {
-    rrsgPreparePrintTitle();
     window.print();
 }
 
@@ -4692,8 +4662,6 @@ document.addEventListener('DOMContentLoaded', function () {
     updateNavButtons();
 });
 window.addEventListener('resize', rrsgAlignReleaseVersionRowSoon);
-window.addEventListener('beforeprint', rrsgPreparePrintTitle);
-window.addEventListener('afterprint', rrsgRestorePrintTitle);
 </script>
 <?php include $_SERVER['DOCUMENT_ROOT'] . '/footer-light.php'; ?>
 </body>
