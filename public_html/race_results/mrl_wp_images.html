@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MRL WP Images</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  *{box-sizing:border-box}
+  body{font-family:Arial,Helvetica,sans-serif;margin:24px;background:#1f1f1f;color:#f2f2f2}
+  h1{color:#ffd28a;margin:0 0 8px}
+  .panel{background:#2a2a2a;border:1px solid #555;border-radius:10px;padding:16px;margin-bottom:16px;max-width:860px}
+  label{display:inline-block;margin:8px 14px 8px 0;font-size:18px}
+  select,button{font-size:18px;padding:8px 10px;border-radius:7px;border:1px solid #777}
+  button{cursor:pointer;background:#1f6fd1;color:#fff;border-color:#3a8cff;font-weight:bold;margin:8px 8px 6px 0}
+  button.secondary{background:#444;border-color:#777}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  .choices{display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:10px;margin:14px 0}
+  .choice{display:flex;align-items:center;gap:9px;background:#202020;border:1px solid #555;border-radius:8px;padding:12px;font-size:18px;font-weight:bold}
+  .choice input{width:20px;height:20px}
+  .featured-options{margin:8px 0 0 29px}
+  #status{margin-top:12px;color:#9dffb3;font-weight:bold;line-height:1.45;white-space:pre-wrap}
+  .note{color:#d6d6d6;line-height:1.45}
+  .small{font-size:14px;color:#bbb}
+  .hidden{display:none}
+  @media(max-width:700px){.choices{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!--
+MRL WP IMAGES
+VERSION: v002
+LAST MODIFIED: 7/22/2026 3:58:40 pm
+
+CHANGELOG
+v002 (7/22/2026 3:58:40 pm)
+- ITERATION: Standardized all server filenames to mrl_wp_images.
+- ITERATION: Clarified that the webpage runs from /race_results/ on the server.
+- ITERATION: Local helper files install under the user-selected MRL folder\mrl_wp_images.
+- NEW: One selection page for Top 5, Hero, and Featured Image Search.
+- NEW: Any one output or any combination can be selected.
+- NEW: Shared race data supplies year, race, track, week, and winner with no duplicate typing.
+- CHANGE: Hero capture uses the locally installed v002 headless helper; no visible helper Chrome window.
+- CHANGE: Renamed from MRL Race Images to MRL WP Images.
+-->
+
+<h1>MRL WP Images</h1>
+
+<div class="panel note">
+  Choose the main <b>Manlius Racing League</b> folder once, select the completed race,
+  choose any output combination, and click <b>Generate Selected</b>.
+  <br><br>
+  <b>Top 5</b> creates the PNG from the stored weekly standings PDF.<br>
+  <b>Hero</b> creates the NASCAR winner JPG through the hidden local helper.<br>
+  <b>Featured</b> opens a pre-filled Google Images search using the same race data.
+</div>
+
+<div class="panel">
+  <button id="chooseFolderBtn" class="secondary">Choose MRL Folder</button>
+
+  <div>
+    <label>Year:
+      <select id="yearSelect"></select>
+    </label>
+
+    <label>Race:
+      <select id="raceSelect"></select>
+    </label>
+  </div>
+
+  <div class="choices">
+    <label class="choice"><input id="makeTop5" type="checkbox" checked>Top 5 Image</label>
+    <label class="choice"><input id="makeHero" type="checkbox" checked>Hero Image</label>
+    <label class="choice"><input id="makeFeatured" type="checkbox">Featured Image</label>
+  </div>
+
+  <div class="featured-options">
+    <label>Featured search:
+      <select id="featuredMode">
+        <option value="car driver trophy team" selected>Best Match</option>
+        <option value="winner">Winner</option>
+        <option value="victory lane">Victory Lane</option>
+        <option value="trophy">Trophy</option>
+        <option value="team celebration">Team Celebration</option>
+      </select>
+    </label>
+  </div>
+
+  <button id="generateBtn">Generate Selected</button>
+  <button id="selectAllBtn" class="secondary">Select All</button>
+  <button id="clearAllBtn" class="secondary">Clear All</button>
+
+  <div id="status">Waiting for folder selection...</div>
+  <div class="small">
+    Hero image requires the one-time local <b>MRL WP Images Helper v002</b> installation.
+    Featured Image opens the search result so you can choose and save the preferred copyrighted photo.
+  </div>
+</div>
+
+<canvas id="pdfCanvas" class="hidden"></canvas>
+<canvas id="outputCanvas" class="hidden"></canvas>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+const VERSION = "v002";
+const RACE_DATA_URL = "/race_results/mrl_wp_images_data.php";
+const SETTINGS = {
+  referenceWidth: 1600,
+  renderQuality: 2,
+  cropX: 102,
+  cropY: 110,
+  cropW: 628,
+  cropH: 132,
+  margin: 7
+};
+
+let rootDirHandle = null;
+let raceData = [];
+
+const statusEl = document.getElementById("status");
+const yearSelect = document.getElementById("yearSelect");
+const raceSelect = document.getElementById("raceSelect");
+const pdfCanvas = document.getElementById("pdfCanvas");
+const outputCanvas = document.getElementById("outputCanvas");
+
+function setStatus(msg) { statusEl.textContent = msg; }
+function selectedRace() {
+  const n = Number(raceSelect.value);
+  return raceData.find(r => Number(r.race_number) === n) || null;
+}
+
+async function loadCompletedRaces() {
+  const year = Number(yearSelect.value);
+  setStatus(`Loading completed MRL races for ${year}...`);
+
+  try {
+    const response = await fetch(
+      `${RACE_DATA_URL}?year=${encodeURIComponent(year)}&_=${Date.now()}`,
+      { cache: "no-store" }
+    );
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const data = await response.json();
+    if (!data.ok) throw new Error(data.error || "MRL race data request failed.");
+
+    raceData = Array.isArray(data.races) ? data.races : [];
+    raceSelect.innerHTML = "";
+
+    if (!raceData.length) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "No completed races found";
+      raceSelect.appendChild(opt);
+      setStatus(`No completed MRL races were found for ${year}.`);
+      return;
+    }
+
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Select Race";
+    raceSelect.appendChild(placeholder);
+
+    for (const race of raceData) {
+      const opt = document.createElement("option");
+      opt.value = String(race.race_number);
+      opt.textContent = `${race.race_code} ${race.race_name}`;
+      raceSelect.appendChild(opt);
+    }
+
+    const latest = raceData[raceData.length - 1];
+    raceSelect.value = String(latest.race_number);
+    updateRaceStatus();
+  } catch (err) {
+    raceData = [];
+    raceSelect.innerHTML = '<option value="">Race data unavailable</option>';
+    setStatus(`Could not load completed MRL races:\n${err.message}`);
+  }
+}
+
+function updateRaceStatus() {
+  const race = selectedRace();
+  if (!race) {
+    setStatus("Select a completed MRL race.");
+    return;
+  }
+  setStatus(
+    `${race.race_code} ${race.race_name}\n` +
+    `Week: ${race.week}\n` +
+    `Winner: ${race.winner}\n` +
+    `Release: ${race.release_id || race.snapshot}`
+  );
+}
+
+function populateYears() {
+  for (let year = 2026; year >= 2008; year--) {
+    const opt = document.createElement("option");
+    opt.value = String(year);
+    opt.textContent = String(year);
+    if (year === 2026) opt.selected = true;
+    yearSelect.appendChild(opt);
+  }
+}
+
+async function verifyPermission(handle, readWrite) {
+  const opts = readWrite ? {mode:"readwrite"} : {};
+  if ((await handle.queryPermission(opts)) === "granted") return true;
+  return (await handle.requestPermission(opts)) === "granted";
+}
+
+async function chooseFolder() {
+  if (!window.showDirectoryPicker) {
+    setStatus("This browser does not support folder access. Use Chrome or Edge.");
+    return;
+  }
+  try {
+    rootDirHandle = await window.showDirectoryPicker({mode:"readwrite"});
+    setStatus("MRL folder selected.\nChoose outputs and click Generate Selected.");
+  } catch (err) {
+    if (err.name !== "AbortError") setStatus(`Folder selection error:\n${err.message}`);
+  }
+}
+
+async function getSubFolder(parent, name) {
+  return await parent.getDirectoryHandle(name, {create:false});
+}
+async function getSelectedYearFolder(year) {
+  if (!rootDirHandle) throw new Error("Choose the MRL folder first.");
+  if (String(rootDirHandle.name) === String(year)) return rootDirHandle;
+  return await getSubFolder(rootDirHandle, String(year));
+}
+function pdfFileName(year, week) {
+  return `${year}_WK_${String(week).padStart(2,"0")}_RESULTS.pdf`;
+}
+function top5FileName(year, week) {
+  return `${year} Week ${week} Top 5.png`;
+}
+async function renderPdfToCanvas(file) {
+  const buffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data:buffer}).promise;
+  const page = await pdf.getPage(1);
+  const baseViewport = page.getViewport({scale:1});
+  const targetWidth = SETTINGS.referenceWidth * SETTINGS.renderQuality;
+  const viewport = page.getViewport({scale:targetWidth / baseViewport.width});
+  pdfCanvas.width = Math.round(viewport.width);
+  pdfCanvas.height = Math.round(viewport.height);
+  await page.render({canvasContext:pdfCanvas.getContext("2d"),viewport}).promise;
+}
+function cropTop5() {
+  const q = SETTINGS.renderQuality, sm = SETTINGS.margin*q;
+  const sx=SETTINGS.cropX*q, sy=SETTINGS.cropY*q, sw=SETTINGS.cropW*q, sh=SETTINGS.cropH*q;
+  outputCanvas.width=sw+sm*2; outputCanvas.height=sh+sm*2;
+  const ctx=outputCanvas.getContext("2d");
+  ctx.imageSmoothingEnabled=false;
+  ctx.fillStyle="white"; ctx.fillRect(0,0,outputCanvas.width,outputCanvas.height);
+  ctx.drawImage(pdfCanvas,sx,sy,sw,sh,sm,sm,sw,sh);
+}
+function canvasToBlob(canvas) {
+  return new Promise((resolve,reject) =>
+    canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("PNG creation failed.")), "image/png")
+  );
+}
+async function generateTop5(race) {
+  const year = String(race.year);
+  const week = Number(race.week);
+  const yearFolder = await getSelectedYearFolder(year);
+  const weeklyFolder = await getSubFolder(yearFolder, "Weekly Updates");
+  const imagesFolder = await yearFolder.getDirectoryHandle("images", {create:true});
+  const pdfName = pdfFileName(year,week);
+  const pngName = top5FileName(year,week);
+  const pdfHandle = await weeklyFolder.getFileHandle(pdfName, {create:false});
+  if (!(await verifyPermission(pdfHandle,false))) throw new Error("Permission denied reading the PDF.");
+  await renderPdfToCanvas(await pdfHandle.getFile());
+  cropTop5();
+  const blob = await canvasToBlob(outputCanvas);
+  const outHandle = await imagesFolder.getFileHandle(pngName, {create:true});
+  if (!(await verifyPermission(outHandle,true))) throw new Error("Permission denied writing the Top 5 PNG.");
+  const writable = await outHandle.createWritable();
+  await writable.write(blob); await writable.close();
+  return `${year}\\images\\${pngName}`;
+}
+function launchHero(race) {
+  const query = new URLSearchParams({
+    year:String(race.year),
+    race:String(race.race_number),
+    winner:race.winner,
+    track:race.race_name
+  });
+  window.location.href = `mrlwpimages://generate?${query.toString()}`;
+}
+function openFeaturedSearch(race) {
+  const mode = document.getElementById("featuredMode").value;
+  const query = [race.year, race.race_name, race.winner, mode].filter(Boolean).join(" ");
+  const url = "https://www.google.com/search?tbm=isch&q=" + encodeURIComponent(query);
+  window.open(url, "_blank", "noopener");
+  return query;
+}
+
+async function generateSelected() {
+  const race = selectedRace();
+  if (!race) { setStatus("Select a completed MRL race first."); return; }
+
+  const doTop5 = document.getElementById("makeTop5").checked;
+  const doHero = document.getElementById("makeHero").checked;
+  const doFeatured = document.getElementById("makeFeatured").checked;
+  if (!doTop5 && !doHero && !doFeatured) {
+    setStatus("Select at least one output.");
+    return;
+  }
+  if (doTop5 && !rootDirHandle) {
+    setStatus("Choose the main Manlius Racing League folder before generating Top 5.");
+    return;
+  }
+
+  const lines = [`${race.race_code} ${race.race_name}`, `Winner: ${race.winner}`, ""];
+  try {
+    if (doTop5) {
+      setStatus(lines.concat("Generating Top 5...").join("\n"));
+      lines.push("Top 5: " + await generateTop5(race));
+    }
+    if (doFeatured) {
+      lines.push("Featured search: " + openFeaturedSearch(race));
+    }
+    if (doHero) {
+      lines.push("Hero: starting hidden helper...");
+      setStatus(lines.join("\n"));
+      launchHero(race);
+      return;
+    }
+    setStatus(lines.concat("", "Complete.").join("\n"));
+  } catch (err) {
+    setStatus(lines.concat("", "ERROR:", err.message).join("\n"));
+  }
+}
+
+document.getElementById("chooseFolderBtn").addEventListener("click",chooseFolder);
+document.getElementById("generateBtn").addEventListener("click",generateSelected);
+document.getElementById("selectAllBtn").addEventListener("click",()=>{
+  ["makeTop5","makeHero","makeFeatured"].forEach(id=>document.getElementById(id).checked=true);
+});
+document.getElementById("clearAllBtn").addEventListener("click",()=>{
+  ["makeTop5","makeHero","makeFeatured"].forEach(id=>document.getElementById(id).checked=false);
+});
+yearSelect.addEventListener("change",loadCompletedRaces);
+raceSelect.addEventListener("change",updateRaceStatus);
+
+populateYears();
+loadCompletedRaces();
+</script>
+</body>
+</html>
