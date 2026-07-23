@@ -1,22 +1,11 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><title>MRL WP Images</title><meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-*{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:18px 0;font-size:80%;background:#1f1f1f;color:#f2f2f2}.page-shell{width:min(980px,calc(100% - 36px));margin:0 auto}h1{max-width:900px;margin:0 auto 10px}h1,h2{color:#ffd28a;margin:0 0 10px}.panel{background:#2a2a2a;border:1px solid #555;border-radius:10px;padding:12px;margin:0 auto 16px;max-width:900px}label{display:inline-block;margin:8px 14px 8px 0;font-size:14px}select,button{font-size:14px;padding:8px 10px;border-radius:7px;border:1px solid #777}button{cursor:pointer;background:#1f6fd1;color:#fff;border-color:#3a8cff;font-weight:bold;margin:8px 8px 6px 0}button.secondary{background:#444;border-color:#777}button:disabled{opacity:.45;cursor:not-allowed}.choices{display:grid;grid-template-columns:repeat(3,minmax(190px,1fr));gap:10px;margin:14px 0}.choice{display:flex;align-items:center;gap:9px;background:#202020;border:1px solid #555;border-radius:8px;padding:12px;font-size:14px;font-weight:bold}.choice input{width:20px;height:20px}.status{margin-top:12px;color:#9dffb3;font-weight:bold;line-height:1.45;white-space:pre-wrap}.note{color:#d6d6d6;line-height:1.45}.small{font-size:14px;color:#bbb}.library-grid{display:grid;grid-template-columns:minmax(280px,1fr) minmax(360px,1.3fr);gap:18px}.card-preview{background:#111;border:1px solid #555;padding:8px;overflow:auto}.card-preview canvas{max-width:100%;height:auto}.urlbox{font-family:Consolas,monospace;background:#171717;border:1px solid #555;padding:10px;word-break:break-all;margin-top:10px}.progress{max-height:240px;overflow:auto;background:#171717;border:1px solid #555;padding:10px;white-space:pre-wrap}.hidden{display:none}@media(max-width:780px){.choices,.library-grid{grid-template-columns:1fr}}
+*{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;margin:18px;font-size:80%;background:#1f1f1f;color:#f2f2f2}h1,h2{color:#ffd28a;margin:0 0 10px}.panel{background:#2a2a2a;border:1px solid #555;border-radius:10px;padding:12px;margin-bottom:16px;max-width:900px}label{display:inline-block;margin:8px 14px 8px 0;font-size:14px}select,button{font-size:14px;padding:8px 10px;border-radius:7px;border:1px solid #777}button{cursor:pointer;background:#1f6fd1;color:#fff;border-color:#3a8cff;font-weight:bold;margin:8px 8px 6px 0}button.secondary{background:#444;border-color:#777}button:disabled{opacity:.45;cursor:not-allowed}.choices{display:grid;grid-template-columns:repeat(3,minmax(190px,1fr));gap:10px;margin:14px 0}.choice{display:flex;align-items:center;gap:9px;background:#202020;border:1px solid #555;border-radius:8px;padding:12px;font-size:14px;font-weight:bold}.choice input{width:20px;height:20px}.status{margin-top:12px;color:#9dffb3;font-weight:bold;line-height:1.45;white-space:pre-wrap}.note{color:#d6d6d6;line-height:1.45}.small{font-size:14px;color:#bbb}.library-grid{display:grid;grid-template-columns:minmax(280px,1fr) minmax(360px,1.3fr);gap:18px}.card-preview{background:#111;border:1px solid #555;padding:8px;overflow:auto}.card-preview canvas{max-width:100%;height:auto}.urlbox{font-family:Consolas,monospace;background:#171717;border:1px solid #555;padding:10px;word-break:break-all;margin-top:10px}.progress{max-height:240px;overflow:auto;background:#171717;border:1px solid #555;padding:10px;white-space:pre-wrap}.hidden{display:none}@media(max-width:780px){.choices,.library-grid{grid-template-columns:1fr}}
 </style></head><body>
-<div class="page-shell">
-<!--
-MRL WP IMAGES
-VERSION: v006
-LAST MODIFIED: 7/23/2026 3:26:22 pm
-
-CHANGELOG
-v006 (7/23/2026 3:26:22 pm)
-- CENTERED: Main MRL WP Images interface on wide displays.
-- CHANGE: Winning Driver Card now launches the WebView2 v006 clean-HTML workflow.
-- NOTE: Helper saves the live NASCAR HTML locally, creates a cleaned HTML copy, then captures only the driver card.
--->
-<h1>MRL WP Images <span class="small">v006</span></h1>
-<div class="panel note"><b>Weekly Images</b> keeps the race selection and winner information you liked. <b>Driver Card</b> uses the selected race winner and the local MRL helper only when that yearly card is missing. The helper creates a cleaned local HTML copy before saving the card.</div>
+<!-- MRL WP IMAGES | VERSION: v004 | FIX: 7/23/2026 7:56:44 am | LAST MODIFIED: 7/23/2026 6:12:06 am | 7/23/2026 2:03:59 am -->
+<h1>MRL WP Images <span class="small">v004</span></h1>
+<div class="panel note"><b>Weekly Images</b> keeps the race selection and winner information you liked. <b>Driver Card</b> uses the selected race winner and the local MRL helper only when that yearly card is missing.</div>
 <div class="panel"><h2>Weekly Images</h2><button id="chooseFolder" class="secondary">Choose MRL Folder</button><div><label>Year: <select id="year"></select></label><label>Race: <select id="race"></select></label></div>
 <div class="choices"><label class="choice"><input id="top5" type="checkbox">Top 5 Image</label><label class="choice"><input id="driverCard" type="checkbox" checked>Driver Card</label><label class="choice"><input id="featured" type="checkbox">Featured Image</label></div>
 <label>Featured search: <select id="featuredMode"><option value="car driver trophy team">Best Match</option><option value="winner">Winner</option><option value="victory lane">Victory Lane</option><option value="trophy">Trophy</option><option value="team celebration">Team Celebration</option></select></label><br><button id="generate">Generate Selected</button><button id="selectAll" class="secondary">Select All</button><button id="clearAll" class="secondary">Clear All</button><div id="weeklyStatus" class="status">Loading races...</div></div>
@@ -104,6 +93,4 @@ const oldUpdateRace=updateRace;
 updateRace=function(){oldUpdateRace();refreshWinnerPanel();}
 
 loadRaces();
-</script>
-</div>
-</body></html>
+</script></body></html>

@@ -1,14 +1,10 @@
 <?php
 /*
 MRL WP IMAGES DATA
-VERSION: v006
-LAST MODIFIED: 7/23/2026 3:26:22 pm
+VERSION: v004
+LAST MODIFIED: 7/23/2026 7:56:44 am
 
 CHANGELOG
-v006 (7/23/2026 3:26:22 pm)
-- COORDINATED RELEASE: Supports the WebView2 v006 clean-HTML capture helper.
-- PRESERVE: Existing card status, JPEG upload, race discovery, and PHP 7.3 behavior.
-
 v004 FIX (7/23/2026 7:56:44 am)
 - FIX: Restored v003 race-data fallback without PHP function-name collisions.
 - FIX: Supports winning-driver card status and JPEG uploads.
