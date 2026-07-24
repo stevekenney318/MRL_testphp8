@@ -1,0 +1,83 @@
+{
+  "enabled": true,
+  "timezone": "America/New_York",
+  "year": 2026,
+  "dry_run": false,
+  "notes": [
+    "Place this file at race_results/_scheduler/schedule.json.",
+    "Scripts are relative to the folder containing cron_master_scheduler.php.",
+    "One Hostinger cron calls cron_master_scheduler.php every minute.",
+    "race_results_monitor uses type auto_race_monitor; _race_results_schedule.json supplies next-race timing.",
+    "race_results_revision_monitor uses type auto_revision_monitor; it stays on normal daily times until a new final-result handoff is detected, then temporarily increases cadence."
+  ],
+  "tasks": {
+    "race_results_monitor": {
+      "enabled": true,
+      "type": "auto_race_monitor",
+      "script": "race_results_monitor.php",
+      "args": [
+        "{{year}}"
+      ],
+      "lock_minutes": 10,
+      "timeout_seconds": 300,
+      "auto_rules": {
+        "more_than_24h_before_start": 0,
+        "24h_to_6h_before_start": 120,
+        "6h_to_2h_before_start": 30,
+        "2h_to_start": 15,
+        "start_until_lap_found": 5,
+        "lap_found": 5,
+        "lap_percent_cadence": [
+          {
+            "from_percent": 0,
+            "to_percent": 50,
+            "interval_minutes": 5,
+            "label": "0%-50% complete"
+          },
+          {
+            "from_percent": 50,
+            "to_percent": 75,
+            "interval_minutes": 3,
+            "label": "50%-75% complete"
+          },
+          {
+            "from_percent": 75,
+            "to_percent": 90,
+            "interval_minutes": 2,
+            "label": "75%-90% complete"
+          },
+          {
+            "from_percent": 90,
+            "to_percent": 101,
+            "interval_minutes": 1,
+            "label": "90%-100% complete"
+          }
+        ],
+        "race_complete_waiting_final": 1
+      },
+      "description": "Race-aware monitor schedule driven by _race_results_schedule.json next_race.start_at and _race_results_monitor_state.json lap/final state."
+    },
+    "race_results_revision_monitor": {
+      "enabled": true,
+      "type": "auto_revision_monitor",
+      "script": "race_results_revision_monitor.php",
+      "args": [
+        "{{year}}"
+      ],
+      "lock_minutes": 30,
+      "timeout_seconds": 600,
+      "normal_times": [
+        "00:00",
+        "06:00",
+        "12:00",
+        "18:00"
+      ],
+      "auto_rules": {
+        "post_final_0_to_3h": 5,
+        "post_final_3h_to_12h": 60,
+        "post_final_12h_to_48h": 360
+      },
+      "description": "Revision-aware schedule. Normal daily checks are used until a new final-result handoff is detected; then revision monitor runs more frequently for post-race stabilization before scaling back."
+    }
+  }
+}

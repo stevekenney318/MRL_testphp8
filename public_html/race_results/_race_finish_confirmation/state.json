@@ -1,0 +1,12 @@
+{
+    "signature": "MRL_RACE_FINISH_CONFIRMATION_MONITOR v002 STATE",
+    "version": "v002",
+    "updated_at": "2026-07-24 18:02:01",
+    "finish_watch_active": false,
+    "idle_reason": "Existing MRL race status is stale; ignoring old late-race/checkered data.",
+    "last_progress_percent": 100,
+    "last_flag_label": "CHECKERED",
+    "last_status_source": "_mrl_nascar_live_status.json",
+    "last_status_checked_at": "2026-07-19 23:29:03",
+    "last_raw_hashes": []
+}
