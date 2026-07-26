@@ -90,7 +90,7 @@
             "lock_minutes": 2,
             "timeout_seconds": 90,
             "run_method": "url",
-            "description": "Observation-only MRL vs NASCAR vs secondary-source late-race monitor. Cup Series only; does not influence MRL decisions."
+            "description": "Observation-only late-race secondary-source monitor. Reads existing MRL lap/status JSON and does not influence MRL decisions."
         }
     }
 }

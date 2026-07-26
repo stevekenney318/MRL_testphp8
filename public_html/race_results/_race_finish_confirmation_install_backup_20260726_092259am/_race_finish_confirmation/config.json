@@ -1,0 +1,35 @@
+{
+    "enabled": true,
+    "year": 2026,
+    "timezone": "America/New_York",
+    "finish_watch_start_percent": 90,
+    "status_max_age_minutes_before_activation": 30,
+    "post_checkered_monitor_minutes": 180,
+    "timeout_seconds": 10,
+    "cadence_minutes": {
+        "90_to_96_999_percent": 5,
+        "97_to_99_999_percent": 2,
+        "white_flag": 1,
+        "checkered": 1,
+        "unknown_progress": 5
+    },
+    "existing_mrl_status_files": [
+        "_mrl_nascar_live_status.json",
+        "_race_results_monitor_state.json"
+    ],
+    "sources": {
+        "racing_reference": {
+            "enabled": true,
+            "race_url_template": "https://www.racing-reference.info/race-results/{year}-{race_number}/W",
+            "season_url_template": "https://www.racing-reference.info/season-stats/{year}/W"
+        },
+        "jayski": {
+            "enabled": true,
+            "index_url_template": "https://www.jayski.com/nascar-cup-series/{year}-nascar-cup-series-race-results/"
+        }
+    },
+    "retention": {
+        "history_files": 2500,
+        "raw_files": 500
+    }
+}

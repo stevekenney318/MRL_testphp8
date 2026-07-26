@@ -20,17 +20,15 @@
   "sources": {
     "racing_reference": {
       "enabled": true,
-      "race_url_template": "https://www.racing-reference.info/race-results/{year}-{race_number}/W",
-      "season_url_template": "https://www.racing-reference.info/season-stats/{year}/W"
+      "url": "https://www.racing-reference.info/yeardet/{year}/W"
     },
     "jayski": {
       "enabled": true,
-      "index_url_template": "https://www.jayski.com/nascar-cup-series/{year}-nascar-cup-series-race-results/"
+      "url": "https://www.jayski.com/nascar-cup-series/{year}-nascar-cup-series-race-results/"
     }
   },
   "retention": {
     "history_files": 2500,
     "raw_files": 500
-  },
-  "required_nascar_series_id": 1
+  }
 }

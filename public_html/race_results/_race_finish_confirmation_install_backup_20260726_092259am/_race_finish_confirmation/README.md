@@ -1,7 +1,7 @@
 # MRL Race Finish Confirmation Monitor
 
-**Version:** v004  
-**Last modified:** 7/26/2026 9:22:59 am America/New_York
+**Version:** v003  
+**Last modified:** 7/26/2026 7:16:39 am America/New_York
 
 ## Purpose
 
@@ -53,12 +53,3 @@ The installer backs up existing monitor, dashboard, config, and scheduler config
 ## Saved files
 
 Changed source HTML is saved under `_race_finish_confirmation/raw/`. Every due observation is saved under `_race_finish_confirmation/history/`.
-
-
-## v004 changes (7/26/2026 9:22:59 am)
-
-- Adds four-way dashboard comparison: MRL, NASCAR, Racing-Reference, and Jayski.
-- Requires NASCAR Cup Series `series_id = 1` before finish-watch activation.
-- Uses the tested Chrome-like request headers and persistent cookies.
-- Detects challenge pages explicitly and retries once.
-- The installer clears prior runtime observations so the new comparison history starts clean.

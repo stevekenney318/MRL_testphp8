@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * race_finish_confirmation_dashboard.php
  *
- * VERSION: v004
- * LAST MODIFIED: 7/26/2026 9:22:59 am
+ * VERSION: v003
+ * LAST MODIFIED: 7/26/2026 7:16:39 am
  *
  * DESCRIPTION:
  * Live read-only dashboard for race_finish_confirmation_monitor.php.
@@ -15,7 +15,7 @@ declare(strict_types=1);
 
 date_default_timezone_set('America/New_York');
 
-const RFCD_VERSION = 'v004';
+const RFCD_VERSION = 'v003';
 
 $baseDir = __DIR__;
 $dataDir = $baseDir . '/_race_finish_confirmation';
@@ -72,7 +72,6 @@ table{width:100%;border-collapse:collapse;background:var(--panel);border:1px sol
 th,td{padding:9px 10px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}th{position:sticky;top:0;background:var(--panel2)}
 a{color:var(--accent)}.section-title{margin:22px 0 9px;font-size:20px}.notice{border-left:4px solid var(--accent);padding:12px 14px;background:var(--panel);margin-bottom:14px}
 .actions{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}.button{display:inline-block;background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;text-decoration:none;color:var(--text)}
-@media(max-width:1200px){.sources{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.sources{grid-template-columns:1fr}}
 @media(max-width:520px){.grid{grid-template-columns:1fr}.wrap{padding:12px}h1{font-size:23px}}
 </style>
@@ -80,7 +79,7 @@ a{color:var(--accent)}.section-title{margin:22px 0 9px;font-size:20px}.notice{bo
 <body>
 <div class="wrap">
 <h1>Race Finish Confirmation Monitor</h1>
-<div class="sub">Read-only observation dashboard · MRL vs NASCAR vs secondary sources · <?= htmlspecialchars(RFCD_VERSION) ?> · Auto-refreshes every 30 seconds</div>
+<div class="sub">Read-only observation dashboard · Existing MRL lap/status data · <?= htmlspecialchars(RFCD_VERSION) ?> · Auto-refreshes every 30 seconds</div>
 
 <div class="notice"><strong>No MRL decisions are made here.</strong> This monitor does not influence scoring, final detection, snapshots, revision monitoring, email, or standings. It is launched by the existing master scheduler and reads existing MRL lap/status JSON.</div>
 
@@ -97,7 +96,7 @@ a{color:var(--accent)}.section-title{margin:22px 0 9px;font-size:20px}.notice{bo
 </div>
 
 <div class="sources">
-<?php foreach (['mrl'=>'MRL Race Status','nascar'=>'NASCAR Live Source','racing_reference'=>'Racing-Reference','jayski'=>'Jayski'] as $key=>$label):
+<?php foreach (['nascar'=>'NASCAR Live JSON','racing_reference'=>'Racing-Reference','jayski'=>'Jayski'] as $key=>$label):
 $s = isset($sources[$key]) && is_array($sources[$key]) ? $sources[$key] : [];
 ?>
 <div class="card">
@@ -108,14 +107,6 @@ $s = isset($sources[$key]) && is_array($sources[$key]) ? $sources[$key] : [];
 <?php if (!empty($s['title'])): ?><div class="small">Title: <?= rfcd_h((string)$s['title']) ?></div><?php endif; ?>
 <?php if (!empty($s['matched_tokens'])): ?><div class="small">Matched: <?= rfcd_h(implode(', ',(array)$s['matched_tokens'])) ?></div><?php endif; ?>
 <?php if (!empty($s['completion_terms_found'])): ?><div class="small">Result terms: <?= rfcd_h(implode(', ',(array)$s['completion_terms_found'])) ?></div><?php endif; ?>
-<?php if ($key === 'mrl'): ?>
-<div class="small">MRL race: <?= rfcd_h((string)($s['race_code'] ?? '')) ?> · <?= rfcd_h((string)($s['race_name'] ?? 'Unknown')) ?></div>
-<div class="small">Track: <?= rfcd_h((string)($s['track_name'] ?? 'Unknown')) ?> · NASCAR series ID: <?= rfcd_h((string)($s['nascar_series_id'] ?? 0)) ?></div>
-<?php endif; ?>
-<?php if ($key === 'nascar'): ?>
-<div class="small">Series ID: <?= rfcd_h((string)($s['series_id'] ?? 0)) ?> · Race ID: <?= rfcd_h((string)($s['race_id'] ?? 0)) ?></div>
-<div class="small">Race: <?= rfcd_h((string)($s['race_name'] ?? 'Unknown')) ?> · Track: <?= rfcd_h((string)($s['track_name'] ?? 'Unknown')) ?></div>
-<?php endif; ?>
 <?php if ($key === 'racing_reference'): ?>
 <div class="small">Race page: <?= !empty($s['race_results_posted']) ? 'RESULTS POSTED' : (!empty($s['waiting_phrase_present']) ? 'WAITING PHRASE PRESENT' : 'UNCLASSIFIED') ?></div>
 <div class="small">Driver rows: <?= rfcd_h((string)($s['driver_result_rows'] ?? 0)) ?> · Season row: <?= !empty($s['season_row_completed']) ? 'COMPLETED' : 'WAITING/UNKNOWN' ?></div>
