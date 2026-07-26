@@ -11,15 +11,10 @@ if (!headers_sent()) {
 /**
  * race_results_dashboard.php
  *
- * VERSION: v022
- * LAST MODIFIED: 7/26/2026 10:41:38 am
+ * VERSION: v021
+ * LAST MODIFIED: 6/21/2026 10:42:17 pm
  *
  * CHANGELOG:
- *
- * v022 (7/26/2026 10:41:38 am)
- *   - CHANGE: NASCAR At a Glance now displays only Cup Series live data.
- *   - CHANGE: Non-Cup or unavailable cache data is hidden and replaced with Waiting for race start.
- *   - NOTE: The underlying cache remains available for technical use but is not shown on the operator dashboard.
  *
  * v021 (6/21/2026)
  *   - CHANGE: System Snapshot now shows Revision Monitor Watching handoff status instead of latest revision/classification snapshot pair.
@@ -94,7 +89,7 @@ if (!headers_sent()) {
  *   - NEW: Added scheduler heartbeat freshness status to separate current cron heartbeat from scheduler/task configuration.
  */
 
-const RACE_RESULTS_DASHBOARD_VERSION = 'v022';
+const RACE_RESULTS_DASHBOARD_VERSION = 'v021';
 
 // visual id of sandbox/test site only
 $host = strtolower($_SERVER['HTTP_HOST'] ?? '');
@@ -3382,21 +3377,7 @@ $dashCronDetail = (string)$schedulerHeartbeatFreshness['age_text'] !== '' ? (str
     <?php else: ?>
         <div class="empty">No stored race status found yet. It should appear after race_results_monitor.php runs.</div>
     <?php endif; ?>
-    <?php
-    $nascarAtGlanceCache = rr_dash_load_json_file(__DIR__ . '/_mrl_nascar_live_status.json');
-    $nascarAtGlanceSeriesId = (int)($nascarAtGlanceCache['series_id'] ?? 0);
-    $nascarAtGlanceIsCup = ($nascarAtGlanceSeriesId === 1);
-
-    if ($nascarAtGlanceIsCup && is_file(__DIR__ . '/mrl_nascar_at_a_glance_panel.php')) {
-        require __DIR__ . '/mrl_nascar_at_a_glance_panel.php';
-    } else {
-?>
-        <div class="race-progress-row" style="margin-top:14px;">
-            <span class="pill"><strong>NASCAR At a Glance:</strong> Waiting for race start</span>
-        </div>
-<?php
-    }
-?>
+    <?php if (is_file(__DIR__ . '/mrl_nascar_at_a_glance_panel.php')) { require __DIR__ . '/mrl_nascar_at_a_glance_panel.php'; } ?>
 </div>
 
 <div class="grid race-grid">

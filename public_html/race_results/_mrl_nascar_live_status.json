@@ -1,7 +1,7 @@
 {
     "signature": "MRL_NASCAR_LIVE_HELPER v002",
     "version": "v002",
-    "generated_at": "2026-07-26 10:04:02",
+    "generated_at": "2026-07-26 10:35:02",
     "ok": true,
     "message": "Live feed loaded.",
     "source_url": "https://cf.nascar.com/live/feeds/live-feed.json",

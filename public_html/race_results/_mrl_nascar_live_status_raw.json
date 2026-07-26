@@ -1,6 +1,6 @@
 {
     "signature": "MRL_NASCAR_LIVE_HELPER v002 RAW",
-    "generated_at": "2026-07-26 10:04:02",
+    "generated_at": "2026-07-26 10:35:02",
     "source_url": "https://cf.nascar.com/live/feeds/live-feed.json",
     "data": {
         "lap_number": 100,
@@ -3312,8 +3312,8 @@
         "run_id": 8,
         "run_name": "Pennzoil 250",
         "series_id": 2,
-        "time_of_day": 36220,
-        "time_of_day_os": "2026-07-26T10:03:40.2967672-04:00",
+        "time_of_day": 38080,
+        "time_of_day_os": "2026-07-26T10:34:40.3841118-04:00",
         "track_id": 123,
         "track_length": 2.5,
         "track_name": "Indianapolis Motor Speedway",
