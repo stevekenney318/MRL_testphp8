@@ -125,3 +125,5 @@ public_html/race_results/_weekly_standings_audit_index.json
 public_html/race_results/_weekly_standings_audit_index.json
 public_html/race_results/_mrl_nascar_live_status.json
 public_html/race_results/_mrl_nascar_live_status_raw.json
+/public_html/race_results/_race_finish_confirmation/raw
+/public_html/race_results/_race_finish_confirmation/history

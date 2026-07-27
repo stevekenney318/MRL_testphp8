@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * race_finish_confirmation_monitor.php
  *
- * VERSION: v005
- * LAST MODIFIED: 7/26/2026 5:15:03 pm
+ * VERSION: v004
+ * LAST MODIFIED: 7/26/2026 9:22:59 am
  *
  * DESCRIPTION:
  * Observation-only NASCAR race finish confirmation monitor.
@@ -23,11 +23,6 @@ declare(strict_types=1);
  * - Internal cadence determines when secondary-source observations are due.
  *
  * CHANGELOG:
- * v005 (7/26/2026 5:15:03 pm)
- * - Saves current MRL/ESPN race and lap progress below the 90% finish-watch threshold.
- * - Keeps NASCAR Flag dependent on NASCAR live-source data.
- * - Keeps Finish Watch waiting and does not contact Racing-Reference or Jayski early.
- *
  * v004 (7/26/2026 9:22:59 am)
  * - Added separate MRL and NASCAR comparison records for the dashboard.
  * - Added a strict Cup Series activation safeguard (NASCAR series_id 1 by default).
@@ -46,8 +41,8 @@ declare(strict_types=1);
 
 date_default_timezone_set('America/New_York');
 
-const RFCM_VERSION = 'v005';
-const RFCM_SIGNATURE = 'MRL_RACE_FINISH_CONFIRMATION_MONITOR v005';
+const RFCM_VERSION = 'v004';
+const RFCM_SIGNATURE = 'MRL_RACE_FINISH_CONFIRMATION_MONITOR v004';
 
 $baseDir = __DIR__;
 $dataDir = $baseDir . '/_race_finish_confirmation';
@@ -124,66 +119,6 @@ if (!$finishWindow) {
             : ($statusFreshEnough
                 ? 'Cup race progress is below the finish-watch activation threshold.'
                 : 'Existing NASCAR Cup status is stale; ignoring old late-race/checkered data.'));
-
-    /*
-     * v005: publish a lightweight dashboard observation below 90%.
-     * No Racing-Reference or Jayski requests are made in this path.
-     */
-    $idleObservation = [
-        'signature' => RFCM_SIGNATURE,
-        'version' => RFCM_VERSION,
-        'observation_id' => 'idle_' . date('Ymd_His'),
-        'checked_at' => $checkedAt,
-        'elapsed_ms' => (int)round((microtime(true) - $startedAt) * 1000),
-        'year' => $year,
-        'finish_watch_start_percent' => $activationPercent,
-        'finish_watch_active' => false,
-        'race' => [
-            'race_id' => (int)($nascar['race_id'] ?? 0),
-            'series_id' => (int)($nascar['series_id'] ?? 0),
-            'race_name' => (string)($raceIdentity['race_name'] ?? $nascar['race_name'] ?? ''),
-            'track_name' => (string)($raceIdentity['track_name'] ?? $nascar['track_name'] ?? ''),
-            'lap_number' => (int)($nascar['lap_number'] ?? 0),
-            'laps_in_race' => (int)($nascar['laps_in_race'] ?? 0),
-            'progress_percent' => $progress,
-            'flag_label' => $flagLabel,
-            'mrl_race_number' => (int)($raceIdentity['race_number'] ?? 0),
-            'mrl_race_code' => (string)($raceIdentity['race_code'] ?? ''),
-            'status_source' => (string)($nascar['status_source'] ?? ''),
-            'source_generated_at' => (string)($nascar['source_generated_at'] ?? ''),
-            'source_age_minutes' => $nascar['source_age_minutes'] ?? null,
-            'required_nascar_series_id' => $requiredSeriesId,
-            'nascar_series_match' => $isRequiredSeries,
-        ],
-        'sources' => [
-            'mrl' => $mrlStatus,
-            'nascar' => $nascar,
-            'racing_reference' => [
-                'status' => 'waiting',
-                'message' => 'Finish watch has not reached the 90% activation threshold.',
-                'checked_at' => 'Never',
-                'race_results_posted' => false,
-                'waiting_phrase_present' => false,
-                'driver_result_rows' => 0,
-                'season_row_completed' => false,
-            ],
-            'jayski' => [
-                'status' => 'waiting',
-                'message' => 'Finish watch has not reached the 90% activation threshold.',
-                'checked_at' => 'Never',
-                'winner' => 'Not populated',
-                'results_link_found' => false,
-                'results_page_posted' => false,
-            ],
-        ],
-        'observation_only' => true,
-        'decision' => 'NONE',
-        'idle_reason' => $idleReason,
-        'notes' => [
-            'Dashboard status only; no secondary-source requests were made.',
-        ],
-    ];
-    rfcm_write_json_atomic($latestFile, $idleObservation);
 
     $idleState = [
         'signature' => RFCM_SIGNATURE . ' STATE',
