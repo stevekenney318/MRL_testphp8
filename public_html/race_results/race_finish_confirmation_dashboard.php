@@ -4,18 +4,26 @@ declare(strict_types=1);
 /**
  * race_finish_confirmation_dashboard.php
  *
- * VERSION: v004
- * LAST MODIFIED: 7/26/2026 9:22:59 am
+ * VERSION: v006
+ * LAST MODIFIED: 8/9/2026 3:50:34 pm
  *
  * DESCRIPTION:
  * Live read-only dashboard for race_finish_confirmation_monitor.php.
+ *
+ * CHANGELOG:
+ * v006 (8/9/2026 3:50:34 pm)
+ * - Split Racing-Reference into separate Race Page and Season Page cards.
+ * - Added Racing-Reference Race Page evidence plus first-status and first-posted timestamps.
+ * - Added Racing-Reference Season Page evidence plus first-status and first-posted timestamps.
+ * - Expanded saved observation history to show both Racing-Reference source statuses independently.
+ * - Preserved MRL, NASCAR, Jayski, manual-run, refresh, and JSON-history behavior.
  *
  * PHP: 7.3 compatible.
  */
 
 date_default_timezone_set('America/New_York');
 
-const RFCD_VERSION = 'v004';
+const RFCD_VERSION = 'v006';
 
 $baseDir = __DIR__;
 $dataDir = $baseDir . '/_race_finish_confirmation';
@@ -80,7 +88,7 @@ a{color:var(--accent)}.section-title{margin:22px 0 9px;font-size:20px}.notice{bo
 <body>
 <div class="wrap">
 <h1>Race Finish Confirmation Monitor</h1>
-<div class="sub">Read-only observation dashboard · MRL vs NASCAR vs secondary sources · <?= htmlspecialchars(RFCD_VERSION) ?> · Auto-refreshes every 30 seconds</div>
+<div class="sub">Read-only observation dashboard · MRL vs NASCAR vs secondary sources · <?= rfcd_h(RFCD_VERSION) ?> · Auto-refreshes every 30 seconds</div>
 
 <div class="notice"><strong>No MRL decisions are made here.</strong> This monitor does not influence scoring, final detection, snapshots, revision monitoring, email, or standings. It is launched by the existing master scheduler and reads existing MRL lap/status JSON.</div>
 
@@ -97,7 +105,13 @@ a{color:var(--accent)}.section-title{margin:22px 0 9px;font-size:20px}.notice{bo
 </div>
 
 <div class="sources">
-<?php foreach (['mrl'=>'MRL Race Status','nascar'=>'NASCAR Live Source','racing_reference'=>'Racing-Reference','jayski'=>'Jayski'] as $key=>$label):
+<?php foreach ([
+    'mrl'=>'MRL Race Status',
+    'nascar'=>'NASCAR Live Source',
+    'racing_reference_race'=>'Racing-Reference Race Page',
+    'racing_reference_season'=>'Racing-Reference Season Page',
+    'jayski'=>'Jayski'
+] as $key=>$label):
 $s = isset($sources[$key]) && is_array($sources[$key]) ? $sources[$key] : [];
 ?>
 <div class="card">
@@ -106,8 +120,6 @@ $s = isset($sources[$key]) && is_array($sources[$key]) ? $sources[$key] : [];
 <div class="small">Checked: <?= rfcd_h((string)($s['checked_at'] ?? 'Never')) ?></div>
 <?php if (isset($s['http_code'])): ?><div class="small">HTTP: <?= rfcd_h((string)$s['http_code']) ?> · Bytes: <?= rfcd_h((string)($s['body_bytes'] ?? 0)) ?></div><?php endif; ?>
 <?php if (!empty($s['title'])): ?><div class="small">Title: <?= rfcd_h((string)$s['title']) ?></div><?php endif; ?>
-<?php if (!empty($s['matched_tokens'])): ?><div class="small">Matched: <?= rfcd_h(implode(', ',(array)$s['matched_tokens'])) ?></div><?php endif; ?>
-<?php if (!empty($s['completion_terms_found'])): ?><div class="small">Result terms: <?= rfcd_h(implode(', ',(array)$s['completion_terms_found'])) ?></div><?php endif; ?>
 <?php if ($key === 'mrl'): ?>
 <div class="small">MRL race: <?= rfcd_h((string)($s['race_code'] ?? '')) ?> · <?= rfcd_h((string)($s['race_name'] ?? 'Unknown')) ?></div>
 <div class="small">Track: <?= rfcd_h((string)($s['track_name'] ?? 'Unknown')) ?> · NASCAR series ID: <?= rfcd_h((string)($s['nascar_series_id'] ?? 0)) ?></div>
@@ -116,15 +128,23 @@ $s = isset($sources[$key]) && is_array($sources[$key]) ? $sources[$key] : [];
 <div class="small">Series ID: <?= rfcd_h((string)($s['series_id'] ?? 0)) ?> · Race ID: <?= rfcd_h((string)($s['race_id'] ?? 0)) ?></div>
 <div class="small">Race: <?= rfcd_h((string)($s['race_name'] ?? 'Unknown')) ?> · Track: <?= rfcd_h((string)($s['track_name'] ?? 'Unknown')) ?></div>
 <?php endif; ?>
-<?php if ($key === 'racing_reference'): ?>
-<div class="small">Race page: <?= !empty($s['race_results_posted']) ? 'RESULTS POSTED' : (!empty($s['waiting_phrase_present']) ? 'WAITING PHRASE PRESENT' : 'UNCLASSIFIED') ?></div>
-<div class="small">Driver rows: <?= rfcd_h((string)($s['driver_result_rows'] ?? 0)) ?> · Season row: <?= !empty($s['season_row_completed']) ? 'COMPLETED' : 'WAITING/UNKNOWN' ?></div>
-<?php if (!empty($s['season_url'])): ?><div class="small"><a href="<?= rfcd_h((string)$s['season_url']) ?>" target="_blank" rel="noopener">Open season page</a></div><?php endif; ?>
-<?php if (!empty($s['season_raw_file'])): ?><div class="small"><a href="_race_finish_confirmation/<?= rfcd_h((string)$s['season_raw_file']) ?>" target="_blank">Open saved season HTML</a></div><?php endif; ?>
+<?php if ($key === 'racing_reference_race'): ?>
+<div class="small">Waiting phrase: <?= !empty($s['waiting_phrase_present']) ? 'PRESENT' : 'ABSENT' ?> · Position 1: <?= !empty($s['position_one_found']) ? 'FOUND' : 'NOT FOUND' ?></div>
+<div class="small">First status: <?= rfcd_h((string)($s['first_status_at'] ?? 'Not recorded')) ?></div>
+<div class="small">First posted: <?= rfcd_h((string)($s['first_posted_at'] ?? 'Not posted yet')) ?></div>
+<?php if (!empty($s['evidence'])): ?><div class="small">Evidence: <?= rfcd_h((string)$s['evidence']) ?></div><?php endif; ?>
+<?php endif; ?>
+<?php if ($key === 'racing_reference_season'): ?>
+<div class="small">Season row: <?= !empty($s['season_row_completed']) ? 'COMPLETED' : (!empty($s['season_row_found']) ? 'FOUND / WAITING' : 'NOT FOUND') ?></div>
+<div class="small">First status: <?= rfcd_h((string)($s['first_status_at'] ?? 'Not recorded')) ?></div>
+<div class="small">First posted: <?= rfcd_h((string)($s['first_posted_at'] ?? 'Not posted yet')) ?></div>
+<?php if (!empty($s['evidence'])): ?><div class="small">Evidence: <?= rfcd_h((string)$s['evidence']) ?></div><?php endif; ?>
 <?php endif; ?>
 <?php if ($key === 'jayski'): ?>
 <div class="small">Winner: <?= rfcd_h((string)($s['winner'] ?? 'Not populated')) ?></div>
 <div class="small">Results link: <?= !empty($s['results_link_found']) ? 'FOUND' : 'NOT FOUND' ?> · Results page: <?= !empty($s['results_page_posted']) ? 'POSTED' : 'WAITING/UNKNOWN' ?></div>
+<div class="small">First status: <?= rfcd_h((string)($s['first_status_at'] ?? 'Not recorded')) ?></div>
+<div class="small">First posted: <?= rfcd_h((string)($s['first_posted_at'] ?? 'Not posted yet')) ?></div>
 <?php if (!empty($s['results_url'])): ?><div class="small"><a href="<?= rfcd_h((string)$s['results_url']) ?>" target="_blank" rel="noopener">Open linked results page</a></div><?php endif; ?>
 <?php if (!empty($s['results_raw_file'])): ?><div class="small"><a href="_race_finish_confirmation/<?= rfcd_h((string)$s['results_raw_file']) ?>" target="_blank">Open saved results HTML</a></div><?php endif; ?>
 <?php endif; ?>
@@ -136,10 +156,10 @@ $s = isset($sources[$key]) && is_array($sources[$key]) ? $sources[$key] : [];
 
 <h2 class="section-title">Saved observation history</h2>
 <table>
-<thead><tr><th>Checked</th><th>Race</th><th>Lap</th><th>Flag</th><th>Watch</th><th>Racing-Reference</th><th>Jayski</th><th>File</th></tr></thead>
+<thead><tr><th>Checked</th><th>Race</th><th>Lap</th><th>Flag</th><th>Watch</th><th>RR Race</th><th>RR Season</th><th>Jayski</th><th>File</th></tr></thead>
 <tbody>
 <?php if (empty($history)): ?>
-<tr><td colspan="8">No observations have been saved yet.</td></tr>
+<tr><td colspan="9">No observations have been saved yet.</td></tr>
 <?php else: foreach ($history as $row):
 $r = isset($row['data']['race']) && is_array($row['data']['race']) ? $row['data']['race'] : [];
 $ss = isset($row['data']['sources']) && is_array($row['data']['sources']) ? $row['data']['sources'] : [];
@@ -150,7 +170,8 @@ $ss = isset($row['data']['sources']) && is_array($row['data']['sources']) ? $row
 <td><?= rfcd_h((string)($r['lap_number'] ?? 0)) ?>/<?= rfcd_h((string)($r['laps_in_race'] ?? 0)) ?> (<?= number_format((float)($r['progress_percent'] ?? 0),1) ?>%)</td>
 <td class="<?= rfcd_status_class((string)($r['flag_label'] ?? 'UNKNOWN')) ?>"><?= rfcd_h((string)($r['flag_label'] ?? 'UNKNOWN')) ?></td>
 <td><?= !empty($row['data']['finish_watch_active']) ? 'ACTIVE' : 'WAITING' ?></td>
-<td><?= rfcd_h((string)($ss['racing_reference']['status'] ?? '')) ?></td>
+<td><?= rfcd_h((string)($ss['racing_reference_race']['status'] ?? '')) ?></td>
+<td><?= rfcd_h((string)($ss['racing_reference_season']['status'] ?? '')) ?></td>
 <td><?= rfcd_h((string)($ss['jayski']['status'] ?? '')) ?></td>
 <td><a href="?download=<?= rawurlencode($row['file']) ?>">JSON</a></td>
 </tr>
@@ -190,7 +211,7 @@ function rfcd_h(string $v): string
 function rfcd_status_class(string $status): string
 {
     $s = strtolower($status);
-    if (strpos($s,'checkered') !== false || strpos($s,'green') !== false || strpos($s,'possible_results') !== false || strpos($s,'active') !== false) return 'good';
-    if (strpos($s,'fail') !== false || strpos($s,'error') !== false || strpos($s,'unavailable') !== false || strpos($s,'red') !== false) return 'bad';
+    if (strpos($s,'checkered') !== false || strpos($s,'green') !== false || strpos($s,'results_posted') !== false || strpos($s,'completed') !== false || strpos($s,'active') !== false) return 'good';
+    if (strpos($s,'fail') !== false || strpos($s,'error') !== false || strpos($s,'unavailable') !== false || strpos($s,'blocked') !== false || strpos($s,'red') !== false) return 'bad';
     return 'warn';
 }

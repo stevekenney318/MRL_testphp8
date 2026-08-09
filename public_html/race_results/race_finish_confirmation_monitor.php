@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * race_finish_confirmation_monitor.php
  *
- * VERSION: v005
- * LAST MODIFIED: 7/26/2026 5:15:03 pm
+ * VERSION: v006
+ * LAST MODIFIED: 8/9/2026 3:50:34 pm
  *
  * DESCRIPTION:
  * Observation-only NASCAR race finish confirmation monitor.
@@ -14,7 +14,7 @@ declare(strict_types=1);
  * - Does not alter or call any existing MRL monitor, scheduler, scoring, snapshot,
  *   standings, revision, email, flag, or final-detection process.
  * - Does not make decisions for MRL.
- * - Compares MRL race identity with NASCAR live status, Racing-Reference, and Jayski near race completion.
+ * - Compares MRL race identity with NASCAR live status, Racing-Reference race results, Racing-Reference season stats, and Jayski near race completion.
  * - Uses the deterministic Racing-Reference race URL built from MRL year/race number.
  * - Reads the Jayski yearly race block, winner field, Results link, and linked results page.
  * - Designed to be launched every minute by the existing MRL master scheduler.
@@ -23,6 +23,14 @@ declare(strict_types=1);
  * - Internal cadence determines when secondary-source observations are due.
  *
  * CHANGELOG:
+ * v006 (8/9/2026 3:50:34 pm)
+ * - Split Racing-Reference into separate Race Page and Season Page observations.
+ * - Race Page now uses https://www.racing-reference.info/race/{year}-{race_number}/W.
+ * - Race Page classification is intentionally simple: waiting phrase present = waiting_results; waiting phrase gone plus Position 1 row = results_posted.
+ * - Added evidence text, per-source first-status timestamps, and first-posted timestamps for timeline comparison.
+ * - Added separate raw hashes/history fields and log status fields for Racing-Reference Race Page and Season Page.
+ * - Preserved the existing Cup-only activation safeguard, cadence, Jayski checks, MRL/NASCAR comparison, and observation-only behavior.
+ *
  * v005 (7/26/2026 5:15:03 pm)
  * - Saves current MRL/ESPN race and lap progress below the 90% finish-watch threshold.
  * - Keeps NASCAR Flag dependent on NASCAR live-source data.
@@ -46,8 +54,8 @@ declare(strict_types=1);
 
 date_default_timezone_set('America/New_York');
 
-const RFCM_VERSION = 'v005';
-const RFCM_SIGNATURE = 'MRL_RACE_FINISH_CONFIRMATION_MONITOR v005';
+const RFCM_VERSION = 'v006';
+const RFCM_SIGNATURE = 'MRL_RACE_FINISH_CONFIRMATION_MONITOR v006';
 
 $baseDir = __DIR__;
 $dataDir = $baseDir . '/_race_finish_confirmation';
@@ -158,14 +166,25 @@ if (!$finishWindow) {
         'sources' => [
             'mrl' => $mrlStatus,
             'nascar' => $nascar,
-            'racing_reference' => [
+            'racing_reference_race' => [
                 'status' => 'waiting',
                 'message' => 'Finish watch has not reached the 90% activation threshold.',
                 'checked_at' => 'Never',
-                'race_results_posted' => false,
+                'results_posted' => false,
                 'waiting_phrase_present' => false,
-                'driver_result_rows' => 0,
+                'position_one_found' => false,
+                'evidence' => '',
+                'first_status_at' => '',
+                'first_posted_at' => '',
+            ],
+            'racing_reference_season' => [
+                'status' => 'waiting',
+                'message' => 'Finish watch has not reached the 90% activation threshold.',
+                'checked_at' => 'Never',
                 'season_row_completed' => false,
+                'evidence' => '',
+                'first_status_at' => '',
+                'first_posted_at' => '',
             ],
             'jayski' => [
                 'status' => 'waiting',
@@ -196,6 +215,7 @@ if (!$finishWindow) {
         'last_status_source' => (string)($nascar['status_source'] ?? ''),
         'last_status_checked_at' => (string)($nascar['source_generated_at'] ?? ''),
         'last_raw_hashes' => isset($state['last_raw_hashes']) && is_array($state['last_raw_hashes']) ? $state['last_raw_hashes'] : [],
+        'source_first_transitions' => isset($state['source_first_transitions']) && is_array($state['source_first_transitions']) ? $state['source_first_transitions'] : [],
     ];
     rfcm_write_json_atomic($stateFile, $idleState);
     rfcm_append_log($logFile, sprintf(
@@ -248,10 +268,17 @@ $raceNumber = (int)($raceIdentity['race_number'] ?? 0);
 $sourceResults = [
     'mrl' => $mrlStatus,
     'nascar' => $nascar,
-    'racing_reference' => rfcm_check_racing_reference(
+    'racing_reference_race' => rfcm_check_racing_reference_race(
         $year,
         $raceNumber,
-        $nascar,
+        $config,
+        $timeout,
+        $rawDir,
+        $state
+    ),
+    'racing_reference_season' => rfcm_check_racing_reference_season(
+        $year,
+        $raceNumber,
         $config,
         $timeout,
         $rawDir,
@@ -267,6 +294,15 @@ $sourceResults = [
         $state
     ),
 ];
+
+$sourceFirstTransitions = isset($state['source_first_transitions']) && is_array($state['source_first_transitions'])
+    ? $state['source_first_transitions']
+    : [];
+foreach (['racing_reference_race', 'racing_reference_season', 'jayski'] as $transitionKey) {
+    if (isset($sourceResults[$transitionKey]) && is_array($sourceResults[$transitionKey])) {
+        rfcm_apply_source_transition_timestamps($sourceResults[$transitionKey], $transitionKey, $checkedAt, $sourceFirstTransitions);
+    }
+}
 
 $nextRunAt = date('Y-m-d H:i:s', $now + ($cadence['minutes'] * 60));
 $observationId = date('Ymd_His') . '_' . substr(bin2hex(random_bytes(4)), 0, 8);
@@ -330,11 +366,12 @@ $state = [
     'checkered_started_at' => $checkeredStartedAt,
     'monitoring_complete' => false,
     'last_raw_hashes' => rfcm_collect_raw_hashes($sourceResults, $state),
+    'source_first_transitions' => $sourceFirstTransitions,
 ];
 rfcm_write_json_atomic($stateFile, $state);
 
 rfcm_append_log($logFile, sprintf(
-    '%s race_id=%d lap=%d/%d progress=%.2f flag=%s watch=%s cadence=%dm observation=%s',
+    '%s race_id=%d lap=%d/%d progress=%.2f flag=%s watch=%s cadence=%dm rr_race=%s rr_season=%s jayski=%s observation=%s',
     $checkedAt,
     (int)($nascar['race_id'] ?? 0),
     (int)($nascar['lap_number'] ?? 0),
@@ -343,6 +380,9 @@ rfcm_append_log($logFile, sprintf(
     $flagLabel,
     $finishWindow ? 'YES' : 'NO',
     (int)$cadence['minutes'],
+    (string)($sourceResults['racing_reference_race']['status'] ?? ''),
+    (string)($sourceResults['racing_reference_season']['status'] ?? ''),
+    (string)($sourceResults['jayski']['status'] ?? ''),
     $observationId
 ));
 
@@ -381,10 +421,13 @@ function rfcm_default_config(): array
             '_race_results_monitor_state.json'
         ],
         'sources' => [
-            'racing_reference' => [
+            'racing_reference_race' => [
                 'enabled' => true,
-                'race_url_template' => 'https://www.racing-reference.info/race-results/{year}-{race_number}/W',
-                'season_url_template' => 'https://www.racing-reference.info/season-stats/{year}/W'
+                'url_template' => 'https://www.racing-reference.info/race/{year}-{race_number}/W'
+            ],
+            'racing_reference_season' => [
+                'enabled' => true,
+                'url_template' => 'https://www.racing-reference.info/season-stats/{year}/W'
             ],
             'jayski' => [
                 'enabled' => true,
@@ -686,85 +729,133 @@ function rfcm_check_nascar(int $year, int $timeout): array
 }
 
 
-function rfcm_check_racing_reference(int $year, int $raceNumber, array $nascar, array $config, int $timeout, string $rawDir, array $previousState): array
+function rfcm_check_racing_reference_race(int $year, int $raceNumber, array $config, int $timeout, string $rawDir, array $previousState): array
 {
     if ($raceNumber <= 0) {
         return rfcm_source_error('race_number_unavailable', 'MRL race number could not be resolved from _race_results_schedule.json.');
     }
 
-    $sourceConfig = isset($config['sources']['racing_reference']) && is_array($config['sources']['racing_reference'])
-        ? $config['sources']['racing_reference'] : [];
-    $raceUrl = rfcm_expand_source_url((string)($sourceConfig['race_url_template'] ?? ''), $year, $raceNumber);
-    $seasonUrl = rfcm_expand_source_url((string)($sourceConfig['season_url_template'] ?? ''), $year, $raceNumber);
+    $sourceConfig = isset($config['sources']['racing_reference_race']) && is_array($config['sources']['racing_reference_race'])
+        ? $config['sources']['racing_reference_race'] : [];
+    $template = (string)($sourceConfig['url_template'] ?? 'https://www.racing-reference.info/race/{year}-{race_number}/W');
+    $url = rfcm_expand_source_url($template, $year, $raceNumber);
 
-    $raceResponse = rfcm_http_get($raceUrl, $timeout, 'text/html,application/xhtml+xml,*/*');
-    $raceBody = (string)($raceResponse['body'] ?? '');
-    $raceText = rfcm_html_text($raceBody);
-    $waitingPhrase = stripos($raceText, 'Results not available yet') !== false;
-    $headerPresent = stripos($raceText, 'POS') !== false && stripos($raceText, 'DRIVER') !== false && stripos($raceText, 'LAPS') !== false;
-    $driverRows = rfcm_count_racing_reference_driver_rows($raceBody);
-    $resultsPosted = !empty($raceResponse['ok']) && !$waitingPhrase && $headerPresent && $driverRows > 0;
-    $raceRaw = rfcm_save_changed_raw('racing_reference_race', $raceBody, $rawDir, $previousState);
+    $response = rfcm_http_get($url, $timeout, 'text/html,application/xhtml+xml,*/*');
+    $body = (string)($response['body'] ?? '');
+    $text = rfcm_html_text($body);
+    $waitingPhrase = stripos($text, 'Results not available yet.') !== false
+        || stripos($text, 'Results not available yet') !== false;
+    $positionOneEvidence = rfcm_racing_reference_position_one_evidence($body);
+    $positionOneFound = $positionOneEvidence !== '';
+    $resultsPosted = !empty($response['ok']) && !$waitingPhrase && $positionOneFound;
+    $raw = rfcm_save_changed_raw('racing_reference_race', $body, $rawDir, $previousState);
 
-    $seasonResponse = rfcm_http_get($seasonUrl, $timeout, 'text/html,application/xhtml+xml,*/*');
-    $seasonBody = (string)($seasonResponse['body'] ?? '');
-    $seasonRow = rfcm_find_table_row_by_first_cell($seasonBody, (string)$raceNumber);
-    $seasonRowText = rfcm_html_text($seasonRow);
-    $seasonCompleted = $seasonRowText !== '' && rfcm_racing_reference_season_row_completed($seasonRowText);
-    $seasonRaw = rfcm_save_changed_raw('racing_reference_season', $seasonBody, $rawDir, $previousState);
+    $status = 'race_page_changed_unclassified';
+    $message = 'Race page loaded, but neither the waiting phrase nor a Position 1 result row was confirmed.';
+    $evidence = '';
 
-    $status = 'waiting_results';
-    $message = 'Race page loaded; results are not posted yet.';
-    if (!empty($raceResponse['challenge_detected'])) {
-        $status = 'race_page_blocked_by_challenge';
-        $message = 'Racing-Reference returned a browser challenge after retry.';
-    } elseif (empty($raceResponse['ok'])) {
-        $status = 'race_page_request_failed';
-        $message = (string)($raceResponse['error'] ?? 'Racing-Reference race page request failed.');
-    } elseif ($resultsPosted && $seasonCompleted) {
-        $status = 'race_and_season_results_posted';
-        $message = 'Race page has populated driver results and the season row appears completed.';
+    if (!empty($response['challenge_detected'])) {
+        $status = 'blocked_by_challenge';
+        $message = 'Racing-Reference Race Page returned a browser challenge after retry.';
+        $evidence = 'Browser challenge detected.';
+    } elseif (empty($response['ok'])) {
+        $status = 'request_failed';
+        $message = (string)($response['error'] ?? 'Racing-Reference Race Page request failed.');
+        $evidence = 'HTTP ' . (string)($response['http_code'] ?? 0);
+    } elseif ($waitingPhrase) {
+        $status = 'waiting_results';
+        $message = 'Race page is available; results are not posted yet.';
+        $evidence = 'Results not available yet.';
     } elseif ($resultsPosted) {
-        $status = 'race_results_posted';
-        $message = 'Race page has populated driver results.';
-    } elseif ($seasonCompleted) {
-        $status = 'season_row_completed';
-        $message = 'Season results row appears completed while the race page is still being evaluated.';
-    } elseif (!$waitingPhrase) {
-        $status = 'race_page_changed_unclassified';
-        $message = 'Waiting phrase is absent, but populated driver rows were not confirmed.';
+        $status = 'results_posted';
+        $message = 'Position 1 result row is present and the waiting phrase is gone.';
+        $evidence = $positionOneEvidence;
     }
 
     return [
         'checked' => true,
-        'ok' => !empty($raceResponse['ok']) || !empty($seasonResponse['ok']),
+        'ok' => !empty($response['ok']),
         'status' => $status,
         'message' => $message,
         'checked_at' => rfcm_now(),
-        'source_url' => $raceUrl,
-        'race_url' => $raceUrl,
-        'season_url' => $seasonUrl,
-        'race_http_code' => (int)($raceResponse['http_code'] ?? 0),
-        'race_challenge_detected' => !empty($raceResponse['challenge_detected']),
-        'race_attempt_count' => (int)($raceResponse['attempt_count'] ?? 1),
-        'season_http_code' => (int)($seasonResponse['http_code'] ?? 0),
-        'title' => rfcm_html_title($raceBody),
+        'source_url' => $url,
+        'http_code' => (int)($response['http_code'] ?? 0),
+        'challenge_detected' => !empty($response['challenge_detected']),
+        'attempt_count' => (int)($response['attempt_count'] ?? 1),
+        'title' => rfcm_html_title($body),
         'race_number' => $raceNumber,
         'waiting_phrase_present' => $waitingPhrase,
-        'results_header_present' => $headerPresent,
-        'driver_result_rows' => $driverRows,
-        'race_results_posted' => $resultsPosted,
+        'position_one_found' => $positionOneFound,
+        'position_one_evidence' => $positionOneEvidence,
+        'results_posted' => $resultsPosted,
+        'evidence' => $evidence,
+        'body_bytes' => strlen($body),
+        'content_sha256' => (string)($raw['hash'] ?? ''),
+        'content_changed' => !empty($raw['changed']),
+        'raw_file' => (string)($raw['raw_file'] ?? ''),
+        'observation_only' => true,
+    ];
+}
+
+function rfcm_check_racing_reference_season(int $year, int $raceNumber, array $config, int $timeout, string $rawDir, array $previousState): array
+{
+    if ($raceNumber <= 0) {
+        return rfcm_source_error('race_number_unavailable', 'MRL race number could not be resolved from _race_results_schedule.json.');
+    }
+
+    $sourceConfig = isset($config['sources']['racing_reference_season']) && is_array($config['sources']['racing_reference_season'])
+        ? $config['sources']['racing_reference_season'] : [];
+    $template = (string)($sourceConfig['url_template'] ?? 'https://www.racing-reference.info/season-stats/{year}/W');
+    $url = rfcm_expand_source_url($template, $year, $raceNumber);
+
+    $response = rfcm_http_get($url, $timeout, 'text/html,application/xhtml+xml,*/*');
+    $body = (string)($response['body'] ?? '');
+    $seasonRow = rfcm_find_table_row_by_first_cell($body, (string)$raceNumber);
+    $seasonRowText = rfcm_html_text($seasonRow);
+    $seasonCompleted = $seasonRowText !== '' && rfcm_racing_reference_season_row_completed($seasonRowText);
+    $raw = rfcm_save_changed_raw('racing_reference_season', $body, $rawDir, $previousState);
+
+    $status = 'waiting_results';
+    $message = 'Season page row has not yet been classified as completed.';
+    $evidence = $seasonRowText;
+
+    if (!empty($response['challenge_detected'])) {
+        $status = 'blocked_by_challenge';
+        $message = 'Racing-Reference Season Page returned a browser challenge after retry.';
+        $evidence = 'Browser challenge detected.';
+    } elseif (empty($response['ok'])) {
+        $status = 'request_failed';
+        $message = (string)($response['error'] ?? 'Racing-Reference Season Page request failed.');
+        $evidence = 'HTTP ' . (string)($response['http_code'] ?? 0);
+    } elseif ($seasonCompleted) {
+        $status = 'season_row_completed';
+        $message = 'Season page row for the current MRL race appears completed.';
+    } elseif ($seasonRowText === '') {
+        $status = 'season_row_not_found';
+        $message = 'Season page loaded, but the current MRL race row was not found.';
+        $evidence = '';
+    }
+
+    return [
+        'checked' => true,
+        'ok' => !empty($response['ok']),
+        'status' => $status,
+        'message' => $message,
+        'checked_at' => rfcm_now(),
+        'source_url' => $url,
+        'http_code' => (int)($response['http_code'] ?? 0),
+        'challenge_detected' => !empty($response['challenge_detected']),
+        'attempt_count' => (int)($response['attempt_count'] ?? 1),
+        'title' => rfcm_html_title($body),
+        'race_number' => $raceNumber,
         'season_row_found' => $seasonRowText !== '',
         'season_row_text' => $seasonRowText,
         'season_row_completed' => $seasonCompleted,
-        'body_bytes' => strlen($raceBody),
-        'content_sha256' => (string)($raceRaw['hash'] ?? ''),
-        'content_changed' => !empty($raceRaw['changed']),
-        'raw_file' => (string)($raceRaw['raw_file'] ?? ''),
-        'race_raw_file' => (string)($raceRaw['raw_file'] ?? ''),
-        'season_content_sha256' => (string)($seasonRaw['hash'] ?? ''),
-        'season_content_changed' => !empty($seasonRaw['changed']),
-        'season_raw_file' => (string)($seasonRaw['raw_file'] ?? ''),
+        'evidence' => $evidence,
+        'body_bytes' => strlen($body),
+        'content_sha256' => (string)($raw['hash'] ?? ''),
+        'content_changed' => !empty($raw['changed']),
+        'raw_file' => (string)($raw['raw_file'] ?? ''),
         'observation_only' => true,
     ];
 }
@@ -899,21 +990,36 @@ function rfcm_save_changed_raw(string $key, string $body, string $rawDir, array 
     ];
 }
 
-function rfcm_count_racing_reference_driver_rows(string $html): int
+function rfcm_racing_reference_position_one_evidence(string $html): string
 {
-    if ($html === '') return 0;
-    $count = 0;
-    if (preg_match_all('#<tr[^>]*>(.*?)</tr>#is', $html, $rows)) {
-        foreach ($rows[1] as $row) {
-            $text = rfcm_html_text((string)$row);
-            if (preg_match('/^\s*\d+\s+\d+\s+\d+\s+.+\s+\d+\s+(running|finished|accident|engine|transmission|brakes|electrical|dvp|disqualified|crash|rear gear|suspension|vibration|overheating|fuel pump|steering|oil leak|ignition|clutch|battery|handling|driveshaft|hub|wheel|tire|gear|radiator|water pump|power steering|camshaft|piston|valve|carburetor|fire|header|axle|mechanical|parked|withdrawn|did not start)/i', $text)) {
-                $count++;
-            } elseif (preg_match('#/driver/[^"\']+#i', (string)$row) && preg_match('/\b\d+\b/', $text)) {
-                $count++;
+    if ($html === '') return '';
+    if (!preg_match_all('#<tr[^>]*>(.*?)</tr>#is', $html, $rows)) return '';
+
+    foreach ($rows[1] as $row) {
+        $rowHtml = (string)$row;
+        $cells = [];
+        if (preg_match_all('#<t[dh][^>]*>(.*?)</t[dh]>#is', $rowHtml, $cellMatches)) {
+            foreach ($cellMatches[1] as $cellHtml) {
+                $cells[] = trim(rfcm_html_text((string)$cellHtml));
             }
         }
+        if (empty($cells)) continue;
+
+        $first = preg_replace('/[^0-9]/', '', (string)$cells[0]);
+        if ($first !== '1') continue;
+
+        $rowText = implode(' | ', array_values(array_filter($cells, static function ($value) {
+            return trim((string)$value) !== '';
+        })));
+        if ($rowText === '') continue;
+
+        $driverLinkPresent = preg_match('#/driver/[^"\']+#i', $rowHtml) === 1;
+        $enoughCells = count($cells) >= 3;
+        if ($driverLinkPresent || $enoughCells) {
+            return $rowText;
+        }
     }
-    return $count;
+    return '';
 }
 
 function rfcm_find_table_row_by_first_cell(string $html, string $wanted): string
@@ -1007,6 +1113,39 @@ function rfcm_not_checked(string $message): array
     ];
 }
 
+function rfcm_apply_source_transition_timestamps(array &$source, string $sourceKey, string $checkedAt, array &$transitions): void
+{
+    $status = trim((string)($source['status'] ?? ''));
+    if ($status === '') return;
+
+    if (!isset($transitions[$sourceKey]) || !is_array($transitions[$sourceKey])) {
+        $transitions[$sourceKey] = [];
+    }
+    if (empty($transitions[$sourceKey][$status])) {
+        $transitions[$sourceKey][$status] = $checkedAt;
+    }
+
+    $source['first_status_at'] = (string)$transitions[$sourceKey][$status];
+    $firstPostedAt = '';
+    foreach ($transitions[$sourceKey] as $knownStatus => $knownAt) {
+        if (rfcm_status_is_posted((string)$knownStatus)) {
+            if ($firstPostedAt === '' || strtotime((string)$knownAt) < strtotime($firstPostedAt)) {
+                $firstPostedAt = (string)$knownAt;
+            }
+        }
+    }
+    $source['first_posted_at'] = $firstPostedAt;
+}
+
+function rfcm_status_is_posted(string $status): bool
+{
+    $status = strtolower($status);
+    return strpos($status, 'results_posted') !== false
+        || strpos($status, 'results_page_posted') !== false
+        || strpos($status, 'winner_and_results_posted') !== false
+        || strpos($status, 'season_row_completed') !== false;
+}
+
 function rfcm_choose_cadence(float $progress, string $flagLabel, array $config): array
 {
     $c = isset($config['cadence_minutes']) && is_array($config['cadence_minutes'])
@@ -1037,8 +1176,8 @@ function rfcm_collect_raw_hashes(array $sources, array $previousState): array
         ? $previousState['last_raw_hashes']
         : [];
     $map = [
-        'racing_reference_race' => (string)($sources['racing_reference']['content_sha256'] ?? ''),
-        'racing_reference_season' => (string)($sources['racing_reference']['season_content_sha256'] ?? ''),
+        'racing_reference_race' => (string)($sources['racing_reference_race']['content_sha256'] ?? ''),
+        'racing_reference_season' => (string)($sources['racing_reference_season']['content_sha256'] ?? ''),
         'jayski_index' => (string)($sources['jayski']['content_sha256'] ?? ''),
         'jayski_results' => (string)($sources['jayski']['results_content_sha256'] ?? ''),
     ];
