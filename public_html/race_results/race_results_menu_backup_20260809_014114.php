@@ -2,17 +2,10 @@
 /**
  * race_results_menu.php
  *
- * VERSION: v002
- * LAST MODIFIED: 8/8/2026 9:29:06 pm
+ * VERSION: v001
+ * LAST MODIFIED: 7/27/2026 2:23:17 pm
  *
  * CHANGELOG:
- * v002 (8/8/2026 9:29:06 pm)
- * - Restyled the menu to visually match the dark race_results_dashboard.php theme.
- * - Added charcoal page/panel backgrounds, warm gold/peach headings and borders,
- *   green status accents, and dashboard-style dark buttons/pills.
- * - Preserved all v001 page discovery, environment detection, filtering,
- *   and cross-environment MRL/testphp8 behavior.
- *
  * v001 (7/27/2026 2:23:17 pm)
  * - Initial visual navigation hub for the race_results area.
  * - Added curated sections for standings, charts, dashboards, monitors,
@@ -391,54 +384,40 @@ $generatedAt = date('n/j/Y g:i:s a');
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
     :root {
-        --bg: #141414;
-        --bg-soft: #181818;
-        --panel: #20201f;
-        --panel-2: #252524;
-        --panel-soft: #1a1a1a;
-        --text: #f2f2f2;
-        --muted: #d2d2d2;
-        --muted-2: #a9a9a9;
-        --line: #4e4a43;
-        --line-warm: #705b39;
-        --gold: #ffc77f;
-        --gold-soft: #d9ab6c;
-        --green: #48de82;
-        --green-bg: #173a28;
-        --green-line: #34714f;
-        --blue: #2674d9;
-        --blue-hover: #3384ef;
-        --shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
+        --bg: #f3f6fa;
+        --panel: #ffffff;
+        --panel-soft: #f8fafc;
+        --text: #1d2733;
+        --muted: #617187;
+        --line: #dbe3ec;
+        --shadow: 0 10px 28px rgba(31, 41, 55, 0.08);
+        --blue: #2a67c7;
     }
 
     * {
         box-sizing: border-box;
     }
 
-    html {
-        color-scheme: dark;
-    }
-
     body {
         margin: 0;
         font-family: Arial, Helvetica, sans-serif;
-        background: var(--bg);
+        background: linear-gradient(180deg, #edf2f7 0%, #f8fafc 190px, var(--bg) 100%);
         color: var(--text);
     }
 
     .wrap {
-        max-width: 1480px;
+        max-width: 1420px;
         margin: 0 auto;
-        padding: 20px 20px 44px;
+        padding: 24px 18px 42px;
     }
 
     .hero {
-        background: linear-gradient(180deg, #1c2c24 0%, #1c211f 100%);
-        border: 1px solid #35684b;
-        border-radius: 17px;
-        padding: 18px 20px;
+        background: linear-gradient(135deg, #ffffff 0%, #f6f9fd 100%);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 23px;
         box-shadow: var(--shadow);
-        margin-bottom: 14px;
+        margin-bottom: 22px;
     }
 
     .hero-top {
@@ -450,130 +429,111 @@ $generatedAt = date('n/j/Y g:i:s a');
     }
 
     .hero h1 {
-        margin: 0 0 2px;
+        margin: 0 0 8px;
         font-size: 30px;
-        line-height: 1.1;
-        letter-spacing: 0.06em;
-        color: #f4f4f4;
-        text-shadow: 1px 1px 0 rgba(255, 199, 127, 0.45);
+        line-height: 1.15;
     }
 
     .hero p {
         margin: 0;
-        color: #e0e0e0;
+        color: var(--muted);
         line-height: 1.5;
-        max-width: 880px;
+        max-width: 850px;
     }
 
     .status-row {
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
-        margin-top: 14px;
+        margin-top: 15px;
     }
 
     .status-pill {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 700;
-        padding: 8px 12px;
+        padding: 8px 10px;
         border-radius: 999px;
-        background: #242424;
-        border: 1px solid #605747;
-        color: #f3f3f3;
+        background: #eef3f8;
+        border: 1px solid #d7e0ea;
+        color: #314154;
     }
 
     .status-pill.environment {
-        background: var(--green-bg);
-        border-color: var(--green-line);
-        color: var(--green);
+        background: #fff4d9;
+        border-color: #edd27c;
+        color: #785600;
     }
 
     .status-pill.count {
-        background: #2a2620;
-        border-color: #7a633d;
-        color: var(--gold);
+        background: #edf7ef;
+        border-color: #cce8d3;
+        color: #2f6f47;
     }
 
     .hero-note {
-        color: #d4d4d4;
+        color: var(--muted);
         font-size: 12px;
         line-height: 1.55;
-        text-align: right;
     }
 
     .filter-wrap {
-        margin-top: 16px;
-        padding-top: 14px;
-        border-top: 1px solid rgba(255,255,255,0.09);
+        margin-top: 18px;
     }
 
     .filter-wrap label {
         display: block;
-        margin-bottom: 7px;
+        margin-bottom: 6px;
         font-size: 13px;
         font-weight: 700;
-        color: var(--gold);
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
+        color: #39495a;
     }
 
     .filter-input {
         width: 100%;
-        max-width: 560px;
-        padding: 11px 13px;
-        border: 1px solid #655b4c;
-        border-radius: 11px;
+        max-width: 520px;
+        padding: 12px 14px;
+        border: 1px solid #cfd9e5;
+        border-radius: 12px;
         font-size: 15px;
-        background: #181818;
+        background: #ffffff;
         color: var(--text);
         outline: none;
     }
 
-    .filter-input::placeholder {
-        color: #969696;
-    }
-
     .filter-input:focus {
-        border-color: #b88a4f;
-        box-shadow: 0 0 0 3px rgba(255, 199, 127, 0.10);
+        border-color: #7aa3d7;
+        box-shadow: 0 0 0 3px rgba(42, 103, 199, 0.12);
     }
 
     .quick-links {
-        margin-top: 14px;
+        margin-top: 16px;
         display: flex;
         flex-wrap: wrap;
-        gap: 9px;
+        gap: 10px;
     }
 
     .quick-links a {
         text-decoration: none;
-        color: #f0f0f0;
-        background: #242424;
-        border: 1px solid #665942;
+        color: #12385c;
+        background: #eef5fd;
+        border: 1px solid #cfe0f4;
         border-radius: 12px;
-        padding: 10px 13px;
+        padding: 10px 12px;
         font-weight: 700;
         font-size: 14px;
         transition: 0.15s ease;
     }
 
     .quick-links a:hover {
-        background: #302b23;
-        border-color: #9a7444;
-        color: var(--gold);
+        background: #e1eefc;
         transform: translateY(-1px);
     }
 
     .section {
-        margin-top: 18px;
-        background: linear-gradient(180deg, #211f1b 0%, #1d1d1c 100%);
-        border: 1px solid var(--line-warm);
-        border-radius: 17px;
-        padding: 14px;
-        box-shadow: var(--shadow);
+        margin-top: 23px;
     }
 
     .section-header {
@@ -582,7 +542,6 @@ $generatedAt = date('n/j/Y g:i:s a');
         justify-content: space-between;
         gap: 12px;
         margin-bottom: 12px;
-        padding: 0 2px;
     }
 
     .section-title {
@@ -594,40 +553,29 @@ $generatedAt = date('n/j/Y g:i:s a');
     .section-title h2 {
         margin: 0;
         font-size: 22px;
-        color: var(--gold);
-        text-shadow: 1px 1px 0 rgba(255,255,255,0.08);
     }
 
     .section-count {
-        color: #d8d8d8;
+        color: var(--muted);
         font-size: 13px;
         font-weight: 700;
-        background: #242424;
-        border: 1px solid #514d46;
-        border-radius: 999px;
-        padding: 6px 10px;
     }
 
     .grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
-        gap: 12px;
+        grid-template-columns: repeat(auto-fit, minmax(265px, 1fr));
+        gap: 16px;
     }
 
     .card {
-        background: linear-gradient(180deg, var(--panel-2) 0%, var(--panel) 100%);
-        border: 1px solid #3d3d3b;
-        border-radius: 15px;
-        padding: 15px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: var(--shadow);
         display: flex;
         flex-direction: column;
-        min-height: 215px;
-        box-shadow: inset 0 1px 0 rgba(255,255,255,0.025);
-    }
-
-    .card:hover {
-        border-color: #6a5b45;
-        background: linear-gradient(180deg, #292826 0%, #222220 100%);
+        min-height: 220px;
     }
 
     .card-top {
@@ -635,7 +583,7 @@ $generatedAt = date('n/j/Y g:i:s a');
         align-items: flex-start;
         justify-content: space-between;
         gap: 10px;
-        margin-bottom: 11px;
+        margin-bottom: 12px;
     }
 
     .card-icon {
@@ -647,17 +595,33 @@ $generatedAt = date('n/j/Y g:i:s a');
         justify-content: center;
         font-size: 20px;
         flex: 0 0 auto;
-        background: #1b1b1b;
-        border: 1px solid #5a5041;
+        background: #eef2f7;
+        border: 1px solid #d9e1ea;
     }
 
-    .accent-red .card-icon,
-    .accent-purple .card-icon,
-    .accent-blue .card-icon,
-    .accent-green .card-icon,
+    .accent-red .card-icon {
+        background: #fff1f1;
+        border-color: #f0c9c9;
+    }
+
+    .accent-purple .card-icon {
+        background: #f5f0ff;
+        border-color: #ded1f4;
+    }
+
+    .accent-blue .card-icon {
+        background: #eef5ff;
+        border-color: #cfe0ff;
+    }
+
+    .accent-green .card-icon {
+        background: #eefaf3;
+        border-color: #cdebd8;
+    }
+
     .accent-gold .card-icon {
-        background: #1b1b1b;
-        border-color: #6a593e;
+        background: #fff8e8;
+        border-color: #f0dfb0;
     }
 
     .card-badge {
@@ -666,22 +630,21 @@ $generatedAt = date('n/j/Y g:i:s a');
         letter-spacing: 0.03em;
         padding: 5px 8px;
         border-radius: 999px;
-        background: #242424;
-        border: 1px solid #5e5548;
-        color: #dedede;
+        background: #f3f6fa;
+        border: 1px solid #d8e1ea;
+        color: #546678;
         white-space: nowrap;
     }
 
     .card h3 {
-        margin: 0 0 7px;
+        margin: 0 0 8px;
         font-size: 18px;
         line-height: 1.25;
-        color: #f0f0f0;
     }
 
     .card p {
-        margin: 0 0 13px;
-        color: #cccccc;
+        margin: 0 0 14px;
+        color: var(--muted);
         line-height: 1.45;
         flex: 1 1 auto;
     }
@@ -689,47 +652,41 @@ $generatedAt = date('n/j/Y g:i:s a');
     .path {
         font-family: Consolas, Monaco, "Courier New", monospace;
         font-size: 12px;
-        color: #d0d0d0;
-        background: #171717;
-        border: 1px solid #343434;
-        border-radius: 9px;
-        padding: 9px 10px;
+        color: #55687d;
+        background: var(--panel-soft);
+        border: 1px solid #e0e7ef;
+        border-radius: 10px;
+        padding: 10px 11px;
         word-break: break-word;
-        margin-bottom: 12px;
+        margin-bottom: 14px;
     }
 
     .open-button {
         text-decoration: none;
         display: inline-block;
         text-align: center;
-        padding: 10px 12px;
-        border-radius: 11px;
+        padding: 11px 12px;
+        border-radius: 12px;
         font-weight: 700;
-        color: #f7f7f7;
-        background: #252525;
-        border: 1px solid #746040;
+        color: #ffffff;
+        background: var(--blue);
         transition: 0.15s ease;
     }
 
     .open-button:hover {
-        background: #302a21;
-        border-color: #b4844c;
-        color: var(--gold);
+        background: #245aad;
         transform: translateY(-1px);
     }
 
     .footer-note {
-        margin-top: 18px;
-        background: #1b1b1b;
-        border: 1px solid #514938;
-        border-radius: 15px;
-        padding: 15px 17px;
-        color: #c7c7c7;
+        margin-top: 27px;
+        background: #ffffff;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 16px 18px;
+        color: var(--muted);
         line-height: 1.5;
-    }
-
-    .footer-note strong {
-        color: var(--gold);
+        box-shadow: var(--shadow);
     }
 
     .hidden-card {
@@ -741,24 +698,12 @@ $generatedAt = date('n/j/Y g:i:s a');
     }
 
     @media (max-width: 700px) {
-        .wrap {
-            padding: 14px 10px 32px;
-        }
-
         .hero h1 {
-            font-size: 25px;
-        }
-
-        .hero-note {
-            text-align: left;
+            font-size: 26px;
         }
 
         .section-title h2 {
             font-size: 20px;
-        }
-
-        .section {
-            padding: 11px;
         }
     }
 </style>
@@ -882,9 +827,9 @@ $generatedAt = date('n/j/Y g:i:s a');
     <?php endif; ?>
 
     <div class="footer-note">
-        <strong>v002:</strong> Same menu structure and discovery behavior as v001, now visually
-        integrated with the dark MRL race-results dashboard family. Future versions can concentrate
-        on page organization, labels, favorites, and any tools you decide should be added or removed.
+        <strong>v001:</strong> This is the first useful foundation. Once it is installed in both
+        environments, the visible cards will show us which known paths matched and which additional
+        pages were discovered. That will make the next refinement much easier and more accurate.
     </div>
 
 </div>
