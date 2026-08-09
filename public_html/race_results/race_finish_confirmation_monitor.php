@@ -5,7 +5,7 @@ declare(strict_types=1);
  * race_finish_confirmation_monitor.php
  *
  * VERSION: v006
- * LAST MODIFIED: 8/9/2026 3:50:34 pm
+ * LAST MODIFIED: 8/9/2026 4:47:04 pm
  *
  * DESCRIPTION:
  * Observation-only NASCAR race finish confirmation monitor.
@@ -23,6 +23,10 @@ declare(strict_types=1);
  * - Internal cadence determines when secondary-source observations are due.
  *
  * CHANGELOG:
+ * v006 (8/9/2026 4:47:04 pm)
+ * - Corrected false MRL/NASCAR race-identity mismatch by resolving/storing the MRL race number in the NASCAR cache data before building the comparison record.
+ * - Diagnostic/display correction only; finish-watch activation, cadence, source polling, scoring, and all downstream MRL behavior are unchanged.
+ *
  * v006 (8/9/2026 3:50:34 pm)
  * - Split Racing-Reference into separate Race Page and Season Page observations.
  * - Race Page now uses https://www.racing-reference.info/race/{year}-{race_number}/W.
@@ -102,11 +106,11 @@ $checkedAt = rfcm_now();
 
 $nascar = rfcm_read_existing_mrl_status($baseDir, $year, $config);
 $raceIdentity = rfcm_resolve_race_identity($baseDir, $year, $nascar);
-$mrlStatus = rfcm_build_mrl_status($raceIdentity, $nascar);
 $nascar['mrl_race_number'] = (int)($raceIdentity['race_number'] ?? 0);
 $nascar['mrl_race_code'] = (string)($raceIdentity['race_code'] ?? '');
 $nascar['schedule_race_name'] = (string)($raceIdentity['race_name'] ?? '');
 $nascar['schedule_track_name'] = (string)($raceIdentity['track_name'] ?? '');
+$mrlStatus = rfcm_build_mrl_status($raceIdentity, $nascar);
 $progress = (float)($nascar['progress_percent'] ?? 0.0);
 $flagLabel = strtoupper((string)($nascar['flag_label'] ?? 'UNKNOWN'));
 $activationPercent = (float)($config['finish_watch_start_percent'] ?? 90.0);
