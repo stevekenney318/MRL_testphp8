@@ -5,12 +5,17 @@ declare(strict_types=1);
  * race_finish_confirmation_dashboard.php
  *
  * VERSION: v006
- * LAST MODIFIED: 8/9/2026 3:50:34 pm
+ * LAST MODIFIED: 8/9/2026 4:56:20 pm
  *
  * DESCRIPTION:
  * Live read-only dashboard for race_finish_confirmation_monitor.php.
  *
  * CHANGELOG:
+ * v006 (8/9/2026 4:56:20 pm)
+ * - Added explicit no-store/no-cache HTTP response headers to prevent stale dashboard pages.
+ * - Replaced plain meta refresh with a 30-second JavaScript reload that updates a cache-buster query value.
+ * - Cache/display correction only; monitor logic, source polling, scheduler, and MRL processes are unchanged.
+ *
  * v006 (8/9/2026 3:50:34 pm)
  * - Split Racing-Reference into separate Race Page and Season Page cards.
  * - Added Racing-Reference Race Page evidence plus first-status and first-posted timestamps.
@@ -24,6 +29,12 @@ declare(strict_types=1);
 date_default_timezone_set('America/New_York');
 
 const RFCD_VERSION = 'v006';
+
+// This dashboard is live operational status; never allow a browser/proxy to reuse an old rendered page.
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Cache-Control: post-check=0, pre-check=0', false);
+header('Pragma: no-cache');
+header('Expires: 0');
 
 $baseDir = __DIR__;
 $dataDir = $baseDir . '/_race_finish_confirmation';
@@ -60,7 +71,6 @@ $watch = !empty($latest['finish_watch_active']);
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="refresh" content="30">
 <title>MRL Race Finish Confirmation Monitor</title>
 <style>
 :root{color-scheme:dark;--bg:#101318;--panel:#1a2028;--panel2:#222a34;--text:#edf2f7;--muted:#aab4c0;--border:#364150;--good:#56d364;--warn:#e3b341;--bad:#f85149;--accent:#58a6ff}
@@ -84,6 +94,15 @@ a{color:var(--accent)}.section-title{margin:22px 0 9px;font-size:20px}.notice{bo
 @media(max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.sources{grid-template-columns:1fr}}
 @media(max-width:520px){.grid{grid-template-columns:1fr}.wrap{padding:12px}h1{font-size:23px}}
 </style>
+<script>
+(function () {
+    window.setTimeout(function () {
+        var url = new URL(window.location.href);
+        url.searchParams.set('x', Date.now().toString());
+        window.location.replace(url.toString());
+    }, 30000);
+})();
+</script>
 </head>
 <body>
 <div class="wrap">
@@ -94,7 +113,7 @@ a{color:var(--accent)}.section-title{margin:22px 0 9px;font-size:20px}.notice{bo
 
 <div class="actions">
 <a class="button" href="race_finish_confirmation_monitor.php?force=1" target="_blank">Run observation now</a>
-<a class="button" href="race_finish_confirmation_dashboard.php">Refresh dashboard</a>
+<a class="button" href="race_finish_confirmation_dashboard.php?x=<?= rawurlencode((string)round(microtime(true) * 1000)) ?>">Refresh dashboard</a>
 </div>
 
 <div class="grid">
