@@ -29,6 +29,10 @@
         "racing_reference_season": {
             "enabled": true,
             "url_template": "https://www.racing-reference.info/season-stats/{year}/W"
+        },
+        "racing_reference_results": {
+            "enabled": true,
+            "url_template": "https://www.racing-reference.info/race-results/{year}-{race_number}/W"
         }
     },
     "retention": {

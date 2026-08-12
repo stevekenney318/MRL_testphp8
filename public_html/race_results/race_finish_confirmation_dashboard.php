@@ -5,12 +5,18 @@ declare(strict_types=1);
  * race_finish_confirmation_dashboard.php
  *
  * VERSION: v006
- * LAST MODIFIED: 8/9/2026 4:56:20 pm
+ * LAST MODIFIED: 8/9/2026 5:11:16 pm
  *
  * DESCRIPTION:
  * Live read-only dashboard for race_finish_confirmation_monitor.php.
  *
  * CHANGELOG:
+ * v006 (8/9/2026 5:11:16 pm)
+ * - Restored the original Racing-Reference Race Results Page (/race-results/{year}-{race_number}/W) as its own sixth dashboard tile.
+ * - Kept the newer Racing-Reference Race Page (/race/{year}-{race_number}/W), Season Page, and Jayski cards unchanged.
+ * - Saved observation history now shows RR Results, RR Race, and RR Season statuses separately.
+ * - Preserved the v006 no-cache/cache-buster protection.
+ *
  * v006 (8/9/2026 4:56:20 pm)
  * - Added explicit no-store/no-cache HTTP response headers to prevent stale dashboard pages.
  * - Replaced plain meta refresh with a 30-second JavaScript reload that updates a cache-buster query value.
@@ -127,6 +133,7 @@ a{color:var(--accent)}.section-title{margin:22px 0 9px;font-size:20px}.notice{bo
 <?php foreach ([
     'mrl'=>'MRL Race Status',
     'nascar'=>'NASCAR Live Source',
+    'racing_reference_results'=>'Racing-Reference Race Results Page',
     'racing_reference_race'=>'Racing-Reference Race Page',
     'racing_reference_season'=>'Racing-Reference Season Page',
     'jayski'=>'Jayski'
@@ -146,6 +153,13 @@ $s = isset($sources[$key]) && is_array($sources[$key]) ? $sources[$key] : [];
 <?php if ($key === 'nascar'): ?>
 <div class="small">Series ID: <?= rfcd_h((string)($s['series_id'] ?? 0)) ?> · Race ID: <?= rfcd_h((string)($s['race_id'] ?? 0)) ?></div>
 <div class="small">Race: <?= rfcd_h((string)($s['race_name'] ?? 'Unknown')) ?> · Track: <?= rfcd_h((string)($s['track_name'] ?? 'Unknown')) ?></div>
+<?php endif; ?>
+<?php if ($key === 'racing_reference_results'): ?>
+<div class="small">Waiting phrase: <?= !empty($s['waiting_phrase_present']) ? 'PRESENT' : 'ABSENT' ?> · Headers: <?= !empty($s['results_header_present']) ? 'FOUND' : 'NOT FOUND' ?></div>
+<div class="small">Driver rows: <?= rfcd_h((string)($s['driver_result_rows'] ?? 0)) ?></div>
+<div class="small">First status: <?= rfcd_h((string)($s['first_status_at'] ?? 'Not recorded')) ?></div>
+<div class="small">First posted: <?= rfcd_h((string)($s['first_posted_at'] ?? 'Not posted yet')) ?></div>
+<?php if (!empty($s['evidence'])): ?><div class="small">Evidence: <?= rfcd_h((string)$s['evidence']) ?></div><?php endif; ?>
 <?php endif; ?>
 <?php if ($key === 'racing_reference_race'): ?>
 <div class="small">Waiting phrase: <?= !empty($s['waiting_phrase_present']) ? 'PRESENT' : 'ABSENT' ?> · Position 1: <?= !empty($s['position_one_found']) ? 'FOUND' : 'NOT FOUND' ?></div>
@@ -175,10 +189,10 @@ $s = isset($sources[$key]) && is_array($sources[$key]) ? $sources[$key] : [];
 
 <h2 class="section-title">Saved observation history</h2>
 <table>
-<thead><tr><th>Checked</th><th>Race</th><th>Lap</th><th>Flag</th><th>Watch</th><th>RR Race</th><th>RR Season</th><th>Jayski</th><th>File</th></tr></thead>
+<thead><tr><th>Checked</th><th>Race</th><th>Lap</th><th>Flag</th><th>Watch</th><th>RR Results</th><th>RR Race</th><th>RR Season</th><th>Jayski</th><th>File</th></tr></thead>
 <tbody>
 <?php if (empty($history)): ?>
-<tr><td colspan="9">No observations have been saved yet.</td></tr>
+<tr><td colspan="10">No observations have been saved yet.</td></tr>
 <?php else: foreach ($history as $row):
 $r = isset($row['data']['race']) && is_array($row['data']['race']) ? $row['data']['race'] : [];
 $ss = isset($row['data']['sources']) && is_array($row['data']['sources']) ? $row['data']['sources'] : [];
@@ -189,6 +203,7 @@ $ss = isset($row['data']['sources']) && is_array($row['data']['sources']) ? $row
 <td><?= rfcd_h((string)($r['lap_number'] ?? 0)) ?>/<?= rfcd_h((string)($r['laps_in_race'] ?? 0)) ?> (<?= number_format((float)($r['progress_percent'] ?? 0),1) ?>%)</td>
 <td class="<?= rfcd_status_class((string)($r['flag_label'] ?? 'UNKNOWN')) ?>"><?= rfcd_h((string)($r['flag_label'] ?? 'UNKNOWN')) ?></td>
 <td><?= !empty($row['data']['finish_watch_active']) ? 'ACTIVE' : 'WAITING' ?></td>
+<td><?= rfcd_h((string)($ss['racing_reference_results']['status'] ?? '')) ?></td>
 <td><?= rfcd_h((string)($ss['racing_reference_race']['status'] ?? '')) ?></td>
 <td><?= rfcd_h((string)($ss['racing_reference_season']['status'] ?? '')) ?></td>
 <td><?= rfcd_h((string)($ss['jayski']['status'] ?? '')) ?></td>

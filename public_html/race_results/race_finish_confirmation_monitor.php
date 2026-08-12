@@ -5,7 +5,7 @@ declare(strict_types=1);
  * race_finish_confirmation_monitor.php
  *
  * VERSION: v006
- * LAST MODIFIED: 8/9/2026 4:47:04 pm
+ * LAST MODIFIED: 8/9/2026 5:11:16 pm
  *
  * DESCRIPTION:
  * Observation-only NASCAR race finish confirmation monitor.
@@ -14,8 +14,9 @@ declare(strict_types=1);
  * - Does not alter or call any existing MRL monitor, scheduler, scoring, snapshot,
  *   standings, revision, email, flag, or final-detection process.
  * - Does not make decisions for MRL.
- * - Compares MRL race identity with NASCAR live status, Racing-Reference race results, Racing-Reference season stats, and Jayski near race completion.
- * - Uses the deterministic Racing-Reference race URL built from MRL year/race number.
+ * - Compares MRL race identity with NASCAR live status, three Racing-Reference observations, and Jayski near race completion.
+ * - Preserves the original Racing-Reference /race-results/{year}-{race_number}/W check.
+ * - Also monitors the newer /race/{year}-{race_number}/W page and the yearly season-stats page independently.
  * - Reads the Jayski yearly race block, winner field, Results link, and linked results page.
  * - Designed to be launched every minute by the existing MRL master scheduler.
  * - Reads existing MRL JSON/cache files for lap and flag status.
@@ -23,6 +24,12 @@ declare(strict_types=1);
  * - Internal cadence determines when secondary-source observations are due.
  *
  * CHANGELOG:
+ * v006 (8/9/2026 5:11:16 pm)
+ * - Restored the original Racing-Reference /race-results/{year}-{race_number}/W observation as its own independent source.
+ * - Kept the newer /race/{year}-{race_number}/W observation and the /season-stats/{year}/W observation unchanged.
+ * - Monitor now records three distinct Racing-Reference statuses/hashes/transitions plus Jayski.
+ * - Correction only: no scheduler, cadence, activation, scoring, final-detection, revision, or downstream MRL behavior changed.
+ *
  * v006 (8/9/2026 4:47:04 pm)
  * - Corrected false MRL/NASCAR race-identity mismatch by resolving/storing the MRL race number in the NASCAR cache data before building the comparison record.
  * - Diagnostic/display correction only; finish-watch activation, cadence, source polling, scoring, and all downstream MRL behavior are unchanged.
@@ -170,6 +177,18 @@ if (!$finishWindow) {
         'sources' => [
             'mrl' => $mrlStatus,
             'nascar' => $nascar,
+            'racing_reference_results' => [
+                'status' => 'waiting',
+                'message' => 'Finish watch has not reached the 90% activation threshold.',
+                'checked_at' => 'Never',
+                'results_posted' => false,
+                'waiting_phrase_present' => false,
+                'results_header_present' => false,
+                'driver_result_rows' => 0,
+                'evidence' => '',
+                'first_status_at' => '',
+                'first_posted_at' => '',
+            ],
             'racing_reference_race' => [
                 'status' => 'waiting',
                 'message' => 'Finish watch has not reached the 90% activation threshold.',
@@ -272,6 +291,14 @@ $raceNumber = (int)($raceIdentity['race_number'] ?? 0);
 $sourceResults = [
     'mrl' => $mrlStatus,
     'nascar' => $nascar,
+    'racing_reference_results' => rfcm_check_racing_reference_results(
+        $year,
+        $raceNumber,
+        $config,
+        $timeout,
+        $rawDir,
+        $state
+    ),
     'racing_reference_race' => rfcm_check_racing_reference_race(
         $year,
         $raceNumber,
@@ -302,7 +329,7 @@ $sourceResults = [
 $sourceFirstTransitions = isset($state['source_first_transitions']) && is_array($state['source_first_transitions'])
     ? $state['source_first_transitions']
     : [];
-foreach (['racing_reference_race', 'racing_reference_season', 'jayski'] as $transitionKey) {
+foreach (['racing_reference_results', 'racing_reference_race', 'racing_reference_season', 'jayski'] as $transitionKey) {
     if (isset($sourceResults[$transitionKey]) && is_array($sourceResults[$transitionKey])) {
         rfcm_apply_source_transition_timestamps($sourceResults[$transitionKey], $transitionKey, $checkedAt, $sourceFirstTransitions);
     }
@@ -375,7 +402,7 @@ $state = [
 rfcm_write_json_atomic($stateFile, $state);
 
 rfcm_append_log($logFile, sprintf(
-    '%s race_id=%d lap=%d/%d progress=%.2f flag=%s watch=%s cadence=%dm rr_race=%s rr_season=%s jayski=%s observation=%s',
+    '%s race_id=%d lap=%d/%d progress=%.2f flag=%s watch=%s cadence=%dm rr_results=%s rr_race=%s rr_season=%s jayski=%s observation=%s',
     $checkedAt,
     (int)($nascar['race_id'] ?? 0),
     (int)($nascar['lap_number'] ?? 0),
@@ -384,6 +411,7 @@ rfcm_append_log($logFile, sprintf(
     $flagLabel,
     $finishWindow ? 'YES' : 'NO',
     (int)$cadence['minutes'],
+    (string)($sourceResults['racing_reference_results']['status'] ?? ''),
     (string)($sourceResults['racing_reference_race']['status'] ?? ''),
     (string)($sourceResults['racing_reference_season']['status'] ?? ''),
     (string)($sourceResults['jayski']['status'] ?? ''),
@@ -425,6 +453,10 @@ function rfcm_default_config(): array
             '_race_results_monitor_state.json'
         ],
         'sources' => [
+            'racing_reference_results' => [
+                'enabled' => true,
+                'url_template' => 'https://www.racing-reference.info/race-results/{year}-{race_number}/W'
+            ],
             'racing_reference_race' => [
                 'enabled' => true,
                 'url_template' => 'https://www.racing-reference.info/race/{year}-{race_number}/W'
@@ -733,6 +765,73 @@ function rfcm_check_nascar(int $year, int $timeout): array
 }
 
 
+function rfcm_check_racing_reference_results(int $year, int $raceNumber, array $config, int $timeout, string $rawDir, array $previousState): array
+{
+    if ($raceNumber <= 0) {
+        return rfcm_source_error('race_number_unavailable', 'MRL race number could not be resolved from _race_results_schedule.json.');
+    }
+
+    $sourceConfig = isset($config['sources']['racing_reference_results']) && is_array($config['sources']['racing_reference_results'])
+        ? $config['sources']['racing_reference_results'] : [];
+    $template = (string)($sourceConfig['url_template'] ?? 'https://www.racing-reference.info/race-results/{year}-{race_number}/W');
+    $url = rfcm_expand_source_url($template, $year, $raceNumber);
+
+    $response = rfcm_http_get($url, $timeout, 'text/html,application/xhtml+xml,*/*');
+    $body = (string)($response['body'] ?? '');
+    $text = rfcm_html_text($body);
+    $waitingPhrase = stripos($text, 'Results not available yet') !== false;
+    $headerPresent = stripos($text, 'POS') !== false && stripos($text, 'DRIVER') !== false && stripos($text, 'LAPS') !== false;
+    $driverRows = rfcm_count_racing_reference_driver_rows($body);
+    $resultsPosted = !empty($response['ok']) && !$waitingPhrase && $headerPresent && $driverRows > 0;
+    $raw = rfcm_save_changed_raw('racing_reference_results', $body, $rawDir, $previousState);
+
+    $status = 'waiting_results';
+    $message = 'Race Results page loaded; results are not posted yet.';
+    $evidence = $waitingPhrase ? 'Results not available yet.' : '';
+
+    if (!empty($response['challenge_detected'])) {
+        $status = 'blocked_by_challenge';
+        $message = 'Racing-Reference Race Results Page returned a browser challenge after retry.';
+        $evidence = 'Browser challenge detected.';
+    } elseif (empty($response['ok'])) {
+        $status = 'request_failed';
+        $message = (string)($response['error'] ?? 'Racing-Reference Race Results Page request failed.');
+        $evidence = 'HTTP ' . (string)($response['http_code'] ?? 0);
+    } elseif ($resultsPosted) {
+        $status = 'results_posted';
+        $message = 'Race Results page has populated driver results.';
+        $evidence = 'Results headers present; driver rows: ' . (string)$driverRows . '.';
+    } elseif (!$waitingPhrase) {
+        $status = 'race_page_changed_unclassified';
+        $message = 'Waiting phrase is absent, but populated driver rows were not confirmed.';
+        $evidence = 'Headers: ' . ($headerPresent ? 'present' : 'not confirmed') . '; driver rows: ' . (string)$driverRows . '.';
+    }
+
+    return [
+        'checked' => true,
+        'ok' => !empty($response['ok']),
+        'status' => $status,
+        'message' => $message,
+        'checked_at' => rfcm_now(),
+        'source_url' => $url,
+        'http_code' => (int)($response['http_code'] ?? 0),
+        'challenge_detected' => !empty($response['challenge_detected']),
+        'attempt_count' => (int)($response['attempt_count'] ?? 1),
+        'title' => rfcm_html_title($body),
+        'race_number' => $raceNumber,
+        'waiting_phrase_present' => $waitingPhrase,
+        'results_header_present' => $headerPresent,
+        'driver_result_rows' => $driverRows,
+        'results_posted' => $resultsPosted,
+        'evidence' => $evidence,
+        'body_bytes' => strlen($body),
+        'content_sha256' => (string)($raw['hash'] ?? ''),
+        'content_changed' => !empty($raw['changed']),
+        'raw_file' => (string)($raw['raw_file'] ?? ''),
+        'observation_only' => true,
+    ];
+}
+
 function rfcm_check_racing_reference_race(int $year, int $raceNumber, array $config, int $timeout, string $rawDir, array $previousState): array
 {
     if ($raceNumber <= 0) {
@@ -994,6 +1093,23 @@ function rfcm_save_changed_raw(string $key, string $body, string $rawDir, array 
     ];
 }
 
+function rfcm_count_racing_reference_driver_rows(string $html): int
+{
+    if ($html === '') return 0;
+    $count = 0;
+    if (preg_match_all('#<tr[^>]*>(.*?)</tr>#is', $html, $rows)) {
+        foreach ($rows[1] as $row) {
+            $text = rfcm_html_text((string)$row);
+            if (preg_match('/^\s*\d+\s+\d+\s+\d+\s+.+\s+\d+\s+(running|finished|accident|engine|transmission|brakes|electrical|dvp|disqualified|crash|rear gear|suspension|vibration|overheating|fuel pump|steering|oil leak|ignition|clutch|battery|handling|driveshaft|hub|wheel|tire|gear|radiator|water pump|power steering|camshaft|piston|valve|carburetor|fire|header|axle|mechanical|parked|withdrawn|did not start)/i', $text)) {
+                $count++;
+            } elseif (preg_match('#/driver/[^"\']+#i', (string)$row) && preg_match('/\b\d+\b/', $text)) {
+                $count++;
+            }
+        }
+    }
+    return $count;
+}
+
 function rfcm_racing_reference_position_one_evidence(string $html): string
 {
     if ($html === '') return '';
@@ -1180,6 +1296,7 @@ function rfcm_collect_raw_hashes(array $sources, array $previousState): array
         ? $previousState['last_raw_hashes']
         : [];
     $map = [
+        'racing_reference_results' => (string)($sources['racing_reference_results']['content_sha256'] ?? ''),
         'racing_reference_race' => (string)($sources['racing_reference_race']['content_sha256'] ?? ''),
         'racing_reference_season' => (string)($sources['racing_reference_season']['content_sha256'] ?? ''),
         'jayski_index' => (string)($sources['jayski']['content_sha256'] ?? ''),
