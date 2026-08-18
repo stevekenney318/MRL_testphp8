@@ -1,85 +1,421 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>MRL WP Images</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MRL WP Images</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-*{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:18px 0;font-size:80%;background:#1f1f1f;color:#f2f2f2}.page-shell{width:min(980px,calc(100% - 36px));margin:0 auto}h1{max-width:900px;margin:0 auto 10px}h1,h2{color:#ffd28a;margin:0 0 10px}.panel{background:#2a2a2a;border:1px solid #555;border-radius:10px;padding:12px;margin:0 auto 16px;max-width:900px}label{display:inline-block;margin:8px 14px 8px 0;font-size:14px}select,button{font-size:14px;padding:8px 10px;border-radius:7px;border:1px solid #777}button{cursor:pointer;background:#1f6fd1;color:#fff;border-color:#3a8cff;font-weight:bold;margin:8px 8px 6px 0}button.secondary{background:#444;border-color:#777}button:disabled{opacity:.45;cursor:not-allowed}.choices{display:grid;grid-template-columns:repeat(3,minmax(190px,1fr));gap:10px;margin:14px 0}.choice{display:flex;align-items:center;gap:9px;background:#202020;border:1px solid #555;border-radius:8px;padding:12px;font-size:14px;font-weight:bold}.choice input{width:20px;height:20px}.status{margin-top:12px;color:#9dffb3;font-weight:bold;line-height:1.45;white-space:pre-wrap}.note{color:#d6d6d6;line-height:1.45}.small{font-size:14px;color:#bbb}.library-grid{display:grid;grid-template-columns:minmax(280px,1fr) minmax(360px,1.3fr);gap:18px}.card-preview{background:#111;border:1px solid #555;padding:8px;overflow:auto}.card-preview canvas{max-width:100%;height:auto}.urlbox{font-family:Consolas,monospace;background:#171717;border:1px solid #555;padding:10px;word-break:break-all;margin-top:10px}.progress{max-height:240px;overflow:auto;background:#171717;border:1px solid #555;padding:10px;white-space:pre-wrap}.hidden{display:none}@media(max-width:780px){.choices,.library-grid{grid-template-columns:1fr}}
-</style></head><body>
+*{box-sizing:border-box}
+body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:10px 0;font-size:80%;background:#1f1f1f;color:#f2f2f2}
+.page-shell{width:min(940px,calc(100% - 24px));margin:0 auto}
+h1{margin:0 0 6px;color:#ffd28a;font-size:30px;line-height:1.05}
+h2{color:#ffd28a;margin:0 0 7px;font-size:23px;line-height:1.1}
+.panel{background:#2a2a2a;border:1px solid #555;border-radius:9px;padding:9px 12px;margin:0 0 9px}
+.intro{padding:8px 12px}
+label{display:inline-flex;align-items:center;gap:5px;margin:3px 12px 3px 0;font-size:14px}
+select,button{font-size:14px;padding:6px 9px;border-radius:7px;border:1px solid #777}
+button{cursor:pointer;background:#1f6fd1;color:#fff;border-color:#3a8cff;font-weight:bold;margin:4px 6px 4px 0}
+button.secondary{background:#444;border-color:#777}
+button:disabled{opacity:.45;cursor:not-allowed}
+.toolbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.folder-row{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:4px}
+.folder-ref{font-family:Consolas,monospace;color:#ddd;font-size:12px}
+.folder-state{font-weight:bold;color:#9dffb3}
+.choices{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin:6px 0 4px}
+.choice{font-size:14px;font-weight:bold;margin:0;gap:6px}
+.choice input{width:17px;height:17px;margin:0}
+.status{margin-top:6px;color:#9dffb3;font-weight:bold;line-height:1.32;white-space:pre-wrap}
+.note{color:#d6d6d6;line-height:1.35}
+.small{font-size:12px;color:#bbb}
+.urlbox{font-family:Consolas,monospace;background:#171717;border:1px solid #555;padding:7px 8px;word-break:break-all;margin:6px 0}
+.hidden{display:none}
+.button-row{display:flex;align-items:center;flex-wrap:wrap;gap:0}
+@media(max-width:780px){
+  .page-shell{width:min(100% - 16px,940px)}
+  .choices{gap:10px}
+}
+</style>
+</head>
+<body>
 <div class="page-shell">
 <!--
 MRL WP IMAGES
-VERSION: v006
-LAST MODIFIED: 7/23/2026 3:26:22 pm
+VERSION: v007
+LAST MODIFIED: 8/18/2026 12:14:29 am
 
 CHANGELOG
+v007 (8/18/2026 12:14:29 am)
+- FIX: Ty Gibbs NASCAR driver slug now uses ty-gibbs-1.
+- FIX: Top 5 generation now matches the original top5auto.html render/crop method exactly, including white margin and disabled image smoothing.
+- ADD: MRL folder reference shows H:\Google Drive\Manlius Racing League and remembers the selected directory handle when the browser permits it.
+- ADD: Direct YouTube search button for the selected race's NASCAR Extended Highlights.
+- UI: Tightened spacing throughout the page to reduce vertical scrolling and dead space.
+
 v006 (7/23/2026 3:26:22 pm)
 - CENTERED: Main MRL WP Images interface on wide displays.
 - CHANGE: Winning Driver Card now launches the WebView2 v006 clean-HTML workflow.
 - NOTE: Helper saves the live NASCAR HTML locally, creates a cleaned HTML copy, then captures only the driver card.
 -->
-<h1>MRL WP Images <span class="small">v006</span></h1>
-<div class="panel note"><b>Weekly Images</b> keeps the race selection and winner information you liked. <b>Driver Card</b> uses the selected race winner and the local MRL helper only when that yearly card is missing. The helper creates a cleaned local HTML copy before saving the card.</div>
-<div class="panel"><h2>Weekly Images</h2><button id="chooseFolder" class="secondary">Choose MRL Folder</button><div><label>Year: <select id="year"></select></label><label>Race: <select id="race"></select></label></div>
-<div class="choices"><label class="choice"><input id="top5" type="checkbox">Top 5 Image</label><label class="choice"><input id="driverCard" type="checkbox" checked>Driver Card</label><label class="choice"><input id="featured" type="checkbox">Featured Image</label></div>
-<label>Featured search: <select id="featuredMode"><option value="car driver trophy team">Best Match</option><option value="winner">Winner</option><option value="victory lane">Victory Lane</option><option value="trophy">Trophy</option><option value="team celebration">Team Celebration</option></select></label><br><button id="generate">Generate Selected</button><button id="selectAll" class="secondary">Select All</button><button id="clearAll" class="secondary">Clear All</button><div id="weeklyStatus" class="status">Loading races...</div></div>
-<div class="panel"><h2>Winning Driver Card</h2>
-<div id="winnerInfo" class="note">Select a completed race.</div>
-<div id="winnerPath" class="urlbox">No driver card selected.</div>
-<button id="captureWinner">Capture Winning Driver</button>
-<button id="openWinner" class="secondary">Open Card</button>
-<button id="downloadWinner" class="secondary">Download Card</button>
-<button id="copyWinnerUrl" class="secondary">Copy URL</button>
-<div id="captureStatus" class="status"></div>
+<h1>MRL WP Images <span class="small">v007</span></h1>
+
+<div class="panel intro note">
+  <b>Weekly Images</b> creates the selected race assets. <b>Driver Card</b> uses the race winner and launches the local MRL helper only when that yearly card is missing.
 </div>
-<canvas id="pdfCanvas" class="hidden"></canvas><canvas id="topCanvas" class="hidden"></canvas>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script><script>
+
+<div class="panel">
+  <h2>Weekly Images</h2>
+
+  <div class="folder-row">
+    <button id="chooseFolder" class="secondary">Choose MRL Folder</button>
+    <span class="folder-ref">Reference: H:\Google Drive\Manlius Racing League</span>
+    <span id="folderState" class="folder-state">Not selected</span>
+  </div>
+
+  <div class="toolbar">
+    <label>Year: <select id="year"></select></label>
+    <label>Race: <select id="race"></select></label>
+    <button id="highlights" class="secondary">Find Extended Highlights</button>
+  </div>
+
+  <div class="choices">
+    <label class="choice"><input id="top5" type="checkbox">Top 5 Image</label>
+    <label class="choice"><input id="driverCard" type="checkbox" checked>Driver Card</label>
+    <label class="choice"><input id="featured" type="checkbox">Featured Image</label>
+    <label>Featured search:
+      <select id="featuredMode">
+        <option value="car driver trophy team">Best Match</option>
+        <option value="winner">Winner</option>
+        <option value="victory lane">Victory Lane</option>
+        <option value="trophy">Trophy</option>
+        <option value="team celebration">Team Celebration</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="button-row">
+    <button id="generate">Generate Selected</button>
+    <button id="selectAll" class="secondary">Select All</button>
+    <button id="clearAll" class="secondary">Clear All</button>
+  </div>
+
+  <div id="weeklyStatus" class="status">Loading races...</div>
+</div>
+
+<div class="panel">
+  <h2>Winning Driver Card</h2>
+  <div id="winnerInfo" class="note">Select a completed race.</div>
+  <div id="winnerPath" class="urlbox">No driver card selected.</div>
+
+  <div class="button-row">
+    <button id="captureWinner">Capture Winning Driver</button>
+    <button id="openWinner" class="secondary">Open Card</button>
+    <button id="downloadWinner" class="secondary">Download Card</button>
+    <button id="copyWinnerUrl" class="secondary">Copy URL</button>
+  </div>
+
+  <div id="captureStatus" class="status"></div>
+</div>
+
+<canvas id="pdfCanvas" class="hidden"></canvas>
+<canvas id="topCanvas" class="hidden"></canvas>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-const API='/race_results/mrl_wp_images_data.php'; let rootHandle=null,races=[],drivers=[]; const $=id=>document.getElementById(id); const years=['year'];
-for(const id of years)for(let y=2026;y>=2008;y--){const o=new Option(y,y);if(y===2026)o.selected=true;$(id).add(o)}
-function proxyImage(src){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('Image failed: '+src));i.src=src})}
-async function loadRaces(){try{const y=$('year').value; const d=await fetch(`${API}?year=${y}&_=${Date.now()}`,{cache:'no-store'}).then(async r=>{const t=await r.text();if(!r.ok)throw new Error(`HTTP ${r.status}: ${t}`);return JSON.parse(t)});races=d.races||[];$('race').innerHTML='';for(const r of races)$('race').add(new Option(`${r.race_code} ${r.race_name}`,r.race_number));if(races.length)$('race').value=races[races.length-1].race_number;updateRace()}catch(e){$('weeklyStatus').textContent='Race loading failed: '+e.message;console.error(e)}}
-function currentRace(){return races.find(r=>String(r.race_number)===$('race').value)||null}function updateRace(){const r=currentRace();$('weeklyStatus').textContent=r?`${r.race_code} ${r.race_name}\nWeek: ${r.week}\nWinner: ${r.winner}\nRelease: ${r.release_id}\nDriver Card: ${r.winner.replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'')}_${r.year}.jpg`:'No completed races found.'}
-async function chooseFolder(){try{rootHandle=await showDirectoryPicker({mode:'readwrite'});$('weeklyStatus').textContent='MRL folder selected.'}catch(e){if(e.name!=='AbortError')$('weeklyStatus').textContent=e.message}}
-async function top5(r){if(!rootHandle)throw new Error('Choose the MRL folder first.');let yf=rootHandle.name==String(r.year)?rootHandle:await rootHandle.getDirectoryHandle(String(r.year));let wf=await yf.getDirectoryHandle('Weekly Updates');let f=await (await wf.getFileHandle(`${r.year}_WK_${String(r.week).padStart(2,'0')}_RESULTS.pdf`)).getFile();let pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise,p=await pdf.getPage(1),b=p.getViewport({scale:1}),v=p.getViewport({scale:3200/b.width}),pc=$('pdfCanvas');pc.width=v.width;pc.height=v.height;await p.render({canvasContext:pc.getContext('2d'),viewport:v}).promise;let o=$('topCanvas'),q=2;o.width=628*q+28;o.height=132*q+28;o.getContext('2d').drawImage(pc,102*q,110*q,628*q,132*q,14,14,628*q,132*q);let blob=await new Promise(z=>o.toBlob(z,'image/png'));let im=await yf.getDirectoryHandle('images',{create:true}),h=await im.getFileHandle(`${r.year} Week ${r.week} Top 5.png`,{create:true}),w=await h.createWritable();await w.write(blob);await w.close();return `${r.year}\\images\\${r.year} Week ${r.week} Top 5.png`}
-async function weekly(){const r=currentRace();if(!r)return;let lines=[`${r.race_code} ${r.race_name}`,`Week: ${r.week}`,`Winner: ${r.winner}`,`Release: ${r.release_id}`,''];try{if($('top5').checked)lines.push('Top 5: '+await top5(r));if($('driverCard').checked){
-  const x=winnerCardInfo();
-  const q=await fetch(`${API}?action=card_status&year=${r.year}&driver=${encodeURIComponent(r.winner)}&_=${Date.now()}`,{cache:'no-store'}).then(z=>z.json());
-  if(q.exists){lines.push('Driver Card: '+q.relative_path)}
-  else{lines.push('Driver Card: missing — use Capture Winning Driver below.');await refreshWinnerPanel()}
-}if($('featured').checked){const q=[r.year,r.race_name,r.winner,$('featuredMode').value].join(' ');window.open('https://www.google.com/search?tbm=isch&q='+encodeURIComponent(q),'_blank','noopener');lines.push('Featured search opened.')}lines.push('','Complete.')}catch(e){lines.push('','ERROR: '+e.message)}$('weeklyStatus').textContent=lines.join('\n')}
-$('year').onchange=loadRaces;
-$('race').onchange=updateRace;
-$('chooseFolder').onclick=chooseFolder;
-$('generate').onclick=weekly;
-$('selectAll').onclick=()=>['top5','driverCard','featured'].forEach(x=>$(x).checked=true);
-$('clearAll').onclick=()=>['top5','driverCard','featured'].forEach(x=>$(x).checked=false);
+
+const API='/race_results/mrl_wp_images_data.php';
+const EXPECTED_MRL_FOLDER='H:\\Google Drive\\Manlius Racing League';
+const FOLDER_DB='mrl_wp_images_folder_db';
+const FOLDER_STORE='handles';
+const FOLDER_KEY='mrl_root';
+
+const TOP5_SETTINGS={
+  referenceWidth:1600,
+  renderQuality:2,
+  cropX:102,
+  cropY:110,
+  cropW:628,
+  cropH:132,
+  margin:7
+};
+
+const DRIVER_SLUG_OVERRIDES={
+  'Ty Gibbs':'ty-gibbs-1'
+};
+
+let rootHandle=null;
+let races=[];
+const $=id=>document.getElementById(id);
+
+for(let y=2026;y>=2008;y--){
+  const o=new Option(y,y);
+  if(y===2026)o.selected=true;
+  $('year').add(o);
+}
+
+function openFolderDb(){
+  return new Promise((resolve,reject)=>{
+    if(!('indexedDB' in window)){resolve(null);return;}
+    const req=indexedDB.open(FOLDER_DB,1);
+    req.onupgradeneeded=()=>{
+      const db=req.result;
+      if(!db.objectStoreNames.contains(FOLDER_STORE))db.createObjectStore(FOLDER_STORE);
+    };
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error);
+  });
+}
+
+async function saveFolderHandle(handle){
+  try{
+    const db=await openFolderDb();
+    if(!db)return;
+    await new Promise((resolve,reject)=>{
+      const tx=db.transaction(FOLDER_STORE,'readwrite');
+      tx.objectStore(FOLDER_STORE).put(handle,FOLDER_KEY);
+      tx.oncomplete=()=>resolve();
+      tx.onerror=()=>reject(tx.error);
+    });
+    db.close();
+  }catch(e){
+    console.warn('Could not remember folder handle:',e);
+  }
+}
+
+async function loadSavedFolderHandle(){
+  try{
+    const db=await openFolderDb();
+    if(!db)return null;
+    const handle=await new Promise((resolve,reject)=>{
+      const tx=db.transaction(FOLDER_STORE,'readonly');
+      const req=tx.objectStore(FOLDER_STORE).get(FOLDER_KEY);
+      req.onsuccess=()=>resolve(req.result||null);
+      req.onerror=()=>reject(req.error);
+    });
+    db.close();
+    return handle;
+  }catch(e){
+    console.warn('Could not restore folder handle:',e);
+    return null;
+  }
+}
+
+async function permissionState(handle){
+  if(!handle)return 'none';
+  try{return await handle.queryPermission({mode:'readwrite'});}catch(e){return 'unknown';}
+}
+
+async function updateFolderState(){
+  const el=$('folderState');
+  if(!rootHandle){
+    el.textContent='Not selected';
+    return;
+  }
+  const p=await permissionState(rootHandle);
+  if(p==='granted')el.textContent=`Selected: ${rootHandle.name} ✓`;
+  else if(p==='prompt')el.textContent=`Remembered: ${rootHandle.name} — click Choose MRL Folder to re-authorize`;
+  else el.textContent=`Selected: ${rootHandle.name}`;
+}
+
+async function restoreFolder(){
+  rootHandle=await loadSavedFolderHandle();
+  await updateFolderState();
+}
+
+async function loadRaces(){
+  try{
+    const y=$('year').value;
+    const d=await fetch(`${API}?year=${y}&_=${Date.now()}`,{cache:'no-store'}).then(async r=>{
+      const t=await r.text();
+      if(!r.ok)throw new Error(`HTTP ${r.status}: ${t}`);
+      return JSON.parse(t);
+    });
+    races=d.races||[];
+    $('race').innerHTML='';
+    for(const r of races)$('race').add(new Option(`${r.race_code} ${r.race_name}`,r.race_number));
+    if(races.length)$('race').value=races[races.length-1].race_number;
+    updateRace();
+  }catch(e){
+    $('weeklyStatus').textContent='Race loading failed: '+e.message;
+    console.error(e);
+  }
+}
+
+function currentRace(){
+  return races.find(r=>String(r.race_number)===$('race').value)||null;
+}
+
+function updateRace(){
+  const r=currentRace();
+  $('weeklyStatus').textContent=r
+    ?`${r.race_code} ${r.race_name} | Week ${r.week} | Winner: ${r.winner}\nRelease: ${r.release_id}\nDriver Card: ${r.winner.replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'')}_${r.year}.jpg`
+    :'No completed races found.';
+  refreshWinnerPanel();
+}
+
+async function chooseFolder(){
+  try{
+    if(!window.showDirectoryPicker)throw new Error('This browser does not support folder access. Use Chrome or Edge.');
+    rootHandle=await showDirectoryPicker({mode:'readwrite'});
+    await saveFolderHandle(rootHandle);
+    await updateFolderState();
+  }catch(e){
+    if(e.name!=='AbortError')$('weeklyStatus').textContent=e.message;
+  }
+}
+
+async function ensureFolderPermission(){
+  if(!rootHandle)throw new Error(`Choose the MRL folder first.\nReference: ${EXPECTED_MRL_FOLDER}`);
+  const opts={mode:'readwrite'};
+  if((await rootHandle.queryPermission(opts))==='granted')return true;
+  if((await rootHandle.requestPermission(opts))==='granted'){
+    await updateFolderState();
+    return true;
+  }
+  throw new Error('MRL folder permission was not granted.');
+}
+
+async function top5(r){
+  await ensureFolderPermission();
+
+  const yf=rootHandle.name==String(r.year)
+    ?rootHandle
+    :await rootHandle.getDirectoryHandle(String(r.year));
+
+  const wf=await yf.getDirectoryHandle('Weekly Updates');
+  const pdfHandle=await wf.getFileHandle(`${r.year}_WK_${String(r.week).padStart(2,'0')}_RESULTS.pdf`);
+  const pdfFile=await pdfHandle.getFile();
+
+  const pdf=await pdfjsLib.getDocument({data:await pdfFile.arrayBuffer()}).promise;
+  const page=await pdf.getPage(1);
+  const baseViewport=page.getViewport({scale:1});
+  const targetWidth=TOP5_SETTINGS.referenceWidth*TOP5_SETTINGS.renderQuality;
+  const scale=targetWidth/baseViewport.width;
+  const viewport=page.getViewport({scale});
+
+  const pc=$('pdfCanvas');
+  pc.width=Math.round(viewport.width);
+  pc.height=Math.round(viewport.height);
+  await page.render({canvasContext:pc.getContext('2d'),viewport}).promise;
+
+  const q=TOP5_SETTINGS.renderQuality;
+  const sx=TOP5_SETTINGS.cropX*q;
+  const sy=TOP5_SETTINGS.cropY*q;
+  const sw=TOP5_SETTINGS.cropW*q;
+  const sh=TOP5_SETTINGS.cropH*q;
+  const sm=TOP5_SETTINGS.margin*q;
+
+  const out=$('topCanvas');
+  out.width=sw+sm*2;
+  out.height=sh+sm*2;
+
+  const ctx=out.getContext('2d');
+  ctx.imageSmoothingEnabled=false;
+  ctx.fillStyle='white';
+  ctx.fillRect(0,0,out.width,out.height);
+  ctx.drawImage(pc,sx,sy,sw,sh,sm,sm,sw,sh);
+
+  const blob=await new Promise(resolve=>out.toBlob(resolve,'image/png'));
+  const images=await yf.getDirectoryHandle('images',{create:true});
+  const fileHandle=await images.getFileHandle(`${r.year} Week ${r.week} Top 5.png`,{create:true});
+  const writable=await fileHandle.createWritable();
+  await writable.write(blob);
+  await writable.close();
+
+  return `${r.year}\\images\\${r.year} Week ${r.week} Top 5.png`;
+}
+
+function openHighlights(){
+  const r=currentRace();
+  if(!r)return;
+  const query=`NASCAR ${r.year} ${r.race_name} Extended Highlights`;
+  window.open('https://www.youtube.com/results?search_query='+encodeURIComponent(query),'_blank','noopener');
+}
+
+async function weekly(){
+  const r=currentRace();
+  if(!r)return;
+
+  let lines=[`${r.race_code} ${r.race_name} | Week ${r.week} | Winner: ${r.winner}`,`Release: ${r.release_id}`];
+
+  try{
+    if($('top5').checked)lines.push('Top 5: '+await top5(r));
+
+    if($('driverCard').checked){
+      const q=await fetch(`${API}?action=card_status&year=${r.year}&driver=${encodeURIComponent(r.winner)}&_=${Date.now()}`,{cache:'no-store'}).then(z=>z.json());
+      if(q.exists){
+        lines.push('Driver Card: '+q.relative_path);
+      }else{
+        lines.push('Driver Card: missing — use Capture Winning Driver below.');
+        await refreshWinnerPanel();
+      }
+    }
+
+    if($('featured').checked){
+      const q=[r.year,r.race_name,r.winner,$('featuredMode').value].join(' ');
+      window.open('https://www.google.com/search?tbm=isch&q='+encodeURIComponent(q),'_blank','noopener');
+      lines.push('Featured search opened.');
+    }
+
+    lines.push('Complete.');
+  }catch(e){
+    lines.push('ERROR: '+e.message);
+  }
+
+  $('weeklyStatus').textContent=lines.join('\n');
+}
+
+function nascarDriverSlug(driver){
+  if(DRIVER_SLUG_OVERRIDES[driver])return DRIVER_SLUG_OVERRIDES[driver];
+  return driver.toLowerCase()
+    .replace(/&/g,'and')
+    .replace(/[^a-z0-9]+/g,'-')
+    .replace(/^-|-$/g,'');
+}
 
 function winnerCardInfo(){
   const r=currentRace();
   if(!r)return null;
+
   const base=r.winner.replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'');
+
   return {
     race:r,
     filename:`${base}_${r.year}.jpg`,
     relative:`${r.year}/images/drivers/${base}_${r.year}.jpg`,
     url:`/race_results/${r.year}/images/drivers/${base}_${r.year}.jpg`,
-    slug:r.winner.toLowerCase().replace(/&/g,'and').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')
+    slug:nascarDriverSlug(r.winner)
   };
 }
+
 async function refreshWinnerPanel(){
   const x=winnerCardInfo();
-  if(!x){$('winnerInfo').textContent='Select a completed race.';return;}
+  if(!x){
+    $('winnerInfo').textContent='Select a completed race.';
+    return;
+  }
+
   let exists=false;
-  try{const q=await fetch(`${API}?action=card_status&year=${x.race.year}&driver=${encodeURIComponent(x.race.winner)}&_=${Date.now()}`,{cache:'no-store'}).then(r=>r.json());exists=!!q.exists;}catch(e){}
-  $('winnerInfo').textContent=`${x.race.race_code} ${x.race.race_name}\nWinner: ${x.race.winner}\nStatus: ${exists?'Available':'Missing'}`;
+  try{
+    const q=await fetch(`${API}?action=card_status&year=${x.race.year}&driver=${encodeURIComponent(x.race.winner)}&_=${Date.now()}`,{cache:'no-store'}).then(r=>r.json());
+    exists=!!q.exists;
+  }catch(e){}
+
+  $('winnerInfo').textContent=`${x.race.race_code} ${x.race.race_name} | Winner: ${x.race.winner} | Status: ${exists?'Available':'Missing'}`;
   $('winnerPath').textContent=location.origin+x.url;
   $('captureWinner').disabled=exists;
   $('captureWinner').textContent=exists?'Driver Card Available':'Capture Winning Driver';
 }
+
 async function captureWinner(){
-  const x=winnerCardInfo(); if(!x)return;
-  $('captureStatus').textContent='Launching NASCAR driver page...';
+  const x=winnerCardInfo();
+  if(!x)return;
+
+  $('captureStatus').textContent=`Launching NASCAR driver page: ${x.slug}`;
   const callback=`${location.origin}/race_results/mrl_wp_images_data.php`;
   const proto=`mrlwpimages://capture?year=${encodeURIComponent(x.race.year)}&driver=${encodeURIComponent(x.race.winner)}&slug=${encodeURIComponent(x.slug)}&callback=${encodeURIComponent(callback)}`;
   location.href=proto;
+
   let tries=0;
   const timer=setInterval(async()=>{
     tries++;
@@ -96,14 +432,30 @@ async function captureWinner(){
     }catch(e){}
   },1000);
 }
+
+$('year').onchange=loadRaces;
+$('race').onchange=updateRace;
+$('chooseFolder').onclick=chooseFolder;
+$('highlights').onclick=openHighlights;
+$('generate').onclick=weekly;
+$('selectAll').onclick=()=>['top5','driverCard','featured'].forEach(x=>$(x).checked=true);
+$('clearAll').onclick=()=>['top5','driverCard','featured'].forEach(x=>$(x).checked=false);
 $('captureWinner').onclick=captureWinner;
 $('openWinner').onclick=()=>{const x=winnerCardInfo();if(x)window.open(x.url,'_blank')};
 $('downloadWinner').onclick=()=>{const x=winnerCardInfo();if(x){const a=document.createElement('a');a.href=x.url;a.download=x.filename;a.click()}};
-$('copyWinnerUrl').onclick=async()=>{const x=winnerCardInfo();if(x){await navigator.clipboard.writeText(location.origin+x.url);$('captureStatus').textContent='Driver Card URL copied.'}};
-const oldUpdateRace=updateRace;
-updateRace=function(){oldUpdateRace();refreshWinnerPanel();}
+$('copyWinnerUrl').onclick=async()=>{
+  const x=winnerCardInfo();
+  if(x){
+    await navigator.clipboard.writeText(location.origin+x.url);
+    $('captureStatus').textContent='Driver Card URL copied.';
+  }
+};
 
-loadRaces();
+(async()=>{
+  await restoreFolder();
+  await loadRaces();
+})();
 </script>
 </div>
-</body></html>
+</body>
+</html>

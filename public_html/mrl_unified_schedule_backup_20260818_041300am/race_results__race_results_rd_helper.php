@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * race_results_rd_helper.php
  *
- * VERSION: v004
- * LAST MODIFIED: 8/18/2026 4:13:00 am
+ * VERSION: v003
+ * LAST MODIFIED: 4/3/2026 12:28:00 am
  *
  * DESCRIPTION:
  * Helper functions for detecting Replacement Driver (RD) eligibility.
@@ -25,12 +25,6 @@ declare(strict_types=1);
  * - It is intended as the first RD groundwork step.
  *
  * CHANGELOG:
- *
- * v004 (8/18/2026 4:13:00 am)
- * - CHANGE: RD next-effective-race lookup now uses race_schedule_helper.php.
- * - CHANGE: RD now shares /race_results/_race_results_schedule.json with LP.
- * - CHANGE: Next RD race must be a canonical MRL points race inside the DB-defined segment.
- * - CHANGE: Preserved existing RD eligibility detection and one-RD-per-season behavior.
  *
  * v003 (4/3/2026)
  * - Added graceful segment-config lookup helper.
@@ -53,8 +47,6 @@ declare(strict_types=1);
  */
 
 const MRL_RD_TIMEZONE = 'America/New_York';
-
-require_once __DIR__ . '/race_schedule_helper.php';
 
 if (!function_exists('mrl_rd_try_get_segment_bounds')) {
     function mrl_rd_try_get_segment_bounds(PDO $dbo, int $raceYear, string $segment): ?array
@@ -123,22 +115,14 @@ if (!function_exists('mrl_rd_segment_race_numbers')) {
 if (!function_exists('mrl_rd_next_race_in_segment')) {
     function mrl_rd_next_race_in_segment(PDO $dbo, int $raceYear, string $segment, int $raceNumber): ?int
     {
-        try {
-            $nextRace = mrl_schedule_helper_next_race_in_segment(
-                $raceYear,
-                $segment,
-                $raceNumber
-            );
+        $bounds = mrl_rd_get_segment_bounds($dbo, $raceYear, $segment);
+        $nextRace = $raceNumber + 1;
 
-            if (!is_array($nextRace)) {
-                return null;
-            }
-
-            $nextRaceNumber = mrl_schedule_helper_race_number($nextRace);
-            return ($nextRaceNumber > 0) ? $nextRaceNumber : null;
-        } catch (Throwable $e) {
+        if ($nextRace > (int)$bounds['end']) {
             return null;
         }
+
+        return $nextRace;
     }
 }
 

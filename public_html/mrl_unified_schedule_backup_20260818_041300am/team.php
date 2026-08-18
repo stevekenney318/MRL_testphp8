@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * team.php
  *
- * VERSION: v018
- * LAST MODIFIED: 8/18/2026 4:13:00 am
+ * VERSION: v017
+ * LAST MODIFIED: 8/18/2026 3:08:27 am
  *
  * DESCRIPTION:
  * Main universal team landing page for MRL / testphp8.
@@ -13,13 +13,6 @@ declare(strict_types=1);
  * normal picks now and LP / RD form routing later.
  *
  * CHANGELOG:
- *
- * v018 (8/18/2026 4:13:00 am)
- * - CHANGE: RD deadline lookup now uses shared race_schedule_helper.php.
- * - CHANGE: LP and RD timing now share /race_results/_race_results_schedule.json.
- * - CHANGE: Removed team.php dependency on legacy race_results/<year>/_schedule.json.
- * - CHANGE: RD deadline lookup now respects DB-defined segment boundaries through the shared helper.
- * - CHANGE: Preserved automatic LP, SPECIAL_AUTH, normal-pick and RD routing behavior.
  *
  * v017 (8/18/2026 3:08:27 am)
  * - CHANGE: LP eligibility is now automatic and no longer requires changeAuth.
@@ -464,40 +457,76 @@ function teampage_rd_folder_race_number(string $raceFolderName): int
     return 0;
 }
 
-function teampage_schedule_deadline_info(
-    string $raceYear,
-    string $segment,
-    string $raceFolderName
-): array {
+function teampage_schedule_rows(string $raceYear): array
+{
+    $path = __DIR__ . '/race_results/' . $raceYear . '/_schedule.json';
+    if (!is_file($path)) {
+        return [];
+    }
+
+    $json = @file_get_contents($path);
+    if ($json === false || trim($json) === '') {
+        return [];
+    }
+
+    $data = json_decode($json, true);
+    if (!is_array($data)) {
+        return [];
+    }
+
+    if (isset($data['races']) && is_array($data['races'])) {
+        return $data['races'];
+    }
+
+    return $data;
+}
+
+function teampage_schedule_row_by_race_number(string $raceYear, int $raceNumber): ?array
+{
+    $rows = teampage_schedule_rows($raceYear);
+    foreach ($rows as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+        if ((int)($row['race_number'] ?? 0) === $raceNumber) {
+            return $row;
+        }
+    }
+
+    return null;
+}
+
+function teampage_schedule_deadline_info(string $raceYear, string $raceFolderName): array
+{
     $currentRaceNumber = teampage_rd_folder_race_number($raceFolderName);
     if ($currentRaceNumber <= 0) {
         return [];
     }
 
+    $deadlineRaceNumber = $currentRaceNumber + 1;
+    $row = teampage_schedule_row_by_race_number($raceYear, $deadlineRaceNumber);
+    if (!is_array($row)) {
+        return [];
+    }
+
+    $datetimeEt = trim((string)($row['datetime_et'] ?? ''));
+    if ($datetimeEt === '') {
+        return [];
+    }
+
     try {
-        $row = mrl_schedule_helper_next_race_in_segment(
-            (int)$raceYear,
-            $segment,
-            $currentRaceNumber
-        );
-
-        if (!is_array($row)) {
-            return [];
-        }
-
-        $deadlineRaceNumber = mrl_schedule_helper_race_number($row);
-        $dt = mrl_schedule_helper_race_datetime($row);
-
-        return [
-            'deadline_race_number' => $deadlineRaceNumber,
-            'deadline_race_code' => (string)($row['mrl_race_code'] ?? ('R' . str_pad((string)$deadlineRaceNumber, 2, '0', STR_PAD_LEFT))),
-            'deadline_timestamp' => $dt->getTimestamp(),
-            'deadline_display' => $dt->format('n/j/Y g:i a') . ' ET',
-            'deadline_datetime_et' => $dt->format('Y-m-d H:i:s'),
-        ];
+        $dt = new DateTime($datetimeEt, new DateTimeZone('America/New_York'));
     } catch (Throwable $e) {
         return [];
     }
+
+    return [
+        'deadline_race_number' => $deadlineRaceNumber,
+        'deadline_race_code' => 'R' . str_pad((string)$deadlineRaceNumber, 2, '0', STR_PAD_LEFT),
+        'deadline_timestamp' => $dt->getTimestamp(),
+        'deadline_display' => $dt->format('n/j/Y g:i a') . ' ET',
+        'deadline_datetime_et' => $datetimeEt,
+    ];
 }
 
 function teampage_rd_should_show(?array $rdPending): bool
@@ -718,7 +747,7 @@ if ($rdPendingInfo !== null) {
             $rdReplacementOptions = teampage_rd_driver_options($dbconnect, $rdPendingGroup, (int)$raceYear, $uid, $rdPendingSegment, $excludeDrivers);
         }
 
-        $deadlineInfo = teampage_schedule_deadline_info((string)$raceYear, $rdPendingSegment, (string)($rdPendingInfo['raceFolderName'] ?? ''));
+        $deadlineInfo = teampage_schedule_deadline_info((string)$raceYear, (string)($rdPendingInfo['raceFolderName'] ?? ''));
         if (!empty($deadlineInfo)) {
             $rdDeadlineRaceCode = (string)($deadlineInfo['deadline_race_code'] ?? '');
             $rdDeadlineDisplay = (string)($deadlineInfo['deadline_display'] ?? '');

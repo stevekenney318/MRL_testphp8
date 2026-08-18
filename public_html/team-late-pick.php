@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * team-late-pick.php
  *
- * VERSION: v004
- * LAST MODIFIED: 3/30/2026 7:21:19 pm
+ * VERSION: v005
+ * LAST MODIFIED: 8/18/2026 3:08:27 am
  *
  * DESCRIPTION:
  * Special wrapper for LP / special-auth team form display.
@@ -13,6 +13,11 @@ declare(strict_types=1);
  * red late-pick note/banner while keeping alignment with team.php layout.
  *
  * CHANGELOG:
+ *
+ * v005 (8/18/2026 3:08:27 am)
+ * - CHANGE: LP banner now shows the automatic effective race and race-start deadline.
+ * - CHANGE: SPECIAL_AUTH is displayed as a separate manual admin override instead of LP.
+ * - CHANGE: Preserved active-form include behavior and layout.
  *
  * v004 (3/30/2026)
  * - Restored the red late-pick / special note banner above the active form.
@@ -31,7 +36,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 date_default_timezone_set('America/New_York');
 
-$specialWrapperVersion = 'v004';
+$specialWrapperVersion = 'v005';
 
 if (!isset($currentForm) || trim((string)$currentForm) === '') {
     echo "<div style='color:red; background:#fabf8f; text-align:center; font-weight:bold; padding:10px;'>Active form is not set.</div>";
@@ -57,16 +62,62 @@ $specialLockTime = isset($formLockTime) ? (string)$formLockTime : '';
 $specialRaceYear = isset($raceYear) ? (string)$raceYear : '';
 
 echo "<br>";
-echo "<div style='color: red; font-size: 20px; background-color: #fabf8f; text-align: center; font-weight: bold; padding: 8px 10px;'>"
-   . "You are currently making picks past the original deadline of "
-   . htmlspecialchars($specialLockDate, ENT_QUOTES, 'UTF-8')
-   . " "
-   . htmlspecialchars($specialLockTime, ENT_QUOTES, 'UTF-8')
-   . " for "
-   . htmlspecialchars($specialRaceYear, ENT_QUOTES, 'UTF-8')
-   . " "
-   . htmlspecialchars($specialSegmentLabel, ENT_QUOTES, 'UTF-8')
-   . "</div>";
+
+if (isset($teamFormMode) && $teamFormMode === 'LP') {
+    $lpRaceCode = '';
+    $lpDeadlineDisplay = '';
+
+    try {
+        $lpInfo = mrl_get_effective_race_for_lp((int)$specialRaceYear, (string)($segment ?? ''));
+        if (is_array($lpInfo)) {
+            $lpRaceNumber = (int)($lpInfo['race_number'] ?? 0);
+            if ($lpRaceNumber > 0) {
+                $lpRaceCode = 'R' . str_pad((string)$lpRaceNumber, 2, '0', STR_PAD_LEFT);
+            }
+
+            if (isset($lpInfo['race_start_dt']) && $lpInfo['race_start_dt'] instanceof DateTimeImmutable) {
+                $lpDeadlineDisplay = $lpInfo['race_start_dt']->format('n/j/Y g:i a') . ' ET';
+            }
+        }
+    } catch (Throwable $e) {
+        $lpRaceCode = '';
+        $lpDeadlineDisplay = '';
+    }
+
+    $message = "Late Pick window is open for "
+        . htmlspecialchars($specialRaceYear, ENT_QUOTES, 'UTF-8')
+        . " "
+        . htmlspecialchars($specialSegmentLabel, ENT_QUOTES, 'UTF-8')
+        . ". Original deadline: "
+        . htmlspecialchars($specialLockDate, ENT_QUOTES, 'UTF-8')
+        . " "
+        . htmlspecialchars($specialLockTime, ENT_QUOTES, 'UTF-8')
+        . ".";
+
+    if ($lpRaceCode !== '' && $lpDeadlineDisplay !== '') {
+        $message .= " Picks submitted now become effective with "
+            . htmlspecialchars($lpRaceCode, ENT_QUOTES, 'UTF-8')
+            . " and may be changed until "
+            . htmlspecialchars($lpDeadlineDisplay, ENT_QUOTES, 'UTF-8')
+            . ".";
+    }
+
+    echo "<div style='color:red; font-size:20px; background-color:#fabf8f; text-align:center; font-weight:bold; padding:8px 10px;'>"
+       . $message
+       . "</div>";
+} else {
+    echo "<div style='color:red; font-size:20px; background-color:#fabf8f; text-align:center; font-weight:bold; padding:8px 10px;'>"
+       . "SPECIAL ADMIN AUTHORIZATION is active for "
+       . htmlspecialchars($specialRaceYear, ENT_QUOTES, 'UTF-8')
+       . " "
+       . htmlspecialchars($specialSegmentLabel, ENT_QUOTES, 'UTF-8')
+       . ". Original deadline: "
+       . htmlspecialchars($specialLockDate, ENT_QUOTES, 'UTF-8')
+       . " "
+       . htmlspecialchars($specialLockTime, ENT_QUOTES, 'UTF-8')
+       . "."
+       . "</div>";
+}
 
 include $currentFormPath;
 

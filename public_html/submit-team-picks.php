@@ -4,14 +4,22 @@ declare(strict_types=1);
 /**
  * submit-team-picks.php
  *
- * VERSION: v004
- * LAST MODIFIED: 4/6/2026 10:26:26 pm
+ * VERSION: v005
+ * LAST MODIFIED: 8/18/2026 3:08:27 am
  *
  * DESCRIPTION:
  * Universal team pick submission handler for MRL / testphp8.
  * Supports normal SEG submissions and LP submissions using the same file.
  *
  * CHANGELOG:
+ *
+ * v005 (8/18/2026 3:08:27 am)
+ * - CHANGE: LP submission type is now derived automatically from deadline + existing pick state + canonical schedule.
+ * - CHANGE: LP no longer depends on users.changeAuth.
+ * - FIX: Existing SEG/ADJ picks remain their existing base type during SPECIAL_AUTH edits instead of being converted to LP.
+ * - FIX: An already-submitted LP cannot be edited after its stored effective race starts.
+ * - CHANGE: An unsubmitted late-pick opportunity naturally advances to the next future race in the same segment.
+ * - CHANGE: Preserved existing RD submission behavior.
  *
  * v004 (4/6/2026)
  * - CHANGE: Sync version bump for the corrected RD field names used by team_replacement_driver.php.
@@ -49,7 +57,7 @@ require_once $_SERVER['DOCUMENT_ROOT'] . '/class.user.php';
 require_once $_SERVER['DOCUMENT_ROOT'] . '/race_results/race_schedule_helper.php';
 
 $user_home = new USER();
-$scriptVersion = 'v004';
+$scriptVersion = 'v005';
 
 if (!$user_home->is_logged_in()) {
     $user_home->redirect('login.php');
@@ -235,28 +243,71 @@ function mrl_get_segment_base_pick_id(mysqli $dbconnect, int $uid, string $raceY
     return $value;
 }
 
-function mrl_user_has_change_auth(mysqli $dbconnect, int $uid): bool
+function mrl_get_existing_non_rd_pick_meta(mysqli $dbconnect, int $uid, string $raceYear, string $segment): ?array
 {
     $sql = "
-        SELECT userID
-        FROM users
+        SELECT pickID, pick_type, effective_race
+        FROM user_picks
         WHERE userID = ?
-          AND changeAuth = 'Y'
+          AND raceYear = ?
+          AND segment = ?
+          AND pick_type <> 'RD'
+        ORDER BY pickID ASC
         LIMIT 1
     ";
 
     $stmt = mysqli_prepare($dbconnect, $sql);
     if (!$stmt) {
+        return null;
+    }
+
+    mysqli_stmt_bind_param($stmt, "iss", $uid, $raceYear, $segment);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $row = $result ? mysqli_fetch_assoc($result) : null;
+    mysqli_stmt_close($stmt);
+
+    return is_array($row) ? $row : null;
+}
+
+function mrl_original_pick_deadline_passed(string $formLockDate, string $formLockTime): bool
+{
+    $raw = trim($formLockDate . ' ' . $formLockTime);
+    if ($raw === '') {
         return false;
     }
 
-    mysqli_stmt_bind_param($stmt, "i", $uid);
-    mysqli_stmt_execute($stmt);
-    mysqli_stmt_store_result($stmt);
-    $hasAuth = (mysqli_stmt_num_rows($stmt) === 1);
-    mysqli_stmt_close($stmt);
+    $deadlineTs = strtotime($raw);
+    if ($deadlineTs === false) {
+        return false;
+    }
 
-    return $hasAuth;
+    return time() >= $deadlineTs;
+}
+
+function mrl_lp_effective_race_is_open(int $raceYear, int $effectiveRace): bool
+{
+    if ($effectiveRace <= 0) {
+        return false;
+    }
+
+    try {
+        $now = new DateTimeImmutable('now', mrl_schedule_helper_timezone());
+        $races = mrl_schedule_helper_points_races($raceYear);
+
+        foreach ($races as $race) {
+            if ((int)($race['race_number'] ?? 0) !== $effectiveRace) {
+                continue;
+            }
+
+            $raceStart = mrl_schedule_helper_race_datetime($race);
+            return ($now < $raceStart);
+        }
+    } catch (Throwable $e) {
+        return false;
+    }
+
+    return false;
 }
 
 function mrl_determine_pick_type_and_effective_race(
@@ -264,24 +315,65 @@ function mrl_determine_pick_type_and_effective_race(
     int $uid,
     string $raceYearStr,
     int $raceYearInt,
-    string $activeSegment
+    string $activeSegment,
+    string $formLockDate,
+    string $formLockTime
 ): array {
-    $hasChangeAuth = mrl_user_has_change_auth($dbconnect, $uid);
+    $existing = mrl_get_existing_non_rd_pick_meta($dbconnect, $uid, $raceYearStr, $activeSegment);
 
-    if ($hasChangeAuth) {
+    if (is_array($existing)) {
+        $existingType = strtoupper(trim((string)($existing['pick_type'] ?? '')));
+        $existingEffectiveRace = (int)($existing['effective_race'] ?? 0);
+
+        if ($existingType === 'LP') {
+            if (mrl_lp_effective_race_is_open($raceYearInt, $existingEffectiveRace)) {
+                return [
+                    'pick_type' => 'LP',
+                    'effective_race' => $existingEffectiveRace,
+                    'blocked' => false,
+                ];
+            }
+
+            return [
+                'pick_type' => 'LP',
+                'effective_race' => $existingEffectiveRace,
+                'blocked' => true,
+            ];
+        }
+
+        if ($existingType === 'SEG' || $existingType === 'ADJ') {
+            return [
+                'pick_type' => $existingType,
+                'effective_race' => $existingEffectiveRace > 0
+                    ? $existingEffectiveRace
+                    : mrl_get_segment_start_race($dbconnect, $raceYearInt, $activeSegment),
+                'blocked' => false,
+            ];
+        }
+    }
+
+    if (mrl_original_pick_deadline_passed($formLockDate, $formLockTime)) {
         $lpEffectiveRace = mrl_get_effective_race_for_lp($raceYearInt, $activeSegment);
 
         if (is_array($lpEffectiveRace) && isset($lpEffectiveRace['race_number'])) {
             return [
                 'pick_type' => 'LP',
                 'effective_race' => (int)$lpEffectiveRace['race_number'],
+                'blocked' => false,
             ];
         }
+
+        return [
+            'pick_type' => 'LP',
+            'effective_race' => 0,
+            'blocked' => true,
+        ];
     }
 
     return [
         'pick_type' => 'SEG',
         'effective_race' => mrl_get_segment_start_race($dbconnect, $raceYearInt, $activeSegment),
+        'blocked' => false,
     ];
 }
 
@@ -365,8 +457,15 @@ if ($pickTypeOverride === 'RD') {
         $uid,
         $raceYearStr,
         $raceYearInt,
-        $activeSegment
+        $activeSegment,
+        isset($formLockDate) ? (string)$formLockDate : '',
+        isset($formLockTime) ? (string)$formLockTime : ''
     );
+
+    if (!empty($pickMeta['blocked'])) {
+        header('Location: /team.php#current_user_team_chart');
+        exit;
+    }
 
     $pickType = (string)$pickMeta['pick_type'];
     $effectiveRace = (int)$pickMeta['effective_race'];

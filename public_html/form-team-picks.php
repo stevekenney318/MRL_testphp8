@@ -4,11 +4,15 @@ declare(strict_types=1);
 /**
  * form-team-picks.php
  *
- * VERSION: v004
- * LAST MODIFIED: 3/30/2026 12:39:46 pm
+ * VERSION: v005
+ * LAST MODIFIED: 8/18/2026 3:08:27 am
  *
  *
  * CHANGELOG:
+ *
+ * v005 (8/18/2026 3:08:27 am)
+ * - CHANGE: LP mode now displays the effective race and race-start deadline instead of repeating the original segment deadline as the active due date.
+ * - CHANGE: Normal and SPECIAL_AUTH form behavior remains otherwise unchanged.
  *
  * v004 (3/30/2026)
  * - FIX: Active raceYear, segment, and lock values are now read directly from admin_setup.
@@ -49,7 +53,7 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/config_mrl.php';
 
 $formID = 'form-team-picks.php';
-$formVersion = 'v004';
+$formVersion = 'v005';
 $formTrace = $formID . ' ' . $formVersion;
 
 if (!isset($dbconnect) || !($dbconnect instanceof mysqli)) {
@@ -203,6 +207,28 @@ $activeSegmentLabel = $segmentNameMap[$activeSegment] ?? $activeSegment;
 
 $headerLine1 = "** Dropdown will only show drivers available to add to your team. **";
 $headerLine2 = "Picks for " . $activeRaceYear . " " . $activeSegmentLabel . " due by " . $activeLockDate . " " . $activeLockTime . ". When you click 'Submit Picks', they will be entered into our database, and appear in chart above.";
+
+if (isset($teamFormMode) && $teamFormMode === 'LP' && function_exists('mrl_get_effective_race_for_lp')) {
+    try {
+        $lpInfo = mrl_get_effective_race_for_lp($activeRaceYearInt, $activeSegment);
+        if (is_array($lpInfo) && isset($lpInfo['race_number'])) {
+            $lpRaceNumber = (int)$lpInfo['race_number'];
+            $lpRaceCode = 'R' . str_pad((string)$lpRaceNumber, 2, '0', STR_PAD_LEFT);
+            $lpDeadline = '';
+
+            if (isset($lpInfo['race_start_dt']) && $lpInfo['race_start_dt'] instanceof DateTimeImmutable) {
+                $lpDeadline = $lpInfo['race_start_dt']->format('n/j/Y g:i a') . ' ET';
+            }
+
+            $headerLine2 = "Late picks for " . $activeRaceYear . " " . $activeSegmentLabel
+                . " become effective with " . $lpRaceCode
+                . ($lpDeadline !== '' ? ". New deadline: " . $lpDeadline : '')
+                . ". You may change these picks until that race starts.";
+        }
+    } catch (Throwable $e) {
+        // Keep the normal header text if schedule data cannot be read.
+    }
+}
 
 $currentPick = mrl_fetch_current_segment_pick($dbconnect, $workingUserId, $activeRaceYear, $activeSegment);
 
