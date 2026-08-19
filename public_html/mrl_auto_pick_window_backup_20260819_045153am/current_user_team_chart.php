@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * current_user_team_chart.php
  *
- * VERSION: v003
- * LAST MODIFIED: 8/19/2026 4:51:53 am
+ * VERSION: v002
+ * LAST MODIFIED: 4/13/2026 9:08:59 pm
  *
  * DESCRIPTION:
  * Current user team chart shown on team.php.
@@ -13,10 +13,6 @@ declare(strict_types=1);
  * LP/RD display logic to the current-year segment rows.
  *
  * CHANGELOG:
- *
- * v003 (8/19/2026 4:51:53 am)
- * - FIX: Segment-history rendering no longer overwrites the shared legacy  variable while included inside team.php.
- * - CHANGE: Preserved all current-user chart, LP and RD display behavior.
  *
  * v002 (4/13/2026)
  * - FIX: Suppressed the original standalone row for any segment that also has an RD row.
@@ -113,15 +109,15 @@ echo "<table align=center style=width:80%>";
 echo "<tr style=background-color:#fabf8f>";
 echo "<th style=width:14%>" . cuytc_h((string)$raceYear) . "</th><th style=width:18%>Group A</th><th style=width:18%>Group B</th><th style=width:18%>Group C</th><th style=width:18%>Group D</th><th style=width:14%>Submission Time</th></tr>";
 
-$chartSegments = ['S1', 'S2', 'S3', 'S4'];
+$segments = ['S1', 'S2', 'S3', 'S4'];
 $allRows = [];
 
-foreach ($chartSegments as $chartSegment) {
+foreach ($segments as $segment) {
     $sql = "SELECT `pickID`, `pick_type`, `supersedes_pickID`, `effective_race`, `segment`, `driverA`, `driverB`, `driverC`, `driverD`, `entryDate`
             FROM `user_picks`
             WHERE `userID` = $uid
               AND `raceYear` = $raceYear
-              AND `segment` = '$chartSegment'
+              AND `segment` = '$segment'
             ORDER BY `entryDate` ASC, `pickID` ASC";
     $result = $dbo->query($sql);
     $segmentRows = $result ? $result->fetchAll(PDO::FETCH_ASSOC) : [];

@@ -4,16 +4,11 @@ declare(strict_types=1);
 /**
  * form-team-picks.php
  *
- * VERSION: v006
- * LAST MODIFIED: 8/19/2026 4:51:53 am
+ * VERSION: v005
+ * LAST MODIFIED: 8/18/2026 3:08:27 am
  *
  *
  * CHANGELOG:
- *
- * v006 (8/19/2026 4:51:53 am)
- * - CHANGE: Active year/segment/deadline now come from config_mrl.php's automatic pick-window state.
- * - CHANGE: Removes the form's direct dependency on the legacy admin_setup segment/lock fields for normal operation.
- * - CHANGE: Preserved LP effective-race header behavior and existing dropdown/edit behavior.
  *
  * v005 (8/18/2026 3:08:27 am)
  * - CHANGE: LP mode now displays the effective race and race-start deadline instead of repeating the original segment deadline as the active due date.
@@ -58,7 +53,7 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/config_mrl.php';
 
 $formID = 'form-team-picks.php';
-$formVersion = 'v006';
+$formVersion = 'v005';
 $formTrace = $formID . ' ' . $formVersion;
 
 if (!isset($dbconnect) || !($dbconnect instanceof mysqli)) {
@@ -194,20 +189,24 @@ function mrl_fetch_driver_options(mysqli $dbconnect, string $group, int $raceYea
     return $rows;
 }
 
-// config_mrl.php is now the single compatibility layer for active PICK state.
-// Legacy pages still receive $segment/$formLockDate, but those values are
-// automatically derived from the canonical schedule + segment_race_ranges.
-$activeRaceYear = (string)$raceYear;
+$adminSetup = mrl_get_active_admin_setup($dbconnect);
+
+$activeRaceYear = isset($adminSetup['raceYear']) ? (string)$adminSetup['raceYear'] : (string)$raceYear;
 $activeRaceYearInt = (int)$activeRaceYear;
-$activeSegment = trim((string)$segment);
-$activeLockDate = trim((string)$formLockDate);
-$activeLockTime = '';
-$activeSegmentLabel = isset($segmentName) && trim((string)$segmentName) !== ''
-    ? (string)$segmentName
-    : $activeSegment;
+$activeSegment = isset($adminSetup['segment']) ? trim((string)$adminSetup['segment']) : trim((string)$segment);
+$activeLockDate = isset($adminSetup['formLockDate']) ? (string)$adminSetup['formLockDate'] : '';
+$activeLockTime = isset($adminSetup['formLockTime']) ? (string)$adminSetup['formLockTime'] : '';
+
+$segmentNameMap = [
+    'S1' => 'Segment #1',
+    'S2' => 'Segment #2',
+    'S3' => 'Segment #3',
+    'S4' => 'Segment #4',
+];
+$activeSegmentLabel = $segmentNameMap[$activeSegment] ?? $activeSegment;
 
 $headerLine1 = "** Dropdown will only show drivers available to add to your team. **";
-$headerLine2 = "Picks for " . $activeRaceYear . " " . $activeSegmentLabel . " due by " . $activeLockDate . ". When you click 'Submit Picks', they will be entered into our database, and appear in chart above.";
+$headerLine2 = "Picks for " . $activeRaceYear . " " . $activeSegmentLabel . " due by " . $activeLockDate . " " . $activeLockTime . ". When you click 'Submit Picks', they will be entered into our database, and appear in chart above.";
 
 if (isset($teamFormMode) && $teamFormMode === 'LP' && function_exists('mrl_get_effective_race_for_lp')) {
     try {

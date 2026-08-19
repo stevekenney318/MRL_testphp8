@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * team.php
  *
- * VERSION: v019
- * LAST MODIFIED: 8/19/2026 4:51:53 am
+ * VERSION: v018
+ * LAST MODIFIED: 8/18/2026 4:13:00 am
  *
  * DESCRIPTION:
  * Main universal team landing page for MRL / testphp8.
@@ -13,13 +13,6 @@ declare(strict_types=1);
  * normal picks now and LP / RD form routing later.
  *
  * CHANGELOG:
- *
- * v019 (8/19/2026 4:51:53 am)
- * - NEW: Normal pick-window availability now follows the shared automatic pick-window state.
- * - NEW: Normal picks open 15 days before the first race in the pick segment and close at that race start.
- * - CHANGE: Uses config_mrl.php's backward-compatible pick-segment mapping instead of requiring manual admin segment/deadline changes.
- * - SAFETY: Before a future segment's normal window opens, direct normal-form display remains blocked.
- * - CHANGE: Preserved LP, SPECIAL_AUTH and RD routing after the active pick-segment deadline.
  *
  * v018 (8/18/2026 4:13:00 am)
  * - CHANGE: RD deadline lookup now uses shared race_schedule_helper.php.
@@ -877,13 +870,9 @@ $phpMyAdminUrl = $phpMyAdminDb !== ''
         <?php
         $end_ts = strtotime((string)$formLockDate);
         $user_ts = strtotime((string)$currentTimeIs);
-        $normalPickWindowOpen = isset($pickWindowIsOpen)
-            ? (bool)$pickWindowIsOpen
-            : ($end_ts !== false && $end_ts > $user_ts);
-        $pickWindowOpenTs = isset($pickWindowOpenAt) ? strtotime((string)$pickWindowOpenAt) : false;
 
         if ($formLocked === 'no') {
-            if ($normalPickWindowOpen) {
+            if ($end_ts > $user_ts) {
 
                 $teamName = '';
 
@@ -919,26 +908,14 @@ $phpMyAdminUrl = $phpMyAdminDb !== ''
 
             } else {
 
-                // This only occurs before the first segment's automatic window opens,
-                // or when an admin override deliberately schedules a future opening.
-                // For an in-progress segment the deadline is already past, so LP/RD
-                // routing below remains unchanged.
-                if ($end_ts !== false && $user_ts < $end_ts && !$normalPickWindowOpen) {
-                    $openText = isset($pickWindowOpenAt) && trim((string)$pickWindowOpenAt) !== ''
-                        ? (string)$pickWindowOpenAt
-                        : 'the scheduled opening time';
-                    echo "Normal picks for " . teampage_h((string)$raceYear) . " " . teampage_h((string)$segmentName)
-                        . " open on " . teampage_h($openText) . ".";
+                if ($showRdWrapper) {
+                    include 'team_replacement_driver.php';
+                } elseif ($teamFormMode === 'LP' || $teamFormMode === 'SPECIAL_AUTH') {
+                    include 'team-late-pick.php';
                 } else {
-                    if ($showRdWrapper) {
-                        include 'team_replacement_driver.php';
-                    } elseif ($teamFormMode === 'LP' || $teamFormMode === 'SPECIAL_AUTH') {
-                        include 'team-late-pick.php';
-                    } else {
-                        echo teampage_h((string)$formLockedMessage) . " - past Lock date of " . teampage_h((string)$formLockDate);
-                        echo "<br><br>";
-                        include 'current_segment_chart.php';
-                    }
+                    echo teampage_h((string)$formLockedMessage) . " - past Lock date of " . teampage_h((string)$formLockDate);
+                    echo "<br><br>";
+                    include 'current_segment_chart.php';
                 }
 
             }

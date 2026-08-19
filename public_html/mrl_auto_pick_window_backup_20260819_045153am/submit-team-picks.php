@@ -4,19 +4,14 @@ declare(strict_types=1);
 /**
  * submit-team-picks.php
  *
- * VERSION: v006
- * LAST MODIFIED: 8/19/2026 4:51:53 am
+ * VERSION: v005
+ * LAST MODIFIED: 8/18/2026 3:08:27 am
  *
  * DESCRIPTION:
  * Universal team pick submission handler for MRL / testphp8.
  * Supports normal SEG submissions and LP submissions using the same file.
  *
  * CHANGELOG:
- *
- * v006 (8/19/2026 4:51:53 am)
- * - NEW: Blocks a brand-new normal SEG submission before the automatic pick window opens.
- * - CHANGE: Normal/LP deadline decisions now use config_mrl.php's schedule-derived pick segment and deadline.
- * - CHANGE: Preserved existing SEG/ADJ edits, LP lifecycle and RD submission behavior.
  *
  * v005 (8/18/2026 3:08:27 am)
  * - CHANGE: LP submission type is now derived automatically from deadline + existing pick state + canonical schedule.
@@ -62,7 +57,7 @@ require_once $_SERVER['DOCUMENT_ROOT'] . '/class.user.php';
 require_once $_SERVER['DOCUMENT_ROOT'] . '/race_results/race_schedule_helper.php';
 
 $user_home = new USER();
-$scriptVersion = 'v006';
+$scriptVersion = 'v005';
 
 if (!$user_home->is_logged_in()) {
     $user_home->redirect('login.php');
@@ -371,17 +366,6 @@ function mrl_determine_pick_type_and_effective_race(
         return [
             'pick_type' => 'LP',
             'effective_race' => 0,
-            'blocked' => true,
-        ];
-    }
-
-    // A brand-new normal segment pick may only be created while the automatic
-    // normal-pick window is actually open. Existing SEG/ADJ edits were handled
-    // above and retain their established behavior.
-    if (isset($GLOBALS['pickWindowIsOpen']) && !$GLOBALS['pickWindowIsOpen']) {
-        return [
-            'pick_type' => 'SEG',
-            'effective_race' => mrl_get_segment_start_race($dbconnect, $raceYearInt, $activeSegment),
             'blocked' => true,
         ];
     }
