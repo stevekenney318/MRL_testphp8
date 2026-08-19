@@ -4,19 +4,13 @@ declare(strict_types=1);
 /**
  * admin_setup.php
  *
- * VERSION: v003
- * LAST MODIFIED: 8/19/2026 3:30:00 pm
+ * VERSION: v002
+ * LAST MODIFIED: 8/19/2026 3:08:00 pm
  *
  * DESCRIPTION:
  * Compact dashboard-style MRL automatic pick-window admin page.
  *
  * CHANGELOG:
- * v003 (8/19/2026 3:30:00 pm)
- * - UI: Replaced generic top title card with environment-aware site banner matching race_results_dashboard styling.
- * - UI: TestPHP8 shows TESTPHP8 / DEMO SITE with demo/test-data status; Live-compatible rendering shows LIVE MRL SITE with Production site status.
- * - UI: Pick-window state and year remain visible as compact pills inside the same banner.
- * - CHANGE: Presentation only; no pick-window, schedule, database, scoring, LP, RD, or submission logic changes.
- *
  * v002 (8/19/2026 3:08:00 pm)
  * - UI: Rebuilt first data row as three compact panels in requested order:
  *       Current Effective State / Temporary Pick Window Override / System Settings.
@@ -214,11 +208,8 @@ $adjustActive = isset($current['pickLeadAdjustYear'], $current['pickLeadAdjustSe
 *{box-sizing:border-box}
 body{margin:0;background:#151515;color:#f2f2f2;font-family:Tahoma,Verdana,Segoe,sans-serif;font-size:15px}
 .wrap{width:96%;max-width:1500px;margin:12px auto 24px}
-.env-banner{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 16px;border:1px solid #4b4233;border-radius:14px;margin-bottom:10px;background:linear-gradient(180deg,#22211e,#191919)}
-.env-banner.live{border-color:#326a49;background:linear-gradient(180deg,#193124,#1b211e)}
-.env-banner.test{border-color:#9a7014;background:linear-gradient(180deg,#3a3118,#282417)}
-.env-left{min-width:0}.env-title{margin:0;color:#fff4df;font-size:24px;font-weight:800;letter-spacing:1.2px}.env-domain{color:#ddd;font-size:13px;margin-top:1px}.env-page{color:#ffd08a;font-size:13px;font-weight:bold;margin-top:5px}.env-right{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap}.env-site-pill{border:1px solid #4d473f;border-radius:999px;padding:5px 11px;font-size:12px;font-weight:bold;white-space:nowrap}.env-site-pill.live{border-color:#286c48;background:#173526;color:#62e89b}.env-site-pill.test{border-color:#826820;background:#4a3c19;color:#ffd166}
-.subtitle{color:#aaa;font-size:13px;margin-top:3px}
+.page-title{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border:1px solid #4b4233;border-radius:14px;background:linear-gradient(180deg,#22211e,#191919);margin-bottom:10px}
+.page-title h1{margin:0;color:#ffd08a;font-size:24px;letter-spacing:.2px}.subtitle{color:#aaa;font-size:13px;margin-top:3px}
 .pill{display:inline-block;border:1px solid #6b5a3b;border-radius:999px;padding:5px 10px;background:#25231f;color:#eee;white-space:nowrap}.pill.good{border-color:#286c48;background:#173526;color:#62e89b}.pill.warn{border-color:#7a6330;background:#3b311b;color:#ffd166}.pill.bad{border-color:#7f3434;background:#3b1c1c;color:#ff7d7d}
 .top-grid{display:grid;grid-template-columns:1.04fr 1.18fr .95fr;gap:10px;align-items:start}.card{border:1px solid #4d473f;border-radius:14px;background:linear-gradient(180deg,#222,#1b1b1b);padding:12px 14px;box-shadow:0 2px 8px rgba(0,0,0,.22)}
 .card h2{margin:0 0 9px;color:#ffd08a;font-size:18px}.rows{display:grid;gap:4px}.kv{display:grid;grid-template-columns:minmax(108px,.9fr) minmax(0,1.25fr);align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #333}.kv:last-child{border-bottom:0}.k{color:#cdbd9e;font-size:13px;font-weight:bold}.v{color:#fff;min-width:0;overflow-wrap:anywhere}.v.strong{font-size:16px;font-weight:bold}.muted{color:#9d9d9d}.goodtxt{color:#62e89b}.warntxt{color:#ffd166}.badtxt{color:#ff7d7d}
@@ -230,26 +221,7 @@ body{margin:0;background:#151515;color:#f2f2f2;font-family:Tahoma,Verdana,Segoe,
 <body>
 <?php if($msg!==''): ?><div class="flash"><?php echo ah($msg); ?></div><?php endif; ?>
 <div class="wrap">
-<?php
-$adminHost = strtolower((string)($_SERVER['HTTP_HOST'] ?? ''));
-$adminIsTest = (strpos($adminHost, 'testphp8.') === 0);
-$adminEnvClass = $adminIsTest ? 'test' : 'live';
-$adminEnvTitle = $adminIsTest ? 'TESTPHP8 / DEMO SITE' : 'LIVE MRL SITE';
-$adminEnvDomain = $adminIsTest ? 'testphp8.manliusracingleague.com' : 'manliusracingleague.com';
-$adminEnvPill = $adminIsTest ? 'Demo / test data' : 'Production site';
-?>
-<div class="env-banner <?php echo ah($adminEnvClass); ?>">
-    <div class="env-left">
-        <div class="env-title"><?php echo ah($adminEnvTitle); ?></div>
-        <div class="env-domain"><?php echo ah($adminEnvDomain); ?></div>
-        <div class="env-page">MRL Automatic Pick Window</div>
-    </div>
-    <div class="env-right">
-        <span class="env-site-pill <?php echo ah($adminEnvClass); ?>"><?php echo ah($adminEnvPill); ?></span>
-        <span class="pill <?php echo $pickWindowIsOpen?'good':'warn'; ?>"><?php echo ah($pickWindowStatus); ?></span>
-        <span class="pill"><?php echo ah($raceYear); ?></span>
-    </div>
-</div>
+<div class="page-title"><div><h1>MRL Automatic Pick Window</h1><div class="subtitle">Compact control center — schedule-derived by default, exceptions explicit.</div></div><div class="status-line"><span class="pill <?php echo $pickWindowIsOpen?'good':'warn'; ?>"><?php echo ah($pickWindowStatus); ?></span><span class="pill"><?php echo ah($raceYear); ?></span></div></div>
 
 <div class="top-grid">
 <section class="card">

@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * pick_window_helper.php
  *
- * VERSION: v001
- * LAST MODIFIED: 8/19/2026 4:51:53 am
+ * VERSION: v002
+ * LAST MODIFIED: 8/19/2026 3:08:00 pm
  *
  * DESCRIPTION:
  * Shared automatic normal-pick window resolver.
@@ -13,21 +13,33 @@ declare(strict_types=1);
  * Sources:
  * - /race_results/_race_results_schedule.json for canonical race start times.
  * - segment_race_ranges for segment start/end race numbers.
+ * - admin_setup pickWindowDefaultDays for the normal global lead-time rule.
+ * - admin_setup pickLeadAdjust* for an optional one-segment lead-time adjustment.
  *
  * Rules:
- * - Normal picks open 15 days before the first points race in a segment.
- * - Normal picks close at the scheduled start of that first segment race.
+ * - Default normal-pick lead time is configurable in admin_setup (15 days initially).
+ * - A segment-specific adjustment applies ONLY to its matching year + segment.
+ * - When the system moves to another segment, the unmatched adjustment is ignored and
+ *   the global default automatically resumes.
+ * - The temporary exact-date override remains a separate, higher-priority override.
+ * - Normal picks close at the scheduled start of the first race in the segment.
  * - scoringSegment is the latest segment whose first race has started.
- * - pickSegment becomes the next segment during its 15-day normal-pick window;
+ * - pickSegment becomes the next segment during its calculated normal-pick window;
  *   otherwise it remains the scoring segment so LP/current-segment behavior works.
- * - Optional admin override changes PICK state only; scoringSegment remains automatic.
+ * - Temporary admin override changes PICK state only; scoringSegment remains automatic.
  *
  * CHANGELOG:
+ * v002 (8/19/2026 3:08:00 pm)
+ * - NEW: Configurable global default lead time.
+ * - NEW: One-segment lead-time adjustment keyed by year + segment.
+ * - NEW: Window state reports effective lead-time source/default/adjustment details.
+ * - CHANGE: Replaced hardcoded 15-day calculation with supplied settings.
+ *
  * v001 (8/19/2026 4:51:53 am)
  * - Initial automatic pick-window helper.
  */
 
-const MRL_PICK_WINDOW_DAYS = 15;
+const MRL_PICK_WINDOW_DEFAULT_DAYS = 15;
 const MRL_PICK_WINDOW_TIMEZONE = 'America/New_York';
 
 require_once __DIR__ . '/race_results/race_schedule_helper.php';
@@ -39,11 +51,33 @@ if (!function_exists('mrl_pick_window_timezone')) {
     }
 }
 
+if (!function_exists('mrl_pick_window_normalize_days')) {
+    function mrl_pick_window_normalize_days($value, int $fallback = MRL_PICK_WINDOW_DEFAULT_DAYS): int
+    {
+        $days = filter_var($value, FILTER_VALIDATE_INT);
+        if ($days === false || $days < 0 || $days > 90) {
+            return $fallback;
+        }
+        return (int)$days;
+    }
+}
+
 if (!function_exists('mrl_pick_window_segment_rows')) {
-    function mrl_pick_window_segment_rows(int $year): array
+    function mrl_pick_window_segment_rows(int $year, array $settings = []): array
     {
         global $dbo, $dbconnect;
         $rows = [];
+
+        $defaultDays = mrl_pick_window_normalize_days(
+            $settings['default_days'] ?? MRL_PICK_WINDOW_DEFAULT_DAYS,
+            MRL_PICK_WINDOW_DEFAULT_DAYS
+        );
+        $adjustYear = (int)($settings['adjust_year'] ?? 0);
+        $adjustSegment = strtoupper(trim((string)($settings['adjust_segment'] ?? '')));
+        $adjustDaysRaw = $settings['adjust_days'] ?? null;
+        $adjustDays = ($adjustDaysRaw === null || $adjustDaysRaw === '')
+            ? null
+            : mrl_pick_window_normalize_days($adjustDaysRaw, $defaultDays);
 
         if (isset($dbo) && $dbo instanceof PDO) {
             $stmt = $dbo->prepare(
@@ -91,8 +125,15 @@ if (!function_exists('mrl_pick_window_segment_rows')) {
                 throw new RuntimeException('Segment ' . $segment . ' start race R' . $startRace . ' is missing from canonical schedule.');
             }
 
+            $leadDays = $defaultDays;
+            $leadSource = 'DEFAULT';
+            if ($adjustYear === $year && $adjustSegment === $segment && $adjustDays !== null) {
+                $leadDays = $adjustDays;
+                $leadSource = 'SEGMENT_ADJUSTMENT';
+            }
+
             $startDt = mrl_schedule_helper_race_datetime($race);
-            $openDt = $startDt->sub(new DateInterval('P' . MRL_PICK_WINDOW_DAYS . 'D'));
+            $openDt = $startDt->sub(new DateInterval('P' . $leadDays . 'D'));
 
             $out[] = [
                 'segment' => $segment,
@@ -101,6 +142,9 @@ if (!function_exists('mrl_pick_window_segment_rows')) {
                 'start_dt' => $startDt,
                 'open_dt' => $openDt,
                 'deadline_dt' => $startDt,
+                'lead_days' => $leadDays,
+                'lead_source' => $leadSource,
+                'default_days' => $defaultDays,
                 'race' => $race,
             ];
         }
@@ -130,7 +174,6 @@ if (!function_exists('mrl_pick_window_parse_db_datetime')) {
     {
         $value = trim((string)$value);
         if ($value === '') return null;
-
         $dt = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $value, mrl_pick_window_timezone());
         return $dt instanceof DateTimeImmutable ? $dt : null;
     }
@@ -147,13 +190,12 @@ if (!function_exists('mrl_pick_window_state')) {
     function mrl_pick_window_state(
         int $year,
         array $override = [],
-        ?DateTimeImmutable $now = null
+        ?DateTimeImmutable $now = null,
+        array $settings = []
     ): array {
         $now = $now ?? new DateTimeImmutable('now', mrl_pick_window_timezone());
-        $segments = mrl_pick_window_segment_rows($year);
+        $segments = mrl_pick_window_segment_rows($year, $settings);
 
-        // Before the first race, S1 is the scoring-context fallback. Thereafter,
-        // scoringSegment advances only when a segment's first scheduled race starts.
         $scoringRow = $segments[0];
         foreach ($segments as $row) {
             if ($row['start_dt'] <= $now) {
@@ -163,8 +205,6 @@ if (!function_exists('mrl_pick_window_state')) {
             }
         }
 
-        // Outside an overlap window, pickSegment remains scoringSegment so LP and
-        // legacy current-segment pages keep operating on the segment being raced.
         $pickRow = $scoringRow;
         foreach ($segments as $row) {
             if ($now >= $row['open_dt'] && $now < $row['deadline_dt']) {
@@ -177,6 +217,8 @@ if (!function_exists('mrl_pick_window_state')) {
         $overrideError = '';
         $openDt = $pickRow['open_dt'];
         $deadlineDt = $pickRow['deadline_dt'];
+        $effectiveLeadDays = (int)$pickRow['lead_days'];
+        $leadSource = (string)$pickRow['lead_source'];
 
         $overrideEnabled = strtolower(trim((string)($override['enabled'] ?? 'no'))) === 'yes';
         if ($overrideEnabled) {
@@ -202,6 +244,8 @@ if (!function_exists('mrl_pick_window_state')) {
                 $pickRow = $requestedRow;
                 $openDt = $requestedOpen;
                 $deadlineDt = $requestedDeadline;
+                $effectiveLeadDays = (int)$requestedRow['lead_days'];
+                $leadSource = (string)$requestedRow['lead_source'];
                 $source = 'OVERRIDE';
             }
         }
@@ -226,6 +270,9 @@ if (!function_exists('mrl_pick_window_state')) {
             'deadline_display' => mrl_pick_window_format_display($deadlineDt),
             'window_is_open' => $isOpen,
             'status' => $status,
+            'default_lead_days' => (int)$pickRow['default_days'],
+            'effective_lead_days' => $effectiveLeadDays,
+            'lead_source' => $leadSource,
             'segments' => $segments,
         ];
     }
