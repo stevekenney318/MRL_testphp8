@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * team_chart.php
  *
- * VERSION: v017
- * LAST MODIFIED: 8/20/2026 1:59:00 am
+ * VERSION: v016
+ * LAST MODIFIED: 8/19/2026 7:12:00 pm
  *
  * DESCRIPTION:
  * Public Team Chart page with PRG flow, print, spreadsheet export,
@@ -177,7 +177,7 @@ function tc_build_chart_context(array $rows): array
         if ($adminAdjusted && ($pickType === 'SEG' || $pickType === '')) {
             $markerIndex++;
             $marker = tc_marker_symbol($markerIndex);
-            $notes[] = ['marker' => $marker, 'text' => $teamName . ' — Approved Exception'];
+            $notes[] = ['marker' => $marker, 'text' => $teamName . ' — Admin-approved regular pick'];
         } elseif ($pickType === 'LP') {
             $markerIndex++;
             $marker = tc_marker_symbol($markerIndex);

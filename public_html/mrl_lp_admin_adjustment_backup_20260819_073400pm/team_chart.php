@@ -4,18 +4,14 @@ declare(strict_types=1);
 /**
  * team_chart.php
  *
- * VERSION: v017
- * LAST MODIFIED: 8/20/2026 1:59:00 am
+ * VERSION: v015
+ * LAST MODIFIED: 4/12/2026 12:59:28 am
  *
  * DESCRIPTION:
  * Public Team Chart page with PRG flow, print, spreadsheet export,
  * and render-time LP / RD chart annotations.
  *
  * CHANGELOG:
- *
- * v016 (8/19/2026 7:12:00 pm)
- * - NEW: SEG rows with ADJ history show * Admin-approved regular pick.
- * - CHANGE: Preserved LP/RD and spreadsheet behavior.
  *
  * v015 (4/12/2026)
  * - FIX: Suppressed standalone base SEG/ADJ rows when a team also has an RD row so only the merged two-row RD block is shown.
@@ -167,18 +163,13 @@ function tc_build_chart_context(array $rows): array
         $teamName = trim((string)($row['teamName'] ?? ''));
         $pickType = strtoupper(trim((string)($row['pick_type'] ?? 'SEG')));
         $referenceRow = tc_get_reference_pick_row($row, $rowsByPickId, $baseRowsByTeam[$teamName] ?? null);
-        $adminAdjusted = !empty($row['admin_adjusted']);
         $marker = '';
 
         if (($pickType === 'SEG' || $pickType === 'ADJ') && isset($teamsWithRd[$teamName])) {
             continue;
         }
 
-        if ($adminAdjusted && ($pickType === 'SEG' || $pickType === '')) {
-            $markerIndex++;
-            $marker = tc_marker_symbol($markerIndex);
-            $notes[] = ['marker' => $marker, 'text' => $teamName . ' — Approved Exception'];
-        } elseif ($pickType === 'LP') {
+        if ($pickType === 'LP') {
             $markerIndex++;
             $marker = tc_marker_symbol($markerIndex);
             $noteText = $teamName . ' — Late Pick';
@@ -615,8 +606,7 @@ if ($needsChartData) {
                     up.driverB,
                     up.driverC,
                     up.driverD,
-                    up.entryDate,
-                    EXISTS(SELECT 1 FROM user_picks_history h WHERE h.userID=up.userID AND h.raceYear=up.raceYear AND h.segment=up.segment AND h.pick_type='ADJ' AND h.formID LIKE 'admin_pick_adjustment.php%') AS admin_adjusted
+                    up.entryDate
                 FROM user_picks up
                 LEFT JOIN users u ON u.userID = up.userID
                 WHERE up.raceYear = :year
@@ -647,8 +637,7 @@ if ($needsChartData) {
                     up.driverB,
                     up.driverC,
                     up.driverD,
-                    up.entryDate,
-                    EXISTS(SELECT 1 FROM user_picks_history h WHERE h.userID=up.userID AND h.raceYear=up.raceYear AND h.segment=up.segment AND h.pick_type='ADJ' AND h.formID LIKE 'admin_pick_adjustment.php%') AS admin_adjusted
+                    up.entryDate
                 FROM user_picks up
                 LEFT JOIN users u ON u.userID = up.userID
                 WHERE up.raceYear = ?

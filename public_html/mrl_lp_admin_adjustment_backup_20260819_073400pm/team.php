@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * team.php
  *
- * VERSION: v020
- * LAST MODIFIED: 8/19/2026 7:12:00 pm
+ * VERSION: v019
+ * LAST MODIFIED: 8/19/2026 4:51:53 am
  *
  * DESCRIPTION:
  * Main universal team landing page for MRL / testphp8.
@@ -13,10 +13,6 @@ declare(strict_types=1);
  * normal picks now and LP / RD form routing later.
  *
  * CHANGELOG:
- *
- * v020 (8/19/2026 7:12:00 pm)
- * - NEW: Admin menu link to admin_pick_adjustment.php.
- * - CHANGE: No routing/scoring/LP/RD logic changes.
  *
  * v019 (8/19/2026 4:51:53 am)
  * - NEW: Normal pick-window availability now follows the shared automatic pick-window state.
@@ -826,8 +822,6 @@ $phpMyAdminUrl = $phpMyAdminDb !== ''
             <a href="/email.php" target="_blank">- List all email addresses - active & inactive</a>
             <br>
             <a href="/change_user_auth.php" target="_blank">- Toggle user status to make late picks or change driver</a>
-            <br>
-            <a href="/admin_pick_adjustment.php" target="_blank">- Approve LP as regular segment pick</a>
             <br>
             <a href="/addDrivers.php" target="_blank">- Add drivers for a new year.</a>
             <br>

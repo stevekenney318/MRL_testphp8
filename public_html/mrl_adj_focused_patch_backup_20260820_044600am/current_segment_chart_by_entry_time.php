@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * current_segment_chart_by_entry_time.php
  *
- * VERSION: v004
- * LAST MODIFIED: 8/20/2026 1:59:00 am
+ * VERSION: v003
+ * LAST MODIFIED: 8/19/2026 7:12:00 pm
  *
  * DESCRIPTION:
  * Current segment team chart sorted by entry time for admin use.
@@ -123,7 +123,7 @@ function cscet_build_chart_context(array $rows): array
         if ($adminAdjusted && ($pickType === 'SEG' || $pickType === '')) {
             $markerIndex++;
             $marker = cscet_marker_symbol($markerIndex);
-            $noteText = $teamName . ' — Approved Exception';
+            $noteText = $teamName . ' — Admin-approved regular pick';
             $notes[] = ['marker' => $marker, 'text' => $noteText];
         } elseif ($pickType === 'LP') {
             $markerIndex++;

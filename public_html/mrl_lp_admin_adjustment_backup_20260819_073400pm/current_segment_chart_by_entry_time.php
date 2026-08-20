@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * current_segment_chart_by_entry_time.php
  *
- * VERSION: v004
- * LAST MODIFIED: 8/20/2026 1:59:00 am
+ * VERSION: v002
+ * LAST MODIFIED: 4/13/2026 3:24:07 pm
  *
  * DESCRIPTION:
  * Current segment team chart sorted by entry time for admin use.
@@ -14,10 +14,6 @@ declare(strict_types=1);
  * chronological order and keeping RD rows unmerged.
  *
  * CHANGELOG:
- *
- * v003 (8/19/2026 7:12:00 pm)
- * - NEW: SEG rows with ADJ history show * Admin-approved regular pick.
- * - CHANGE: Preserved chronological LP/RD behavior.
  *
  * v002 (4/13/2026)
  * - CHANGE: Rebuilt rendering from user_picks + users so LP/RD markers match the public chart wording pattern.
@@ -116,16 +112,10 @@ function cscet_build_chart_context(array $rows): array
         $pickType = strtoupper(trim((string)($row['pick_type'] ?? 'SEG')));
         $referenceRow = cscet_get_reference_pick_row($row, $rowsByPickId, $baseRowsByTeam[$teamName] ?? null);
         $changedFields = cscet_get_changed_fields_for_rd($row, $referenceRow);
-        $adminAdjusted = !empty($row['admin_adjusted']);
         $marker = '';
         $noteText = '';
 
-        if ($adminAdjusted && ($pickType === 'SEG' || $pickType === '')) {
-            $markerIndex++;
-            $marker = cscet_marker_symbol($markerIndex);
-            $noteText = $teamName . ' — Approved Exception';
-            $notes[] = ['marker' => $marker, 'text' => $noteText];
-        } elseif ($pickType === 'LP') {
+        if ($pickType === 'LP') {
             $markerIndex++;
             $marker = cscet_marker_symbol($markerIndex);
             $noteText = $teamName . ' — Late Pick';
@@ -173,8 +163,7 @@ $sql = "
         up.driverB,
         up.driverC,
         up.driverD,
-        up.entryDate,
-        EXISTS(SELECT 1 FROM user_picks_history h WHERE h.userID=up.userID AND h.raceYear=up.raceYear AND h.segment=up.segment AND h.pick_type='ADJ' AND h.formID LIKE 'admin_pick_adjustment.php%') AS admin_adjusted
+        up.entryDate
     FROM user_picks up
     LEFT JOIN users u ON u.userID = up.userID
     WHERE up.raceYear = '$raceYear'

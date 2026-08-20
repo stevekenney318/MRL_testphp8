@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * current_user_team_chart.php
  *
- * VERSION: v005
- * LAST MODIFIED: 8/20/2026 1:59:00 am
+ * VERSION: v004
+ * LAST MODIFIED: 8/19/2026 7:12:00 pm
  *
  * DESCRIPTION:
  * Current user team chart shown on team.php.
@@ -358,7 +358,7 @@ function cuytc_build_chart_context(array $rows): array
         if ($adminAdjusted && ($pickType === 'SEG' || $pickType === '')) {
             $markerIndex++;
             $marker = cuytc_marker_symbol($markerIndex);
-            $notes[] = ['marker' => $marker, 'text' => $segmentLabel . ' — Approved Exception'];
+            $notes[] = ['marker' => $marker, 'text' => $segmentLabel . ' — Admin-approved regular pick'];
         } elseif ($pickType === 'LP') {
             $markerIndex++;
             $marker = cuytc_marker_symbol($markerIndex);

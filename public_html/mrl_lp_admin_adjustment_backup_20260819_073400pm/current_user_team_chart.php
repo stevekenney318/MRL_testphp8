@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * current_user_team_chart.php
  *
- * VERSION: v005
- * LAST MODIFIED: 8/20/2026 1:59:00 am
+ * VERSION: v003
+ * LAST MODIFIED: 8/19/2026 4:51:53 am
  *
  * DESCRIPTION:
  * Current user team chart shown on team.php.
@@ -13,10 +13,6 @@ declare(strict_types=1);
  * LP/RD display logic to the current-year segment rows.
  *
  * CHANGELOG:
- *
- * v004 (8/19/2026 7:12:00 pm)
- * - NEW: SEG rows with ADJ history show * Admin-approved regular pick.
- * - CHANGE: Preserved original timestamp and LP/RD display behavior.
  *
  * v003 (8/19/2026 4:51:53 am)
  * - FIX: Segment-history rendering no longer overwrites the shared legacy  variable while included inside team.php.
@@ -121,8 +117,7 @@ $chartSegments = ['S1', 'S2', 'S3', 'S4'];
 $allRows = [];
 
 foreach ($chartSegments as $chartSegment) {
-    $sql = "SELECT `pickID`, `pick_type`, `supersedes_pickID`, `effective_race`, `segment`, `driverA`, `driverB`, `driverC`, `driverD`, `entryDate`,
-                   EXISTS(SELECT 1 FROM `user_picks_history` h WHERE h.`userID`=$uid AND h.`raceYear`=$raceYear AND h.`segment`='$chartSegment' AND h.`pick_type`='ADJ' AND h.`formID` LIKE 'admin_pick_adjustment.php%') AS `admin_adjusted`
+    $sql = "SELECT `pickID`, `pick_type`, `supersedes_pickID`, `effective_race`, `segment`, `driverA`, `driverB`, `driverC`, `driverD`, `entryDate`
             FROM `user_picks`
             WHERE `userID` = $uid
               AND `raceYear` = $raceYear
@@ -348,18 +343,13 @@ function cuytc_build_chart_context(array $rows): array
         $segmentLabel = mapSegmentName($segment);
         $pickType = strtoupper(trim((string)($row['pick_type'] ?? 'SEG')));
         $referenceRow = cuytc_get_reference_pick_row($row, $rowsByPickId, $baseRowsBySegment[$segment] ?? null);
-        $adminAdjusted = !empty($row['admin_adjusted']);
         $marker = '';
 
         if (($pickType === 'SEG' || $pickType === 'ADJ' || $pickType === '') && isset($segmentsWithRd[$segment])) {
             continue;
         }
 
-        if ($adminAdjusted && ($pickType === 'SEG' || $pickType === '')) {
-            $markerIndex++;
-            $marker = cuytc_marker_symbol($markerIndex);
-            $notes[] = ['marker' => $marker, 'text' => $segmentLabel . ' — Approved Exception'];
-        } elseif ($pickType === 'LP') {
+        if ($pickType === 'LP') {
             $markerIndex++;
             $marker = cuytc_marker_symbol($markerIndex);
             $noteText = $segmentLabel . ' — Late Pick';
