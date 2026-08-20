@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * pick_window_helper.php
  *
- * VERSION: v002
- * LAST MODIFIED: 8/19/2026 3:08:00 pm
+ * VERSION: v003
+ * LAST MODIFIED: 8/20/2026 2:33:24 pm
  *
  * DESCRIPTION:
  * Shared automatic normal-pick window resolver.
@@ -29,6 +29,13 @@ declare(strict_types=1);
  * - Temporary admin override changes PICK state only; scoringSegment remains automatic.
  *
  * CHANGELOG:
+ * v003 (8/20/2026 2:33:24 pm)
+ * - NEW: Optional exact one-segment opening timestamp via adjust_open_at.
+ * - NEW: Reports next chronological segment/open/deadline for UI messaging.
+ * - NEW: Reports lead mode/display so exact openings are not misrepresented as whole days.
+ * - PRESERVE: Integer lead-days still subtract exact whole days from first-race start time.
+ * - PRESERVE: Temporary exact-date override remains higher priority.
+ *
  * v002 (8/19/2026 3:08:00 pm)
  * - NEW: Configurable global default lead time.
  * - NEW: One-segment lead-time adjustment keyed by year + segment.
@@ -78,6 +85,10 @@ if (!function_exists('mrl_pick_window_segment_rows')) {
         $adjustDays = ($adjustDaysRaw === null || $adjustDaysRaw === '')
             ? null
             : mrl_pick_window_normalize_days($adjustDaysRaw, $defaultDays);
+        $adjustOpenRaw = trim((string)($settings['adjust_open_at'] ?? ''));
+        $adjustOpenDt = $adjustOpenRaw !== ''
+            ? mrl_pick_window_parse_db_datetime($adjustOpenRaw)
+            : null;
 
         if (isset($dbo) && $dbo instanceof PDO) {
             $stmt = $dbo->prepare(
@@ -125,15 +136,29 @@ if (!function_exists('mrl_pick_window_segment_rows')) {
                 throw new RuntimeException('Segment ' . $segment . ' start race R' . $startRace . ' is missing from canonical schedule.');
             }
 
+            $startDt = mrl_schedule_helper_race_datetime($race);
             $leadDays = $defaultDays;
             $leadSource = 'DEFAULT';
-            if ($adjustYear === $year && $adjustSegment === $segment && $adjustDays !== null) {
-                $leadDays = $adjustDays;
-                $leadSource = 'SEGMENT_ADJUSTMENT';
+            $leadMode = 'DAYS';
+            $openDt = $startDt->sub(new DateInterval('P' . $leadDays . 'D'));
+
+            if ($adjustYear === $year && $adjustSegment === $segment) {
+                if ($adjustOpenDt instanceof DateTimeImmutable && $adjustOpenDt < $startDt) {
+                    $openDt = $adjustOpenDt;
+                    $leadSource = 'SEGMENT_EXACT';
+                    $leadMode = 'EXACT';
+                    $leadDays = (int)round(($startDt->getTimestamp() - $openDt->getTimestamp()) / 86400);
+                } elseif ($adjustDays !== null) {
+                    $leadDays = $adjustDays;
+                    $leadSource = 'SEGMENT_ADJUSTMENT';
+                    $leadMode = 'DAYS';
+                    $openDt = $startDt->sub(new DateInterval('P' . $leadDays . 'D'));
+                }
             }
 
-            $startDt = mrl_schedule_helper_race_datetime($race);
-            $openDt = $startDt->sub(new DateInterval('P' . $leadDays . 'D'));
+            $leadDisplay = $leadMode === 'EXACT'
+                ? ('Exact: ' . mrl_pick_window_format_display($openDt))
+                : ($leadDays . ' days');
 
             $out[] = [
                 'segment' => $segment,
@@ -144,6 +169,8 @@ if (!function_exists('mrl_pick_window_segment_rows')) {
                 'deadline_dt' => $startDt,
                 'lead_days' => $leadDays,
                 'lead_source' => $leadSource,
+                'lead_mode' => $leadMode,
+                'lead_display' => $leadDisplay,
                 'default_days' => $defaultDays,
                 'race' => $race,
             ];
@@ -205,6 +232,15 @@ if (!function_exists('mrl_pick_window_state')) {
             }
         }
 
+        $scoringIndex = 0;
+        foreach ($segments as $idx => $row) {
+            if ($row['segment'] === $scoringRow['segment']) {
+                $scoringIndex = (int)$idx;
+                break;
+            }
+        }
+        $nextRow = isset($segments[$scoringIndex + 1]) ? $segments[$scoringIndex + 1] : null;
+
         $pickRow = $scoringRow;
         foreach ($segments as $row) {
             if ($now >= $row['open_dt'] && $now < $row['deadline_dt']) {
@@ -219,6 +255,8 @@ if (!function_exists('mrl_pick_window_state')) {
         $deadlineDt = $pickRow['deadline_dt'];
         $effectiveLeadDays = (int)$pickRow['lead_days'];
         $leadSource = (string)$pickRow['lead_source'];
+        $leadMode = (string)($pickRow['lead_mode'] ?? 'DAYS');
+        $leadDisplay = (string)($pickRow['lead_display'] ?? ($effectiveLeadDays . ' days'));
 
         $overrideEnabled = strtolower(trim((string)($override['enabled'] ?? 'no'))) === 'yes';
         if ($overrideEnabled) {
@@ -246,6 +284,8 @@ if (!function_exists('mrl_pick_window_state')) {
                 $deadlineDt = $requestedDeadline;
                 $effectiveLeadDays = (int)$requestedRow['lead_days'];
                 $leadSource = (string)$requestedRow['lead_source'];
+                $leadMode = (string)($requestedRow['lead_mode'] ?? 'DAYS');
+                $leadDisplay = (string)($requestedRow['lead_display'] ?? ($effectiveLeadDays . ' days'));
                 $source = 'OVERRIDE';
             }
         }
@@ -273,6 +313,18 @@ if (!function_exists('mrl_pick_window_state')) {
             'default_lead_days' => (int)$pickRow['default_days'],
             'effective_lead_days' => $effectiveLeadDays,
             'lead_source' => $leadSource,
+            'effective_lead_mode' => $leadMode,
+            'effective_lead_display' => $leadDisplay,
+            'next_segment' => is_array($nextRow) ? (string)$nextRow['segment'] : '',
+            'next_segment_label' => is_array($nextRow) ? mrl_pick_window_segment_label($year, (string)$nextRow['segment']) : '',
+            'next_start_race' => is_array($nextRow) ? (int)$nextRow['start_race'] : 0,
+            'next_window_open_dt' => is_array($nextRow) ? $nextRow['open_dt'] : null,
+            'next_deadline_dt' => is_array($nextRow) ? $nextRow['deadline_dt'] : null,
+            'next_window_open_display' => is_array($nextRow) ? mrl_pick_window_format_display($nextRow['open_dt']) : '',
+            'next_deadline_display' => is_array($nextRow) ? mrl_pick_window_format_display($nextRow['deadline_dt']) : '',
+            'next_lead_source' => is_array($nextRow) ? (string)$nextRow['lead_source'] : '',
+            'next_lead_mode' => is_array($nextRow) ? (string)($nextRow['lead_mode'] ?? 'DAYS') : '',
+            'next_lead_display' => is_array($nextRow) ? (string)($nextRow['lead_display'] ?? '') : '',
             'segments' => $segments,
         ];
     }

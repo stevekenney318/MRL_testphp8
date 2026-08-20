@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * team.php
  *
- * VERSION: v020
- * LAST MODIFIED: 8/19/2026 7:12:00 pm
+ * VERSION: v021
+ * LAST MODIFIED: 8/20/2026 2:33:24 pm
  *
  * DESCRIPTION:
  * Main universal team landing page for MRL / testphp8.
@@ -13,6 +13,12 @@ declare(strict_types=1);
  * normal picks now and LP / RD form routing later.
  *
  * CHANGELOG:
+ *
+ * v021 (8/20/2026 2:33:24 pm)
+ * - CHANGE: Pick-window closed/open messaging now follows shared automatic state.
+ * - NEW: Closed-between-segments message tells users when the next segment opens.
+ * - FIX: Early normal windows are treated/displayed as normal picks, not LP messaging.
+ * - PRESERVE: LP, SPECIAL_AUTH, RD routing and current-segment chart behavior.
  *
  * v020 (8/19/2026 7:12:00 pm)
  * - NEW: Admin menu link to admin_pick_adjustment.php.
@@ -925,23 +931,32 @@ $phpMyAdminUrl = $phpMyAdminDb !== ''
 
             } else {
 
-                // This only occurs before the first segment's automatic window opens,
-                // or when an admin override deliberately schedules a future opening.
-                // For an in-progress segment the deadline is already past, so LP/RD
-                // routing below remains unchanged.
-                if ($end_ts !== false && $user_ts < $end_ts && !$normalPickWindowOpen) {
+                // If the active normal pick segment has not opened yet, explain when it opens.
+                if (isset($pickWindowStatus) && $pickWindowStatus === 'CLOSED_BEFORE_OPEN') {
                     $openText = isset($pickWindowOpenAt) && trim((string)$pickWindowOpenAt) !== ''
                         ? (string)$pickWindowOpenAt
                         : 'the scheduled opening time';
-                    echo "Normal picks for " . teampage_h((string)$raceYear) . " " . teampage_h((string)$segmentName)
-                        . " open on " . teampage_h($openText) . ".";
+                    echo teampage_h((string)$raceYear) . " " . teampage_h((string)$segmentName)
+                        . " picks open on " . teampage_h($openText) . ".";
                 } else {
                     if ($showRdWrapper) {
                         include 'team_replacement_driver.php';
                     } elseif ($teamFormMode === 'LP' || $teamFormMode === 'SPECIAL_AUTH') {
                         include 'team-late-pick.php';
                     } else {
-                        echo teampage_h((string)$formLockedMessage) . " - past Lock date of " . teampage_h((string)$formLockDate);
+                        $closedSegmentLabel = isset($scoringSegmentName) && trim((string)$scoringSegmentName) !== ''
+                            ? (string)$scoringSegmentName
+                            : (string)$segmentName;
+
+                        echo teampage_h((string)$raceYear) . " " . teampage_h($closedSegmentLabel) . " picks are closed.";
+
+                        if (isset($nextSegment) && trim((string)$nextSegment) !== ''
+                            && isset($nextSegmentName) && trim((string)$nextSegmentName) !== ''
+                            && isset($nextPickWindowOpenAt) && trim((string)$nextPickWindowOpenAt) !== '') {
+                            echo " " . teampage_h((string)$raceYear) . " " . teampage_h((string)$nextSegmentName)
+                                . " picks open on " . teampage_h((string)$nextPickWindowOpenAt) . ".";
+                        }
+
                         echo "<br><br>";
                         include 'current_segment_chart.php';
                     }

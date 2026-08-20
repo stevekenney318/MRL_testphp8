@@ -4,11 +4,17 @@ declare(strict_types=1);
 /**
  * form-team-picks.php
  *
- * VERSION: v006
- * LAST MODIFIED: 8/19/2026 4:51:53 am
+ * VERSION: v007
+ * LAST MODIFIED: 8/20/2026 2:33:24 pm
  *
  *
  * CHANGELOG:
+ *
+ * v007 (8/20/2026 2:33:24 pm)
+ * - FIX: An intentionally early normal pick window no longer displays Late Pick wording.
+ * - CHANGE: Normal form notes now describe the active normal window and deadline directly.
+ * - CHANGE: Genuine LP wording remains tied to LP mode only when the normal window is closed.
+ * - PRESERVE: Driver availability, editing, submission, LP effective-race and dropdown behavior.
  *
  * v006 (8/19/2026 4:51:53 am)
  * - CHANGE: Active year/segment/deadline now come from config_mrl.php's automatic pick-window state.
@@ -58,7 +64,7 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/config_mrl.php';
 
 $formID = 'form-team-picks.php';
-$formVersion = 'v006';
+$formVersion = 'v007';
 $formTrace = $formID . ' ' . $formVersion;
 
 if (!isset($dbconnect) || !($dbconnect instanceof mysqli)) {
@@ -206,10 +212,15 @@ $activeSegmentLabel = isset($segmentName) && trim((string)$segmentName) !== ''
     ? (string)$segmentName
     : $activeSegment;
 
-$headerLine1 = "** Dropdown will only show drivers available to add to your team. **";
-$headerLine2 = "Picks for " . $activeRaceYear . " " . $activeSegmentLabel . " due by " . $activeLockDate . ". When you click 'Submit Picks', they will be entered into our database, and appear in chart above.";
+$headerLine1 = "Only drivers currently available for your team are shown.";
+$headerLine2 = $activeRaceYear . " " . $activeSegmentLabel
+    . " picks are open. Deadline: " . $activeLockDate
+    . ". Submit Picks to save or update your team.";
 
-if (isset($teamFormMode) && $teamFormMode === 'LP' && function_exists('mrl_get_effective_race_for_lp')) {
+$normalWindowIsOpen = isset($pickWindowIsOpen) ? (bool)$pickWindowIsOpen : false;
+$displayAsLatePick = isset($teamFormMode) && $teamFormMode === 'LP' && !$normalWindowIsOpen;
+
+if ($displayAsLatePick && function_exists('mrl_get_effective_race_for_lp')) {
     try {
         $lpInfo = mrl_get_effective_race_for_lp($activeRaceYearInt, $activeSegment);
         if (is_array($lpInfo) && isset($lpInfo['race_number'])) {
@@ -221,9 +232,9 @@ if (isset($teamFormMode) && $teamFormMode === 'LP' && function_exists('mrl_get_e
                 $lpDeadline = $lpInfo['race_start_dt']->format('n/j/Y g:i a') . ' ET';
             }
 
-            $headerLine2 = "Late picks for " . $activeRaceYear . " " . $activeSegmentLabel
-                . " become effective with " . $lpRaceCode
-                . ($lpDeadline !== '' ? ". New deadline: " . $lpDeadline : '')
+            $headerLine2 = "Late Pick — " . $activeRaceYear . " " . $activeSegmentLabel
+                . ". Effective with " . $lpRaceCode
+                . ($lpDeadline !== '' ? ". Deadline: " . $lpDeadline : '')
                 . ". You may change these picks until that race starts.";
         }
     } catch (Throwable $e) {
