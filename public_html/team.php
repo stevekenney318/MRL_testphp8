@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * team.php
  *
- * VERSION: v022
- * LAST MODIFIED: 8/20/2026 7:36:02 pm
+ * VERSION: v023
+ * LAST MODIFIED: 8/20/2026 8:29:00 pm
  *
  * DESCRIPTION:
  * Main universal team landing page for MRL / testphp8.
@@ -13,6 +13,12 @@ declare(strict_types=1);
  * normal picks now and LP / RD form routing later.
  *
  * CHANGELOG:
+ *
+ * v023 (8/20/2026 8:29:00 pm)
+ * - FIX: User-menu toggle now executes directly on the anchor click.
+ * - FIX: return false prevents navigation to team.php#.
+ * - CHANGE: Removes the v022 deferred listener block.
+ * - PRESERVE: Existing menu links/appearance, charts, routing, pick logic, LP/RD logic, and data.
  *
  * v022 (8/20/2026 7:36:02 pm)
  * - FIX: Upper-left user dropdown no longer depends on Bootstrap dropdown JavaScript.
@@ -793,7 +799,8 @@ $phpMyAdminUrl = $phpMyAdminDb !== ''
 
             <ul class="nav pull-left">
                 <li class="dropdown">
-                    <a href="#" role="button" class="dropdown-toggle" id="mrl-user-menu-toggle" aria-haspopup="true" aria-expanded="false">
+                    <a href="#" role="button" class="dropdown-toggle" id="mrl-user-menu-toggle" aria-haspopup="true" aria-expanded="false"
+                       onclick="var d=this.parentNode; var o=d.classList.contains('open'); if(o){d.classList.remove('open');this.setAttribute('aria-expanded','false');}else{d.classList.add('open');this.setAttribute('aria-expanded','true');} return false;">
                         <i class="icon-user"></i>
                         <?php echo teampage_h($first_name); ?> <i class="caret"></i>
                     </a>
@@ -1007,50 +1014,5 @@ while ($yearRow = $stmtYears->fetch(PDO::FETCH_ASSOC)) {
 <script src="bootstrap/js/bootstrap.min.js"></script>
 <script src="assets/scripts.js"></script>
 
-<script>
-(function () {
-    var toggle = document.getElementById('mrl-user-menu-toggle');
-    if (!toggle) {
-        return;
-    }
-
-    var dropdown = toggle.parentNode;
-    if (!dropdown) {
-        return;
-    }
-
-    function closeMenu() {
-        dropdown.classList.remove('open');
-        toggle.setAttribute('aria-expanded', 'false');
-    }
-
-    function toggleMenu(event) {
-        event.preventDefault();
-        event.stopPropagation();
-
-        var isOpen = dropdown.classList.contains('open');
-        if (isOpen) {
-            closeMenu();
-        } else {
-            dropdown.classList.add('open');
-            toggle.setAttribute('aria-expanded', 'true');
-        }
-    }
-
-    toggle.addEventListener('click', toggleMenu, false);
-
-    document.addEventListener('click', function (event) {
-        if (!dropdown.contains(event.target)) {
-            closeMenu();
-        }
-    }, false);
-
-    document.addEventListener('keydown', function (event) {
-        if (event.key === 'Escape' || event.keyCode === 27) {
-            closeMenu();
-        }
-    }, false);
-})();
-</script>
 </body>
 </html>
