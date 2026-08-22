@@ -2,8 +2,8 @@
 /**
  * prior_year_user_team_chart.php
  *
- * VERSION: v004
- * LAST MODIFIED: 8/21/2026 9:50:00 pm
+ * VERSION: v003
+ * LAST MODIFIED: 4/13/2026 5:50:30 pm
  *
  * DESCRIPTION:
  * Prior-year user team chart shown on team.php.
@@ -11,13 +11,6 @@
  * LP/RD chart display system with explicit markers and stacked footnotes.
  *
  * CHANGELOG:
- *
- * v004 (8/21/2026)
- * - FIX: Reuse config.php/config_mrl.php with require_once so team.php does not
- *   re-run database/bootstrap setup once for every prior year.
- * - NEW: Visible red MRL error panel identifies the prior year/segment if a
- *   user_picks query throws, instead of leaving a tiny low-contrast error line.
- * - PRESERVE: Existing chart colors/layout, LP/RD rendering, and data source.
  *
  * v003 (4/13/2026)
  * - FIX: Suppressed the standalone base/original row for any year/segment that also has an RD row.
@@ -38,8 +31,8 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 date_default_timezone_set('America/New_York');
-require_once 'config.php';
-require_once 'config_mrl.php';
+include 'config.php';
+include 'config_mrl.php';
 
 if (!function_exists('pyutc_h')) {
     function pyutc_h($value): string
@@ -271,29 +264,12 @@ foreach ($segmentOrder as $segmentCode) {
         ORDER BY up.entryDate ASC, up.pickID ASC
     ";
 
-    try {
-        $result = $dbo->query($sql);
-
-        if ($result) {
-            $segmentRows = $result->fetchAll(PDO::FETCH_ASSOC);
-
-            foreach ($segmentRows as $segmentRow) {
-                $rows[] = $segmentRow;
-            }
+    $result = $dbo->query($sql);
+    if ($result) {
+        $segmentRows = $result->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($segmentRows as $segmentRow) {
+            $rows[] = $segmentRow;
         }
-    } catch (Throwable $e) {
-        echo "<div style='width:80%;margin:10px auto;padding:12px 14px;"
-            . "background:#5b1111;color:#ffffff;border:2px solid #ff5c5c;"
-            . "border-radius:6px;font-family:Arial,sans-serif;font-size:15px;"
-            . "line-height:1.4;'>"
-            . "<strong>MRL ERROR — Previous-year chart could not be loaded.</strong><br>"
-            . "Year: " . pyutc_h((string)$prevRaceYear)
-            . " &nbsp; Segment: " . pyutc_h((string)$segmentCode)
-            . "<br><span style='font-size:13px;'>"
-            . pyutc_h($e->getMessage())
-            . "</span></div>";
-
-        return;
     }
 }
 
