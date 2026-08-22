@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * admin_rd_simulation.php
  *
- * VERSION: v007
- * LAST MODIFIED: 8/22/2026 6:30:00 pm
+ * VERSION: v006
+ * LAST MODIFIED: 8/22/2026 6:07:00 pm
  *
  * PURPOSE:
  * TESTPHP8-only RD diagnostic/simulation harness.
@@ -22,15 +22,6 @@ declare(strict_types=1);
  *   bypass the real RD protection.
  *
  * CHANGELOG:
- * v007 (8/22/2026 6:30:00 pm)
- * - NEW: MULTIPLE_RD_AVAILABLE rows now render an explicit user-choice preview
- *   with one radio button for each eligible driver.
- * - NEW: Browser-required validation prevents continuing without choosing one.
- * - NEW: In-page confirmation shows the exact selected driver/slot and states
- *   that this is simulation only; no RD/RP is submitted.
- * - PRESERVE: Dual-driver fixture simulation, shared RD v005 helper, DB read-only
- *   behavior, isolated fixtures, and all prior guards.
- *
  * v006 (8/22/2026 6:07:00 pm)
  * - NEW: Dual-driver simulation. Driver 1 and Driver 2 each have their own
  *   independent per-race NET override inputs.
@@ -869,11 +860,6 @@ tr:nth-child(even) td{background:#171717}
 .racecheck{display:inline-flex;align-items:center;gap:5px;background:#222;border:1px solid #444;border-radius:5px;padding:5px 7px}
 .racecheck input{width:auto}
 .nowrap{white-space:nowrap}
-.choicebox{margin-top:10px;padding:10px;border:1px solid #775f16;background:#2a2412;border-radius:7px}
-.choicebox strong{color:#ffe08a}
-.choiceopt{display:block;margin:7px 0;padding:7px 9px;background:#171717;border:1px solid #444;border-radius:6px;cursor:pointer}
-.choiceopt input{width:auto;margin-right:8px}
-.choiceconfirm{margin-top:8px;padding:8px;background:#173b20;border:1px solid #2b7740;border-radius:6px;display:none}
 </style>
 </head>
 <body>
@@ -1080,47 +1066,7 @@ tr:nth-child(even) td{background:#171717}
                         <td><?=rds_h($base['driverD'] ?? '')?></td>
                         <td class="<?=rds_h(rds_status_class($status))?>"><?=rds_h($status)?></td>
                         <td class="<?=rds_h(rds_status_class($underlyingStatus))?>"><?=rds_h($underlyingStatus)?></td>
-                        <td>
-                            <?=rds_h(implode(' | ', $qText))?>
-
-                            <?php if ($underlyingStatus === 'MULTIPLE_RD_AVAILABLE' && count($qualifiers) > 1): ?>
-                                <?php
-                                $choiceFormId = 'rdChoice_' . md5((string)($res['teamName'] ?? '') . '_' . implode('|', $qText));
-                                ?>
-                                <div class="choicebox">
-                                    <strong>Replacement Pick — choose the driver to replace:</strong>
-
-                                    <form
-                                        onsubmit="return rdsPreviewChoice(this);"
-                                        data-team="<?=rds_h((string)($res['teamName'] ?? ''))?>"
-                                        style="margin-top:7px"
-                                    >
-                                        <?php foreach ($qualifiers as $qIndex => $q): ?>
-                                            <?php
-                                            $qDriver = trim((string)($q['driver'] ?? ''));
-                                            $qSlot = trim((string)($q['slot'] ?? ''));
-                                            $radioId = $choiceFormId . '_' . (int)$qIndex;
-                                            ?>
-                                            <label class="choiceopt" for="<?=rds_h($radioId)?>">
-                                                <input
-                                                    id="<?=rds_h($radioId)?>"
-                                                    type="radio"
-                                                    name="replacement_driver_choice"
-                                                    value="<?=rds_h($qDriver)?>"
-                                                    data-slot="<?=rds_h($qSlot)?>"
-                                                    required
-                                                >
-                                                Group <?=rds_h($qSlot)?> — <?=rds_h($qDriver)?>
-                                            </label>
-                                        <?php endforeach; ?>
-
-                                        <button type="submit">Continue with Selected Driver — Simulation Only</button>
-
-                                        <div class="choiceconfirm"></div>
-                                    </form>
-                                </div>
-                            <?php endif; ?>
-                        </td>
+                        <td><?=rds_h(implode(' | ', $qText))?></td>
                         <td><?=rds_h(implode(' / ', array_unique($effectiveText)))?></td>
                     </tr>
                 <?php endforeach; ?>
@@ -1191,33 +1137,5 @@ tr:nth-child(even) td{background:#171717}
         </div>
     <?php endif; ?>
 </div>
-
-<script>
-function rdsPreviewChoice(form) {
-    var selected = form.querySelector('input[name="replacement_driver_choice"]:checked');
-    if (!selected) {
-        return false;
-    }
-
-    var team = form.getAttribute('data-team') || '';
-    var slot = selected.getAttribute('data-slot') || '';
-    var driver = selected.value || '';
-    var box = form.querySelector('.choiceconfirm');
-
-    if (box) {
-        box.textContent =
-            'SIMULATION CHOICE CONFIRMED — '
-            + team
-            + ': replace Group '
-            + slot
-            + ' driver '
-            + driver
-            + '. No RD/RP has been submitted.';
-        box.style.display = 'block';
-    }
-
-    return false;
-}
-</script>
 </body>
 </html>
