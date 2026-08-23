@@ -4,7 +4,7 @@ declare(strict_types=1);
 /**
  * team.php
  *
- * VERSION: v024
+ * VERSION: v026
  * LAST MODIFIED: 8/22/2026 7:26:00 pm
  *
  * DESCRIPTION:
@@ -644,6 +644,49 @@ function teampage_lp_effective_race_exists(string $raceYear, string $segment): b
     }
 }
 
+/**
+ * RD-specific complete base-lineup resolver.
+ *
+ * Normal SEG/ADJ remains first priority.  When no normal base row exists,
+ * a genuine LP row may be the team's complete active lineup for this segment,
+ * so the RP form must be allowed to use that LP row as its base context.
+ *
+ * This helper is deliberately RD-specific so normal LP/form-mode decisions
+ * continue using teampage_get_segment_base_pick_row() unchanged.
+ */
+function teampage_get_rd_base_pick_row(PDO $dbo, int $uid, string $raceYear, string $segment): ?array
+{
+    $normalBase = teampage_get_segment_base_pick_row(
+        $dbo,
+        $uid,
+        $raceYear,
+        $segment
+    );
+
+    if (is_array($normalBase)) {
+        return $normalBase;
+    }
+
+    $sql = "SELECT pickID, driverA, driverB, driverC, driverD
+            FROM user_picks
+            WHERE userID = :uid
+              AND raceYear = :raceYear
+              AND segment = :segment
+              AND pick_type = 'LP'
+            ORDER BY effective_race DESC, pickID DESC
+            LIMIT 1";
+
+    $stmt = $dbo->prepare($sql);
+    $stmt->execute([
+        ':uid' => $uid,
+        ':raceYear' => $raceYear,
+        ':segment' => $segment,
+    ]);
+
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    return is_array($row) ? $row : null;
+}
+
 function teampage_get_lp_pick_row(PDO $dbo, int $uid, string $raceYear, string $segment): ?array
 {
     $sql = "SELECT pickID, effective_race
@@ -799,7 +842,7 @@ if ($rdPendingInfo !== null) {
         if (empty($rdPendingQualifiers)) {
             $showRdWrapper = false;
         } else {
-            $rdBasePickRow = teampage_get_segment_base_pick_row(
+            $rdBasePickRow = teampage_get_rd_base_pick_row(
                 $dbo,
                 $uid,
                 (string)$raceYear,
@@ -899,7 +942,32 @@ if ($rdPendingInfo !== null) {
             $rdDeadlineDisplay = (string)($deadlineInfo['deadline_display'] ?? '');
             $rdDeadlineTimestamp = (int)($deadlineInfo['deadline_timestamp'] ?? 0);
 
-            if ($rdDeadlineTimestamp > 0 && time() >= $rdDeadlineTimestamp) {
+            // MRL_LP_RP_EDGE_TIME_TRAVEL_FIXTURE
+            // TESTPHP8-only temporary hook for the exact LP→RP edge-case fixture.
+            $rdDeadlineNowTimestamp = time();
+            $rdTestTimeOverrideActive = false;
+            $rdTestTimeOverrideTimestamp = 0;
+
+            $rdFixtureMarker = dirname((string)($rdPendingInfo['jsonPath'] ?? ''))
+                . '/_rd_pending_Be_Like_Biff.lp_rp_edge_marker_20260823_114100am.json';
+
+            $rdFixturePayloadIsExact =
+                (string)($rdPendingPayload['teamName'] ?? '') === 'Be Like Biff'
+                && (string)($rdPendingPayload['segment'] ?? '') === 'S1'
+                && (string)($rdPendingPayload['effective_race'] ?? '') === 'R08'
+                && !empty($rdPendingPayload['test_fixture'])
+                && (string)($rdPendingPayload['fixture_id'] ?? '') === 'BE_LIKE_BIFF_LP_AJ_R06_R07'
+                && (int)($rdPendingPayload['qualifier_count'] ?? 0) === 1
+                && (string)($rdPendingPayload['qualifiers'][0]['driver'] ?? '') === 'AJ Allmendinger'
+                && is_file($rdFixtureMarker);
+
+            if ($rdDeadlineTimestamp > 0 && $rdFixturePayloadIsExact) {
+                $rdDeadlineNowTimestamp = max(1, $rdDeadlineTimestamp - 3600);
+                $rdTestTimeOverrideActive = true;
+                $rdTestTimeOverrideTimestamp = $rdDeadlineNowTimestamp;
+            }
+
+            if ($rdDeadlineTimestamp > 0 && $rdDeadlineNowTimestamp >= $rdDeadlineTimestamp) {
                 $showRdWrapper = false;
             }
         }
@@ -1099,6 +1167,13 @@ $phpMyAdminUrl = $phpMyAdminDb !== ''
                         . " picks open on " . teampage_h($openText) . ".";
                 } else {
                     if ($showRdWrapper) {
+                        if (!empty($rdTestTimeOverrideActive) && !empty($rdTestTimeOverrideTimestamp)) {
+                            echo "<div style='width:96%;margin:8px auto;padding:10px;background:#5a3100;border:2px solid #ffb13b;color:#fff3d0;text-align:center;font-weight:bold;font-size:15px;'>"
+                                . "TEST TIME OVERRIDE ACTIVE — LP→RP edge test is pretending now is "
+                                . teampage_h(date('n/j/Y g:i:s a', (int)$rdTestTimeOverrideTimestamp))
+                                . " ET (1 hour before R08). REAL CLOCK / SCHEDULE DATA ARE UNCHANGED."
+                                . "</div>";
+                        }
                         include 'team_replacement_driver.php';
                     } elseif ($teamFormMode === 'LP' || $teamFormMode === 'SPECIAL_AUTH') {
                         include 'team-late-pick.php';

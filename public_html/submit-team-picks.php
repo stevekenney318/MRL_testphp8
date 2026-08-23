@@ -1,17 +1,26 @@
 <?php
 declare(strict_types=1);
 
+
 /**
  * submit-team-picks.php
  *
- * VERSION: v007
- * LAST MODIFIED: 8/22/2026 7:26:00 pm
+ * VERSION: v010
+ * LAST MODIFIED: 8/23/2026 2:28:00 pm
  *
  * DESCRIPTION:
  * Universal team pick submission handler for MRL / testphp8.
  * Supports normal SEG submissions and LP submissions using the same file.
  *
  * CHANGELOG:
+ *
+ * v010 (8/23/2026 2:28:00 pm)
+ * - TESTPHP8 TEMPORARY: Rebuilt the current submit handler directly from the supplied v009 file.
+ * - FIX: Restored the normal LP/SEG helper functions removed by the damaged temporary patch.
+ * - FIX: Restored the complete v007 request/POST setup and opening RD validation branch.
+ * - FIX: RD base-row lookup now accepts an active LP row as the Replacement Pick source.
+ * - TEST: Preserves only the exact owned Be Like Biff / S1 / AJ / R08 historical deadline bypass.
+ * - CLEANUP: Removed temporary fatal-error instrumentation.
  *
  * v008 (8/22/2026 9:06:00 pm)
  * - TESTPHP8 TEMPORARY: Allows only the exact owned single-driver RP fixture through the real-calendar deadline gate.
@@ -239,7 +248,7 @@ function mrl_get_segment_base_pick_id(mysqli $dbconnect, int $uid, string $raceY
         WHERE userID = ?
           AND raceYear = ?
           AND segment = ?
-          AND pick_type IN ('SEG', 'ADJ')
+          AND pick_type IN ('SEG', 'ADJ', 'LP')
         ORDER BY pickID ASC
         LIMIT 1
     ";
@@ -285,6 +294,121 @@ function mrl_get_existing_non_rd_pick_meta(mysqli $dbconnect, int $uid, string $
     mysqli_stmt_close($stmt);
 
     return is_array($row) ? $row : null;
+}
+
+function mrl_original_pick_deadline_passed(string $formLockDate, string $formLockTime): bool
+{
+    $raw = trim($formLockDate . ' ' . $formLockTime);
+    if ($raw === '') {
+        return false;
+    }
+
+    $deadlineTs = strtotime($raw);
+    if ($deadlineTs === false) {
+        return false;
+    }
+
+    return time() >= $deadlineTs;
+}
+
+function mrl_lp_effective_race_is_open(int $raceYear, int $effectiveRace): bool
+{
+    if ($effectiveRace <= 0) {
+        return false;
+    }
+
+    try {
+        $now = new DateTimeImmutable('now', mrl_schedule_helper_timezone());
+        $races = mrl_schedule_helper_points_races($raceYear);
+
+        foreach ($races as $race) {
+            if ((int)($race['race_number'] ?? 0) !== $effectiveRace) {
+                continue;
+            }
+
+            $raceStart = mrl_schedule_helper_race_datetime($race);
+            return ($now < $raceStart);
+        }
+    } catch (Throwable $e) {
+        return false;
+    }
+
+    return false;
+}
+
+function mrl_determine_pick_type_and_effective_race(
+    mysqli $dbconnect,
+    int $uid,
+    string $raceYearStr,
+    int $raceYearInt,
+    string $activeSegment,
+    string $formLockDate,
+    string $formLockTime
+): array {
+    $existing = mrl_get_existing_non_rd_pick_meta($dbconnect, $uid, $raceYearStr, $activeSegment);
+
+    if (is_array($existing)) {
+        $existingType = strtoupper(trim((string)($existing['pick_type'] ?? '')));
+        $existingEffectiveRace = (int)($existing['effective_race'] ?? 0);
+
+        if ($existingType === 'LP') {
+            if (mrl_lp_effective_race_is_open($raceYearInt, $existingEffectiveRace)) {
+                return [
+                    'pick_type' => 'LP',
+                    'effective_race' => $existingEffectiveRace,
+                    'blocked' => false,
+                ];
+            }
+
+            return [
+                'pick_type' => 'LP',
+                'effective_race' => $existingEffectiveRace,
+                'blocked' => true,
+            ];
+        }
+
+        if ($existingType === 'SEG' || $existingType === 'ADJ') {
+            return [
+                'pick_type' => $existingType,
+                'effective_race' => $existingEffectiveRace > 0
+                    ? $existingEffectiveRace
+                    : mrl_get_segment_start_race($dbconnect, $raceYearInt, $activeSegment),
+                'blocked' => false,
+            ];
+        }
+    }
+
+    if (mrl_original_pick_deadline_passed($formLockDate, $formLockTime)) {
+        $lpEffectiveRace = mrl_get_effective_race_for_lp($raceYearInt, $activeSegment);
+
+        if (is_array($lpEffectiveRace) && isset($lpEffectiveRace['race_number'])) {
+            return [
+                'pick_type' => 'LP',
+                'effective_race' => (int)$lpEffectiveRace['race_number'],
+                'blocked' => false,
+            ];
+        }
+
+        return [
+            'pick_type' => 'LP',
+            'effective_race' => 0,
+            'blocked' => true,
+        ];
+    }
+
+    if (isset($GLOBALS['pickWindowIsOpen']) && !$GLOBALS['pickWindowIsOpen']) {
+        return [
+            'pick_type' => 'SEG',
+            'effective_race' => mrl_get_segment_start_race($dbconnect, $raceYearInt, $activeSegment),
+            'blocked' => true,
+        ];
+    }
+
+    return [
+        'pick_type' => 'SEG',
+        'effective_race' => mrl_get_segment_start_race($dbconnect, $raceYearInt, $activeSegment),
+        'blocked' => false,
+    ];
 }
 
 function mrl_rd_slug(string $value): string
@@ -360,7 +484,7 @@ function mrl_rd_get_base_row(mysqli $dbconnect, int $uid, string $raceYear, stri
             WHERE userID = ?
               AND raceYear = ?
               AND segment = ?
-              AND pick_type IN ('SEG','ADJ')
+              AND pick_type IN ('SEG','ADJ','LP')
             ORDER BY entryDate ASC, pickID ASC
             LIMIT 1";
 
@@ -438,8 +562,121 @@ function mrl_rd_changed_slot(array $baseRow, array $rdRow): string
     return count($changed) === 1 ? $changed[0] : '';
 }
 
+function mrl_rd_reject(): void
+{
+    header('Location: /team.php#current_user_team_chart');
+    exit;
+}
+
+$uid = isset($_SESSION['userSession']) ? (int)$_SESSION['userSession'] : 0;
+if ($uid <= 0) {
+    exit;
+}
+
+$raceYearStr = (string)$raceYear;
+$raceYearInt = (int)$raceYear;
+
+$driverA = mrl_post_value('group-a-driver');
+$driverB = mrl_post_value('group-b-driver');
+$driverC = mrl_post_value('group-c-driver');
+$driverD = mrl_post_value('group-d-driver');
+$submissionId = mrl_post_value('submission_id');
+$formID = mrl_post_value('form_id');
+$formVersion = mrl_post_value('form_version');
+$pickTypeOverride = strtoupper(mrl_post_value('pick_type_override'));
+$rdSegmentPost = mrl_post_value('rd_segment');
+$rdEffectiveRacePost = mrl_post_value('rd_effective_race');
+$rdSupersedesPickIdPost = mrl_post_value('rd_supersedes_pick_id');
+$rdSelectedSlotPost = strtoupper(mrl_post_value('rd_selected_slot'));
+$rdSelectedDriverPost = mrl_post_value('rd_selected_driver');
+
+$activeSegment = ($pickTypeOverride === 'RD' && $rdSegmentPost !== '')
+    ? $rdSegmentPost
+    : (string)$segment;
+
+if ($submissionId === '') {
+    $submissionId = 'sub_' . date('Ymd_His');
+}
+
+if ($formID === '') {
+    $formID = 'form-team-picks.php';
+}
+
+if ($formVersion === '') {
+    $formVersion = $scriptVersion;
+}
+
+if ($driverA === '' || $driverB === '' || $driverC === '' || $driverD === '') {
+    header('Location: /team.php#current_user_team_chart');
+    exit;
+}
+
+$teamName = mrl_get_team_name($dbconnect, $uid, $raceYearStr);
+if ($teamName === '') {
+    header('Location: /team.php#current_user_team_chart');
+    exit;
+}
+
+$currentTime = date('Y-m-d H:i:s');
+$ip = mrl_get_client_ip();
+
+$pickType = 'SEG';
+$effectiveRace = 0;
+$supersedesPickID = null;
+$existingPickID = null;
+$exists = false;
+
+if ($pickTypeOverride === 'RD') {
+    $pickType = 'RD';
+    $effectiveRace = mrl_parse_effective_race_value($rdEffectiveRacePost);
+
+    if (
+        $effectiveRace <= 0
+        || !in_array($rdSelectedSlotPost, ['A','B','C','D'], true)
+        || $rdSelectedDriverPost === ''
+        || $activeSegment === ''
+    ) {
+        mrl_rd_reject();
+    }
+
     // Deadline protection belongs on the server too, not just on team.php.
-    if (!mrl_lp_effective_race_is_open($raceYearInt, $effectiveRace)) {
+    // TESTPHP8 LP→RP edge-case fixture may use the controlled historical R08 window.
+    $rdDeadlineOpen = mrl_lp_effective_race_is_open($raceYearInt, $effectiveRace);
+
+    if (!$rdDeadlineOpen) {
+        $rdEdgeMarkers = glob(
+            __DIR__
+            . '/race_results/2026/R07_*/_rd_pending_Be_Like_Biff.lp_rp_edge_marker_20260823_114100am.json'
+        );
+
+        if (is_array($rdEdgeMarkers) && count($rdEdgeMarkers) === 1 && is_file((string)$rdEdgeMarkers[0])) {
+            $rdEdgePendingPath = dirname((string)$rdEdgeMarkers[0]) . '/_rd_pending_Be_Like_Biff.json';
+            $rdEdgeRaw = @file_get_contents($rdEdgePendingPath);
+            $rdEdgePayload = ($rdEdgeRaw !== false) ? json_decode($rdEdgeRaw, true) : null;
+
+            if (
+                is_array($rdEdgePayload)
+                && !empty($rdEdgePayload['test_fixture'])
+                && (string)($rdEdgePayload['fixture_id'] ?? '') === 'BE_LIKE_BIFF_LP_AJ_R06_R07'
+                && (string)($rdEdgePayload['teamName'] ?? '') === 'Be Like Biff'
+                && (string)($rdEdgePayload['segment'] ?? '') === 'S1'
+                && (string)($rdEdgePayload['effective_race'] ?? '') === 'R08'
+                && (string)($rdEdgePayload['source_pick_type'] ?? '') === 'LP'
+                && (int)($rdEdgePayload['qualifier_count'] ?? 0) === 1
+                && (string)($rdEdgePayload['qualifiers'][0]['slot'] ?? '') === 'B'
+                && (string)($rdEdgePayload['qualifiers'][0]['driver'] ?? '') === 'AJ Allmendinger'
+                && $teamName === 'Be Like Biff'
+                && $activeSegment === 'S1'
+                && $effectiveRace === 8
+                && $rdSelectedSlotPost === 'B'
+                && $rdSelectedDriverPost === 'AJ Allmendinger'
+            ) {
+                $rdDeadlineOpen = true;
+            }
+        }
+    }
+
+    if (!$rdDeadlineOpen) {
         mrl_rd_reject();
     }
 
