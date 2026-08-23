@@ -4,14 +4,26 @@ declare(strict_types=1);
 /**
  * submit-team-picks.php
  *
- * VERSION: v006
- * LAST MODIFIED: 8/19/2026 4:51:53 am
+ * VERSION: v007
+ * LAST MODIFIED: 8/22/2026 7:26:00 pm
  *
  * DESCRIPTION:
  * Universal team pick submission handler for MRL / testphp8.
  * Supports normal SEG submissions and LP submissions using the same file.
  *
  * CHANGELOG:
+ *
+ * v008 (8/22/2026 9:06:00 pm)
+ * - TESTPHP8 TEMPORARY: Allows only the exact owned single-driver RP fixture through the real-calendar deadline gate.
+
+ *
+ * v007 (8/22/2026 7:26:00 pm)
+ * - NEW: Server validates explicit Replacement Pick slot/driver choice against pending JSON.
+ * - NEW: Enforces one RD per year using current rows plus history before a new RD is accepted.
+ * - NEW: Existing RD edits are locked to the originally replaced group.
+ * - NEW: Rejects tampering that changes any non-selected group in an RD submission.
+ * - FIX: RD POST values are now read before activeSegment is derived.
+ * - PRESERVE: Existing SEG/ADJ/LP behavior and existing RD update/history write behavior.
  *
  * v006 (8/19/2026 4:51:53 am)
  * - NEW: Blocks a brand-new normal SEG submission before the automatic pick window opens.
@@ -275,194 +287,269 @@ function mrl_get_existing_non_rd_pick_meta(mysqli $dbconnect, int $uid, string $
     return is_array($row) ? $row : null;
 }
 
-function mrl_original_pick_deadline_passed(string $formLockDate, string $formLockTime): bool
+function mrl_rd_slug(string $value): string
 {
-    $raw = trim($formLockDate . ' ' . $formLockTime);
-    if ($raw === '') {
-        return false;
-    }
-
-    $deadlineTs = strtotime($raw);
-    if ($deadlineTs === false) {
-        return false;
-    }
-
-    return time() >= $deadlineTs;
+    $value = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    $value = trim($value);
+    $value = preg_replace('/[^A-Za-z0-9 _-]+/', '', $value);
+    $value = preg_replace('/\s+/', ' ', (string)$value);
+    $value = str_replace([' ', '-'], '_', (string)$value);
+    $value = preg_replace('/_+/', '_', (string)$value);
+    $value = trim((string)$value, '_');
+    return $value !== '' ? $value : 'Team';
 }
 
-function mrl_lp_effective_race_is_open(int $raceYear, int $effectiveRace): bool
+function mrl_rd_find_latest_pending(string $raceYear, string $teamName): ?array
 {
-    if ($effectiveRace <= 0) {
-        return false;
-    }
+    $baseDir = __DIR__ . '/race_results/' . $raceYear;
+    if (!is_dir($baseDir)) return null;
 
-    try {
-        $now = new DateTimeImmutable('now', mrl_schedule_helper_timezone());
-        $races = mrl_schedule_helper_points_races($raceYear);
+    $matches = glob($baseDir . '/R??_*/_rd_pending_' . mrl_rd_slug($teamName) . '.json');
+    if (!is_array($matches) || empty($matches)) return null;
 
-        foreach ($races as $race) {
-            if ((int)($race['race_number'] ?? 0) !== $effectiveRace) {
-                continue;
-            }
+    rsort($matches, SORT_STRING);
+    $path = (string)$matches[0];
+    $raw = @file_get_contents($path);
+    if ($raw === false || trim($raw) === '') return null;
 
-            $raceStart = mrl_schedule_helper_race_datetime($race);
-            return ($now < $raceStart);
-        }
-    } catch (Throwable $e) {
-        return false;
-    }
+    $payload = json_decode($raw, true);
+    if (!is_array($payload)) return null;
 
-    return false;
+    return ['path'=>$path, 'payload'=>$payload];
 }
 
-function mrl_determine_pick_type_and_effective_race(
-    mysqli $dbconnect,
-    int $uid,
-    string $raceYearStr,
-    int $raceYearInt,
-    string $activeSegment,
-    string $formLockDate,
-    string $formLockTime
-): array {
-    $existing = mrl_get_existing_non_rd_pick_meta($dbconnect, $uid, $raceYearStr, $activeSegment);
+function mrl_rd_normalize_pending_qualifiers(array $payload): array
+{
+    $out = [];
+    $raw = isset($payload['qualifiers']) && is_array($payload['qualifiers'])
+        ? $payload['qualifiers']
+        : [];
 
-    if (is_array($existing)) {
-        $existingType = strtoupper(trim((string)($existing['pick_type'] ?? '')));
-        $existingEffectiveRace = (int)($existing['effective_race'] ?? 0);
+    foreach ($raw as $q) {
+        if (!is_array($q)) continue;
+        $slot = strtoupper(trim((string)($q['slot'] ?? '')));
+        $driver = trim((string)($q['driver'] ?? ''));
+        if (!in_array($slot, ['A','B','C','D'], true) || $driver === '') continue;
 
-        if ($existingType === 'LP') {
-            if (mrl_lp_effective_race_is_open($raceYearInt, $existingEffectiveRace)) {
-                return [
-                    'pick_type' => 'LP',
-                    'effective_race' => $existingEffectiveRace,
-                    'blocked' => false,
-                ];
-            }
-
-            return [
-                'pick_type' => 'LP',
-                'effective_race' => $existingEffectiveRace,
-                'blocked' => true,
-            ];
-        }
-
-        if ($existingType === 'SEG' || $existingType === 'ADJ') {
-            return [
-                'pick_type' => $existingType,
-                'effective_race' => $existingEffectiveRace > 0
-                    ? $existingEffectiveRace
-                    : mrl_get_segment_start_race($dbconnect, $raceYearInt, $activeSegment),
-                'blocked' => false,
-            ];
-        }
-    }
-
-    if (mrl_original_pick_deadline_passed($formLockDate, $formLockTime)) {
-        $lpEffectiveRace = mrl_get_effective_race_for_lp($raceYearInt, $activeSegment);
-
-        if (is_array($lpEffectiveRace) && isset($lpEffectiveRace['race_number'])) {
-            return [
-                'pick_type' => 'LP',
-                'effective_race' => (int)$lpEffectiveRace['race_number'],
-                'blocked' => false,
-            ];
-        }
-
-        return [
-            'pick_type' => 'LP',
-            'effective_race' => 0,
-            'blocked' => true,
+        $out[] = [
+            'slot'=>$slot,
+            'driver'=>$driver,
+            'effective_race'=>trim((string)($q['effective_race'] ?? '')),
         ];
     }
 
-    // A brand-new normal segment pick may only be created while the automatic
-    // normal-pick window is actually open. Existing SEG/ADJ edits were handled
-    // above and retain their established behavior.
-    if (isset($GLOBALS['pickWindowIsOpen']) && !$GLOBALS['pickWindowIsOpen']) {
-        return [
-            'pick_type' => 'SEG',
-            'effective_race' => mrl_get_segment_start_race($dbconnect, $raceYearInt, $activeSegment),
-            'blocked' => true,
-        ];
+    if (empty($out)) {
+        $slot = strtoupper(trim((string)($payload['slot'] ?? '')));
+        $driver = trim((string)($payload['driver'] ?? ''));
+        if (in_array($slot, ['A','B','C','D'], true) && $driver !== '') {
+            $out[] = [
+                'slot'=>$slot,
+                'driver'=>$driver,
+                'effective_race'=>trim((string)($payload['effective_race'] ?? '')),
+            ];
+        }
     }
 
-    return [
-        'pick_type' => 'SEG',
-        'effective_race' => mrl_get_segment_start_race($dbconnect, $raceYearInt, $activeSegment),
-        'blocked' => false,
+    return $out;
+}
+
+function mrl_rd_get_base_row(mysqli $dbconnect, int $uid, string $raceYear, string $segment): ?array
+{
+    $sql = "SELECT pickID, driverA, driverB, driverC, driverD
+            FROM user_picks
+            WHERE userID = ?
+              AND raceYear = ?
+              AND segment = ?
+              AND pick_type IN ('SEG','ADJ')
+            ORDER BY entryDate ASC, pickID ASC
+            LIMIT 1";
+
+    $stmt = mysqli_prepare($dbconnect, $sql);
+    if (!$stmt) return null;
+
+    mysqli_stmt_bind_param($stmt, 'iss', $uid, $raceYear, $segment);
+    mysqli_stmt_execute($stmt);
+    $res = mysqli_stmt_get_result($stmt);
+    $row = $res ? mysqli_fetch_assoc($res) : null;
+    mysqli_stmt_close($stmt);
+
+    return is_array($row) ? $row : null;
+}
+
+function mrl_rd_get_current_row(mysqli $dbconnect, int $uid, string $raceYear, string $segment): ?array
+{
+    $sql = "SELECT pickID, driverA, driverB, driverC, driverD, effective_race
+            FROM user_picks
+            WHERE userID = ?
+              AND raceYear = ?
+              AND segment = ?
+              AND pick_type = 'RD'
+            ORDER BY pickID DESC
+            LIMIT 1";
+
+    $stmt = mysqli_prepare($dbconnect, $sql);
+    if (!$stmt) return null;
+
+    mysqli_stmt_bind_param($stmt, 'iss', $uid, $raceYear, $segment);
+    mysqli_stmt_execute($stmt);
+    $res = mysqli_stmt_get_result($stmt);
+    $row = $res ? mysqli_fetch_assoc($res) : null;
+    mysqli_stmt_close($stmt);
+
+    return is_array($row) ? $row : null;
+}
+
+function mrl_rd_history_segments(mysqli $dbconnect, int $uid, string $raceYear): array
+{
+    $sql = "SELECT DISTINCT segment
+            FROM user_picks_history
+            WHERE userID = ?
+              AND raceYear = ?
+              AND pick_type = 'RD'";
+
+    $stmt = mysqli_prepare($dbconnect, $sql);
+    if (!$stmt) return [];
+
+    mysqli_stmt_bind_param($stmt, 'is', $uid, $raceYear);
+    mysqli_stmt_execute($stmt);
+    $res = mysqli_stmt_get_result($stmt);
+
+    $out = [];
+    if ($res) {
+        while ($row = mysqli_fetch_assoc($res)) {
+            $seg = trim((string)($row['segment'] ?? ''));
+            if ($seg !== '') $out[$seg] = true;
+        }
+    }
+
+    mysqli_stmt_close($stmt);
+    return array_keys($out);
+}
+
+function mrl_rd_changed_slot(array $baseRow, array $rdRow): string
+{
+    $changed = [];
+    foreach (['A','B','C','D'] as $slot) {
+        $key = 'driver' . $slot;
+        if (trim((string)($baseRow[$key] ?? '')) !== trim((string)($rdRow[$key] ?? ''))) {
+            $changed[] = $slot;
+        }
+    }
+    return count($changed) === 1 ? $changed[0] : '';
+}
+
+    // Deadline protection belongs on the server too, not just on team.php.
+    if (!mrl_lp_effective_race_is_open($raceYearInt, $effectiveRace)) {
+        mrl_rd_reject();
+    }
+
+    $pendingInfo = mrl_rd_find_latest_pending($raceYearStr, $teamName);
+    if (!is_array($pendingInfo)) {
+        mrl_rd_reject();
+    }
+
+    $pendingPayload = isset($pendingInfo['payload']) && is_array($pendingInfo['payload'])
+        ? $pendingInfo['payload']
+        : [];
+
+    if (trim((string)($pendingPayload['segment'] ?? '')) !== $activeSegment) {
+        mrl_rd_reject();
+    }
+
+    $qualifiers = mrl_rd_normalize_pending_qualifiers($pendingPayload);
+    $selectedQualifier = null;
+
+    foreach ($qualifiers as $q) {
+        if (
+            (string)($q['slot'] ?? '') === $rdSelectedSlotPost
+            && trim((string)($q['driver'] ?? '')) === $rdSelectedDriverPost
+        ) {
+            $selectedQualifier = $q;
+            break;
+        }
+    }
+
+    if (!is_array($selectedQualifier)) {
+        mrl_rd_reject();
+    }
+
+    $qualifierEffective = mrl_parse_effective_race_value(
+        (string)($selectedQualifier['effective_race'] ?? '')
+    );
+    if ($qualifierEffective !== $effectiveRace) {
+        mrl_rd_reject();
+    }
+
+    $baseRdRow = mrl_rd_get_base_row($dbconnect, $uid, $raceYearStr, $activeSegment);
+    if (!is_array($baseRdRow)) {
+        mrl_rd_reject();
+    }
+
+    // The selected original driver must still match the base row for that slot.
+    $selectedKey = 'driver' . $rdSelectedSlotPost;
+    if (trim((string)($baseRdRow[$selectedKey] ?? '')) !== $rdSelectedDriverPost) {
+        mrl_rd_reject();
+    }
+
+    $currentRdRow = mrl_rd_get_current_row($dbconnect, $uid, $raceYearStr, $activeSegment);
+    $historySegments = mrl_rd_history_segments($dbconnect, $uid, $raceYearStr);
+
+    if (!is_array($currentRdRow)) {
+        // A prior RD in history means the one-per-year allowance has already been used.
+        if (!empty($historySegments)) {
+            mrl_rd_reject();
+        }
+    } else {
+        // Existing edits are allowed only for this same RD segment.
+        foreach ($historySegments as $historySegment) {
+            if ($historySegment !== $activeSegment) {
+                mrl_rd_reject();
+            }
+        }
+
+        $lockedSlot = mrl_rd_changed_slot($baseRdRow, $currentRdRow);
+        if ($lockedSlot === '' || $lockedSlot !== $rdSelectedSlotPost) {
+            mrl_rd_reject();
+        }
+    }
+
+    $sourceRow = is_array($currentRdRow) ? $currentRdRow : $baseRdRow;
+    $submittedDrivers = [
+        'A' => $driverA,
+        'B' => $driverB,
+        'C' => $driverC,
+        'D' => $driverD,
     ];
-}
 
-$uid = isset($_SESSION['userSession']) ? (int)$_SESSION['userSession'] : 0;
-if ($uid <= 0) {
-    exit;
-}
+    foreach (['A','B','C','D'] as $slot) {
+        $key = 'driver' . $slot;
+        $expected = trim((string)($sourceRow[$key] ?? ''));
+        $submitted = trim((string)($submittedDrivers[$slot] ?? ''));
 
-$raceYearStr = (string)$raceYear;
-$raceYearInt = (int)$raceYear;
-$activeSegment = ($pickTypeOverride === 'RD' && $rdSegmentPost !== '') ? $rdSegmentPost : (string)$segment;
-
-$driverA = mrl_post_value('group-a-driver');
-$driverB = mrl_post_value('group-b-driver');
-$driverC = mrl_post_value('group-c-driver');
-$driverD = mrl_post_value('group-d-driver');
-$submissionId = mrl_post_value('submission_id');
-$formID = mrl_post_value('form_id');
-$formVersion = mrl_post_value('form_version');
-$pickTypeOverride = strtoupper(mrl_post_value('pick_type_override'));
-$rdSegmentPost = mrl_post_value('rd_segment');
-$rdEffectiveRacePost = mrl_post_value('rd_effective_race');
-$rdSupersedesPickIdPost = mrl_post_value('rd_supersedes_pick_id');
-
-if ($submissionId === '') {
-    $submissionId = 'sub_' . date('Ymd_His');
-}
-
-if ($formID === '') {
-    $formID = 'form-team-picks.php';
-}
-
-if ($formVersion === '') {
-    $formVersion = $scriptVersion;
-}
-
-if ($driverA === '' || $driverB === '' || $driverC === '' || $driverD === '') {
-    header('Location: /team.php#current_user_team_chart');
-    exit;
-}
-
-$teamName = mrl_get_team_name($dbconnect, $uid, $raceYearStr);
-if ($teamName === '') {
-    header('Location: /team.php#current_user_team_chart');
-    exit;
-}
-
-$currentTime = date('Y-m-d H:i:s');
-$ip = mrl_get_client_ip();
-
-$pickType = 'SEG';
-$effectiveRace = 0;
-$supersedesPickID = null;
-$existingPickID = null;
-$exists = false;
-
-if ($pickTypeOverride === 'RD') {
-    $pickType = 'RD';
-    $effectiveRace = mrl_parse_effective_race_value($rdEffectiveRacePost);
-
-    if ($effectiveRace <= 0) {
-        header('Location: /team.php#current_user_team_chart');
-        exit;
+        if ($slot === $rdSelectedSlotPost) {
+            if ($submitted === '' || $submitted === $rdSelectedDriverPost) {
+                mrl_rd_reject();
+            }
+        } elseif ($submitted !== $expected) {
+            // A Replacement Pick may alter exactly one group.
+            mrl_rd_reject();
+        }
     }
 
     if ($rdSupersedesPickIdPost !== '' && ctype_digit($rdSupersedesPickIdPost)) {
         $supersedesPickID = (int)$rdSupersedesPickIdPost;
     } else {
-        $supersedesPickID = mrl_get_segment_base_pick_id($dbconnect, $uid, $raceYearStr, $activeSegment);
+        $supersedesPickID = (int)($baseRdRow['pickID'] ?? 0);
     }
 
-    $existingPickID = mrl_get_existing_pick_id_by_type($dbconnect, $uid, $raceYearStr, $activeSegment, 'RD');
-    $exists = ($existingPickID !== null);
+    if ($supersedesPickID <= 0 || $supersedesPickID !== (int)($baseRdRow['pickID'] ?? 0)) {
+        mrl_rd_reject();
+    }
+
+    $existingPickID = is_array($currentRdRow)
+        ? (int)($currentRdRow['pickID'] ?? 0)
+        : null;
+    $exists = ($existingPickID !== null && $existingPickID > 0);
 
     if ($formID === '' || $formID === 'form-team-picks.php') {
         $formID = 'team_replacement_driver.php';

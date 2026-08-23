@@ -4,10 +4,17 @@ declare(strict_types=1);
 /**
  * race_results_monitor.php
  *
- * VERSION: v138
- * LAST MODIFIED: 7/19/2026 1:35:18 pm
+ * VERSION: v139
+ * LAST MODIFIED: 8/22/2026 7:26:00 pm
  *
  * CHANGELOG:
+ *
+ * v139 (8/22/2026 7:26:00 pm)
+ *   - CHANGE: Real RD detection now uses shared race_results_rd_helper.php v005 eligibility.
+ *   - NEW: MULTIPLE_RD_AVAILABLE is treated as an automatic user-choice opportunity.
+ *   - NEW: Pending JSON stores every qualifying slot/driver plus legacy singular fields.
+ *   - CHANGE: RD email lists every qualifier when more than one driver qualifies.
+ *   - PRESERVE: Existing scheduler ownership, snapshots, scoring, and notification cadence.
  *
  * v138 (7/19/2026 1:35:18 pm)
  *   - NEW: Every accepted canonical snapshot now generates matching _lite, _mrl, and _mrl_segment companions.
@@ -617,36 +624,69 @@ function rr_monitor_rd_payload(array $eligibility): array
         ? $eligibility['base_pick_row']
         : [];
 
-    $qualifier = [];
-    if (isset($eligibility['qualifiers']) && is_array($eligibility['qualifiers']) && !empty($eligibility['qualifiers'])) {
-        $qualifier = $eligibility['qualifiers'][0];
-    }
+    $rawQualifiers = isset($eligibility['qualifiers']) && is_array($eligibility['qualifiers'])
+        ? $eligibility['qualifiers']
+        : [];
 
-    $triggerCodes = [];
-    if (isset($qualifier['zero_races']) && is_array($qualifier['zero_races'])) {
-        foreach ($qualifier['zero_races'] as $zeroRace) {
-            $triggerCodes[] = 'R' . str_pad((string)((int)$zeroRace), 2, '0', STR_PAD_LEFT);
+    $qualifiers = [];
+
+    foreach ($rawQualifiers as $qualifier) {
+        if (!is_array($qualifier)) {
+            continue;
         }
+
+        $slot = strtoupper(trim((string)($qualifier['slot'] ?? '')));
+        $driver = trim((string)($qualifier['driver'] ?? ''));
+        if (!in_array($slot, ['A', 'B', 'C', 'D'], true) || $driver === '') {
+            continue;
+        }
+
+        $triggerCodes = [];
+        if (isset($qualifier['zero_races']) && is_array($qualifier['zero_races'])) {
+            foreach ($qualifier['zero_races'] as $zeroRace) {
+                $triggerCodes[] = 'R' . str_pad((string)((int)$zeroRace), 2, '0', STR_PAD_LEFT);
+            }
+        }
+
+        $effectiveRace = (int)($qualifier['effective_race'] ?? 0);
+        $effectiveRaceCode = $effectiveRace > 0
+            ? 'R' . str_pad((string)$effectiveRace, 2, '0', STR_PAD_LEFT)
+            : '';
+
+        $qualifiers[] = [
+            'slot' => $slot,
+            'driver' => $driver,
+            'trigger_races' => $triggerCodes,
+            'effective_race' => $effectiveRaceCode,
+        ];
     }
 
-    $effectiveRaceCode = '';
-    $effectiveRace = (int)($qualifier['effective_race'] ?? 0);
-    if ($effectiveRace > 0) {
-        $effectiveRaceCode = 'R' . str_pad((string)$effectiveRace, 2, '0', STR_PAD_LEFT);
-    }
+    $first = !empty($qualifiers) ? $qualifiers[0] : [
+        'slot' => '',
+        'driver' => '',
+        'trigger_races' => [],
+        'effective_race' => '',
+    ];
 
     return [
         'userID' => (int)($base['userID'] ?? 0),
         'teamName' => (string)($eligibility['teamName'] ?? ''),
         'segment' => (string)($eligibility['segment'] ?? ''),
-        'slot' => (string)($qualifier['slot'] ?? ''),
-        'driver' => (string)($qualifier['driver'] ?? ''),
-        'trigger_races' => $triggerCodes,
-        'effective_race' => $effectiveRaceCode,
+        'status' => (string)($eligibility['status'] ?? ''),
+        'qualifier_count' => count($qualifiers),
+        'qualifiers' => $qualifiers,
+
+        // Backward-compatible singular fields for older readers/tools.
+        'slot' => (string)($first['slot'] ?? ''),
+        'driver' => (string)($first['driver'] ?? ''),
+        'trigger_races' => isset($first['trigger_races']) && is_array($first['trigger_races'])
+            ? $first['trigger_races']
+            : [],
+        'effective_race' => (string)($first['effective_race'] ?? ''),
+
         'detected_at' => date('Y-m-d\TH:i:s'),
     ];
 }
-
 function rr_monitor_write_rd_pending_json(string $path, array $payload): bool
 {
     $existing = [];
@@ -670,12 +710,21 @@ function rr_monitor_send_rd_email($user_home, string $notifyEmail, string $subje
 {
     $teamName = (string)($payload['teamName'] ?? '');
     $segment = (string)($payload['segment'] ?? '');
-    $slot = (string)($payload['slot'] ?? '');
-    $driver = (string)($payload['driver'] ?? '');
     $effectiveRace = (string)($payload['effective_race'] ?? '');
-    $triggerRaces = isset($payload['trigger_races']) && is_array($payload['trigger_races'])
-        ? implode(', ', $payload['trigger_races'])
-        : '';
+    $qualifiers = isset($payload['qualifiers']) && is_array($payload['qualifiers'])
+        ? $payload['qualifiers']
+        : [];
+
+    if (empty($qualifiers)) {
+        $qualifiers[] = [
+            'slot' => (string)($payload['slot'] ?? ''),
+            'driver' => (string)($payload['driver'] ?? ''),
+            'trigger_races' => isset($payload['trigger_races']) && is_array($payload['trigger_races'])
+                ? $payload['trigger_races']
+                : [],
+            'effective_race' => $effectiveRace,
+        ];
+    }
 
     $jsonBase = basename($jsonPath);
     $jsonLink = 'https://' . $publicHost
@@ -695,14 +744,33 @@ function rr_monitor_send_rd_email($user_home, string $notifyEmail, string $subje
         . $year . '_' . $segment . '_' . rr_sanitize_for_folder($teamName);
 
     $message =
-        'Replacement Driver eligible.<br>' .
-        'Team: ' . htmlspecialchars($teamName, ENT_QUOTES, 'UTF-8') . '<br>' .
-        'Segment: ' . htmlspecialchars($segment, ENT_QUOTES, 'UTF-8') . '<br>' .
-        'Slot: ' . htmlspecialchars($slot, ENT_QUOTES, 'UTF-8') . '<br>' .
-        'Driver: ' . htmlspecialchars($driver, ENT_QUOTES, 'UTF-8') . '<br>' .
-        'Trigger races: ' . htmlspecialchars($triggerRaces, ENT_QUOTES, 'UTF-8') . '<br>' .
-        'Effective race: ' . htmlspecialchars($effectiveRace, ENT_QUOTES, 'UTF-8') . '<br>' .
-        '<a href="' . htmlspecialchars($jsonLink, ENT_QUOTES, 'UTF-8') . '">RD Pending JSON</a>';
+        'Replacement Pick eligible.<br>'
+        . 'Team: ' . htmlspecialchars($teamName, ENT_QUOTES, 'UTF-8') . '<br>'
+        . 'Segment: ' . htmlspecialchars($segment, ENT_QUOTES, 'UTF-8') . '<br>'
+        . 'Eligible driver choice(s):<br>';
+
+    foreach ($qualifiers as $q) {
+        if (!is_array($q)) continue;
+
+        $qSlot = (string)($q['slot'] ?? '');
+        $qDriver = (string)($q['driver'] ?? '');
+        $qTriggers = isset($q['trigger_races']) && is_array($q['trigger_races'])
+            ? implode(', ', $q['trigger_races'])
+            : '';
+        $qEffective = (string)($q['effective_race'] ?? '');
+
+        $message .= '&nbsp;&nbsp;Group '
+            . htmlspecialchars($qSlot, ENT_QUOTES, 'UTF-8')
+            . ' — '
+            . htmlspecialchars($qDriver, ENT_QUOTES, 'UTF-8')
+            . ' | Trigger: '
+            . htmlspecialchars($qTriggers, ENT_QUOTES, 'UTF-8')
+            . ' | Effective: '
+            . htmlspecialchars($qEffective, ENT_QUOTES, 'UTF-8')
+            . '<br>';
+    }
+
+    $message .= '<a href="' . htmlspecialchars($jsonLink, ENT_QUOTES, 'UTF-8') . '">RD Pending JSON</a>';
 
     try {
         return (bool)$user_home->send_mail($notifyEmail, $message, $subject);
@@ -710,7 +778,6 @@ function rr_monitor_send_rd_email($user_home, string $notifyEmail, string $subje
         return false;
     }
 }
-
 
 function rr_monitor_write_rd_status(string $path, array $status): void
 {
@@ -876,25 +943,29 @@ function rr_monitor_run_rd_detection(
 
         $teamCount++;
 
-        $eligibility = rr_monitor_detect_team_rd_eligibility_completed_only(
+        // v139: use the shared, already-proven trailing-pair/multi-qualifier engine.
+        $eligibility = mrl_rd_detect_team_segment_eligibility(
             $dbo,
-            $year,
+            (string)$year,
             $segment,
-            $teamRow,
+            $teamName,
             $raceDriverPoints
         );
 
         $status = (string)($eligibility['status'] ?? '');
-        if ($status !== 'RD_AVAILABLE') {
-            if ($status === 'MANUAL_SELECTION_REQUIRED') {
-                $manualRequiredCount++;
-                $manualTeams[] = $teamName;
-                rr_log_line($rdLogFile, 'RD MANUAL SELECTION REQUIRED team=' . $teamName . ' segment=' . $segment);
-            }
+        if ($status !== 'RD_AVAILABLE' && $status !== 'MULTIPLE_RD_AVAILABLE') {
             continue;
         }
 
         $eligibleCount++;
+        if ($status === 'MULTIPLE_RD_AVAILABLE') {
+            rr_log_line(
+                $rdLogFile,
+                'RD MULTIPLE USER CHOICE team=' . $teamName
+                . ' segment=' . $segment
+                . ' qualifiers=' . (int)($eligibility['qualifier_count'] ?? 0)
+            );
+        }
         $eligibleTeams[] = $teamName;
 
         $payload = rr_monitor_rd_payload($eligibility);
@@ -934,12 +1005,9 @@ function rr_monitor_run_rd_detection(
     $finalStatus = 'OK';
     $message = 'No RD eligibility found.';
 
-    if ($manualRequiredCount > 0) {
-        $finalStatus = 'MANUAL_REVIEW';
-        $message = (string)$manualRequiredCount . ' team(s) require manual RD selection review.';
-    } elseif ($eligibleCount > 0) {
+    if ($eligibleCount > 0) {
         $finalStatus = 'ACTION';
-        $message = (string)$eligibleCount . ' RD eligible team(s) found.';
+        $message = (string)$eligibleCount . ' Replacement Pick eligible team(s) found.';
     }
 
     rr_monitor_write_rd_status(

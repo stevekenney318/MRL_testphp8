@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * team.php
  *
- * VERSION: v023
- * LAST MODIFIED: 8/20/2026 8:29:00 pm
+ * VERSION: v024
+ * LAST MODIFIED: 8/22/2026 7:26:00 pm
  *
  * DESCRIPTION:
  * Main universal team landing page for MRL / testphp8.
@@ -13,6 +13,18 @@ declare(strict_types=1);
  * normal picks now and LP / RD form routing later.
  *
  * CHANGELOG:
+ *
+ * v025 (8/22/2026 9:06:00 pm)
+ * - TESTPHP8 TEMPORARY: Exact single-driver RP time-travel hook for Be Like Biff / Denny Hamlin / S1 / R08.
+ * - TEST: Does not alter normal pick-window timing or schedule data.
+
+ *
+ * v024 (8/22/2026 7:26:00 pm)
+ * - NEW: RD pending JSON may contain one or multiple qualifying drivers.
+ * - NEW: Builds replacement option maps independently for every eligible group.
+ * - NEW: Once an RD row exists, editing is locked to the originally replaced group.
+ * - CHANGE: User-facing form can use the same explicit choice UI for single or dual eligibility.
+ * - PRESERVE: Existing LP, normal picks, SPECIAL_AUTH, charts, menu, and deadline behavior.
  *
  * v023 (8/20/2026 8:29:00 pm)
  * - FIX: User-menu toggle now executes directly on the anchor click.
@@ -331,6 +343,75 @@ function teampage_find_latest_rd_pending(string $raceYear, string $teamName): ?a
         'raceFolderName' => basename(dirname($jsonPath)),
         'payload' => $payload,
     ];
+}
+
+function teampage_rd_normalize_qualifiers(array $payload): array
+{
+    $out = [];
+
+    $raw = isset($payload['qualifiers']) && is_array($payload['qualifiers'])
+        ? $payload['qualifiers']
+        : [];
+
+    foreach ($raw as $q) {
+        if (!is_array($q)) {
+            continue;
+        }
+
+        $slot = strtoupper(trim((string)($q['slot'] ?? '')));
+        $driver = trim((string)($q['driver'] ?? ''));
+
+        if (!in_array($slot, ['A', 'B', 'C', 'D'], true) || $driver === '') {
+            continue;
+        }
+
+        $triggers = isset($q['trigger_races']) && is_array($q['trigger_races'])
+            ? array_values($q['trigger_races'])
+            : [];
+
+        $out[] = [
+            'slot' => $slot,
+            'driver' => $driver,
+            'trigger_races' => $triggers,
+            'effective_race' => trim((string)($q['effective_race'] ?? '')),
+        ];
+    }
+
+    // Backward compatibility with old single-qualifier pending JSON.
+    if (empty($out)) {
+        $slot = strtoupper(trim((string)($payload['slot'] ?? '')));
+        $driver = trim((string)($payload['driver'] ?? ''));
+
+        if (in_array($slot, ['A', 'B', 'C', 'D'], true) && $driver !== '') {
+            $out[] = [
+                'slot' => $slot,
+                'driver' => $driver,
+                'trigger_races' => isset($payload['trigger_races']) && is_array($payload['trigger_races'])
+                    ? array_values($payload['trigger_races'])
+                    : [],
+                'effective_race' => trim((string)($payload['effective_race'] ?? '')),
+            ];
+        }
+    }
+
+    return $out;
+}
+
+function teampage_rd_changed_group(array $baseRow, array $rdRow): string
+{
+    $changed = [];
+
+    foreach (['A', 'B', 'C', 'D'] as $group) {
+        $key = 'driver' . $group;
+        $base = trim((string)($baseRow[$key] ?? ''));
+        $rd = trim((string)($rdRow[$key] ?? ''));
+
+        if ($base !== $rd) {
+            $changed[] = $group;
+        }
+    }
+
+    return count($changed) === 1 ? $changed[0] : '';
 }
 
 function teampage_user_has_rd_for_segment(PDO $dbo, int $uid, string $raceYear, string $segment): bool
@@ -682,10 +763,14 @@ $rdPendingGroup = '';
 $rdPendingCurrentDriver = '';
 $rdPendingTriggerRaces = '';
 $rdPendingEffectiveRace = '';
+$rdPendingQualifiers = [];
 $rdBasePickRow = null;
 $rdLatestPickRow = null;
 $rdActivePickRow = null;
 $rdReplacementOptions = [];
+$rdReplacementOptionsByGroup = [];
+$rdSelectedDriversByGroup = [];
+$rdLockedSelectedGroup = '';
 $rdDeadlineRaceCode = '';
 $rdDeadlineDisplay = '';
 $rdDeadlineTimestamp = 0;
@@ -709,43 +794,105 @@ if ($rdPendingInfo !== null) {
 
     if ($showRdWrapper) {
         $rdPendingSegmentLabel = teampage_rd_segment_label($rdPendingSegment);
-        $rdPendingGroup = strtoupper(trim((string)($rdPendingPayload['slot'] ?? '')));
-        $rdPendingCurrentDriver = trim((string)($rdPendingPayload['driver'] ?? ''));
-        $rdPendingEffectiveRace = trim((string)($rdPendingPayload['effective_race'] ?? ''));
+        $rdPendingQualifiers = teampage_rd_normalize_qualifiers($rdPendingPayload);
 
-        $triggerRaceList = isset($rdPendingPayload['trigger_races']) && is_array($rdPendingPayload['trigger_races'])
-            ? $rdPendingPayload['trigger_races']
-            : [];
-        $rdPendingTriggerRaces = implode(', ', $triggerRaceList);
+        if (empty($rdPendingQualifiers)) {
+            $showRdWrapper = false;
+        } else {
+            $rdBasePickRow = teampage_get_segment_base_pick_row(
+                $dbo,
+                $uid,
+                (string)$raceYear,
+                $rdPendingSegment
+            );
+            $rdLatestPickRow = teampage_get_latest_rd_pick_row(
+                $dbo,
+                $uid,
+                (string)$raceYear,
+                $rdPendingSegment
+            );
 
-        $rdBasePickRow = teampage_get_segment_base_pick_row($dbo, $uid, (string)$raceYear, $rdPendingSegment);
-        $rdLatestPickRow = teampage_get_latest_rd_pick_row($dbo, $uid, (string)$raceYear, $rdPendingSegment);
-        $rdActivePickRow = is_array($rdLatestPickRow) ? $rdLatestPickRow : $rdBasePickRow;
+            $rdActivePickRow = is_array($rdLatestPickRow)
+                ? $rdLatestPickRow
+                : $rdBasePickRow;
 
-        if (is_array($rdLatestPickRow)) {
-            $slotKey = 'driver' . $rdPendingGroup;
-            $rdSelectedDriver = trim((string)($rdLatestPickRow[$slotKey] ?? ''));
-        }
+            // After the first RD submission, edits remain on that one replaced
+            // group. This prevents an edit from becoming a second replacement.
+            if (is_array($rdBasePickRow) && is_array($rdLatestPickRow)) {
+                $rdLockedSelectedGroup = teampage_rd_changed_group(
+                    $rdBasePickRow,
+                    $rdLatestPickRow
+                );
 
-        if (is_array($rdActivePickRow) && isset($dbconnect) && $dbconnect instanceof mysqli) {
-            $excludeDrivers = [];
-
-            foreach (['A', 'B', 'C', 'D'] as $groupCode) {
-                $driverKey = 'driver' . $groupCode;
-                $driverValue = trim((string)($rdActivePickRow[$driverKey] ?? ''));
-
-                if ($groupCode !== $rdPendingGroup && $driverValue !== '') {
-                    $excludeDrivers[] = $driverValue;
+                if ($rdLockedSelectedGroup !== '') {
+                    $rdPendingQualifiers = array_values(array_filter(
+                        $rdPendingQualifiers,
+                        function (array $q) use ($rdLockedSelectedGroup): bool {
+                            return strtoupper((string)($q['slot'] ?? '')) === $rdLockedSelectedGroup;
+                        }
+                    ));
                 }
             }
 
-            if ($rdPendingCurrentDriver !== '' && $rdPendingCurrentDriver !== $rdSelectedDriver) {
-                $excludeDrivers[] = $rdPendingCurrentDriver;
+            if (empty($rdPendingQualifiers)) {
+                $showRdWrapper = false;
+            } else {
+                // Keep legacy singular variables populated from the first
+                // remaining choice for diagnostics/backward compatibility.
+                $firstQualifier = $rdPendingQualifiers[0];
+                $rdPendingGroup = strtoupper(trim((string)($firstQualifier['slot'] ?? '')));
+                $rdPendingCurrentDriver = trim((string)($firstQualifier['driver'] ?? ''));
+                $rdPendingEffectiveRace = trim((string)($firstQualifier['effective_race'] ?? ''));
+                $firstTriggers = isset($firstQualifier['trigger_races']) && is_array($firstQualifier['trigger_races'])
+                    ? $firstQualifier['trigger_races']
+                    : [];
+                $rdPendingTriggerRaces = implode(', ', $firstTriggers);
+
+                if (is_array($rdActivePickRow) && isset($dbconnect) && $dbconnect instanceof mysqli) {
+                    foreach ($rdPendingQualifiers as $qualifier) {
+                        $group = strtoupper(trim((string)($qualifier['slot'] ?? '')));
+                        $originalDriver = trim((string)($qualifier['driver'] ?? ''));
+
+                        if (!in_array($group, ['A', 'B', 'C', 'D'], true) || $originalDriver === '') {
+                            continue;
+                        }
+
+                        $selectedDriver = '';
+                        if (is_array($rdLatestPickRow)) {
+                            $selectedDriver = trim((string)($rdLatestPickRow['driver' . $group] ?? ''));
+                        }
+                        $rdSelectedDriversByGroup[$group] = $selectedDriver;
+
+                        $excludeDrivers = [];
+                        foreach (['A', 'B', 'C', 'D'] as $groupCode) {
+                            $driverKey = 'driver' . $groupCode;
+                            $driverValue = trim((string)($rdActivePickRow[$driverKey] ?? ''));
+
+                            if ($groupCode !== $group && $driverValue !== '') {
+                                $excludeDrivers[] = $driverValue;
+                            }
+                        }
+
+                        if ($originalDriver !== '' && $originalDriver !== $selectedDriver) {
+                            $excludeDrivers[] = $originalDriver;
+                        }
+
+                        $rdReplacementOptionsByGroup[$group] = teampage_rd_driver_options(
+                            $dbconnect,
+                            $group,
+                            (int)$raceYear,
+                            $uid,
+                            $rdPendingSegment,
+                            $excludeDrivers
+                        );
+                    }
+
+                    // Backward-compatible singular option list.
+                    $rdReplacementOptions = $rdReplacementOptionsByGroup[$rdPendingGroup] ?? [];
+                    $rdSelectedDriver = $rdSelectedDriversByGroup[$rdPendingGroup] ?? '';
+                }
             }
-
-            $rdReplacementOptions = teampage_rd_driver_options($dbconnect, $rdPendingGroup, (int)$raceYear, $uid, $rdPendingSegment, $excludeDrivers);
         }
-
         $deadlineInfo = teampage_schedule_deadline_info((string)$raceYear, $rdPendingSegment, (string)($rdPendingInfo['raceFolderName'] ?? ''));
         if (!empty($deadlineInfo)) {
             $rdDeadlineRaceCode = (string)($deadlineInfo['deadline_race_code'] ?? '');
