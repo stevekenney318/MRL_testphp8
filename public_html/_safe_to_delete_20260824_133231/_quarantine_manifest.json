@@ -1,0 +1,396 @@
+{
+    "version": "v001",
+    "created_at": "2026-08-24T13:32:31-04:00",
+    "quarantine_folder": "_safe_to_delete_20260824_133231",
+    "item_count": 97,
+    "items": [
+        {
+            "type": "DIR",
+            "path": "mrl_adj_focused_patch_backup_20260820_044600am"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_adj_focused_patch_v001_20260820_015900am.php"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_adj_focused_patch_v002_20260820_021500am.php"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_adj_focused_patch_v003_20260820_021900am.php"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_adj_focused_patch_v004_20260820_022800am.php"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_adj_focused_patch_v005_20260820_044600am.php"
+        },
+        {
+            "type": "DIR",
+            "path": "mrl_admin_setup_environment_banner_backup_20260819_033000pm"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_admin_setup_environment_banner_patch_v003_20260819_033000pm.php"
+        },
+        {
+            "type": "DIR",
+            "path": "mrl_auto_pick_window_backup_20260819_045153am"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_auto_pick_window_installer_v001_20260819_045153am.php"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_auto_pick_window_patch_v002_20260819_023400pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_auto_pick_window_patch_v002_20260819_030100pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_auto_pick_window_patch_v002_20260819_030800pm.php"
+        },
+        {
+            "type": "DIR",
+            "path": "mrl_lp_admin_adjustment_backup_20260819_073400pm"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_lp_admin_adjustment_installer_v001_20260819_071200pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_lp_admin_adjustment_installer_v002_20260819_073400pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_lp_finalization_installer_v001_20260818_030827am.php"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_pick_window_messaging_refinement_installer_v001_20260820_023324pm.php"
+        },
+        {
+            "type": "DIR",
+            "path": "mrl_prior_year_chart_connection_backup_20260821_095000pm"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_prior_year_chart_connection_fix_installer_v001_20260821_095000pm.php"
+        },
+        {
+            "type": "DIR",
+            "path": "mrl_rd_dual_choice_preview_backup_20260822_063000pm"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_rd_dual_choice_preview_installer_v001_20260822_063000pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_rd_dual_driver_simulation_installer_v001_20260822_060700pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_rd_fixture_cleanup_v010_installer_v001_20260822_085700pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_rd_phase2_simulation_installer_v001_20260820_102700pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_rd_real_flow_integration_installer_v001_20260822_072600pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_rd_real_flow_integration_installer_v002_20260822_073600pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_rd_simulation_diagnostic_patch_v001_20260820_105000pm.php"
+        },
+        {
+            "type": "DIR",
+            "path": "mrl_rd_simulation_driver_guard_backup_20260821_120100am"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_rd_simulation_driver_required_guard_patch_v001_20260821_120100am.php"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_rd_simulation_fixture_parser_patch_v001_20260820_110500pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_rd_simulation_race_values_patch_v001_20260820_112700pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_rd_time_travel_emergency_reset_installer_v001_20260822_084900pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_rd_time_travel_test_hook_installer_v001_20260822_075900pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_rp_cosmetic_polish_installer_v001_20260822_083500pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_rp_single_test_harness_v001_20260822_090600pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_team_identity_repair_v001_20260820_011600am.php"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_team_user_menu_native_fix_installer_v001_20260820_073602pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_team_user_menu_native_fix_patch_v002_20260820_082900pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_testphp8_cleanup_inventory_v001_20260823_055800pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_testphp8_cleanup_inventory_v002_20260824_015732000.php"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_testphp8_cleanup_inventory_v003_20260824_021500000.php"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_testphp8_cleanup_inventory_v004_20260824_025201000.php"
+        },
+        {
+            "type": "DIR",
+            "path": "mrl_unified_schedule_backup_20260818_041300am"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_unified_schedule_installer_v001_20260818_041300am.php"
+        },
+        {
+            "type": "FILE",
+            "path": "mrl_user_year_audit_installer_v001_20260821_092100pm.php"
+        },
+        {
+            "type": "DIR",
+            "path": "race_results/_installer_backups"
+        },
+        {
+            "type": "DIR",
+            "path": "race_results/_race_finish_confirmation_install_backup_20260724_043417pm"
+        },
+        {
+            "type": "DIR",
+            "path": "race_results/_race_finish_confirmation_install_backup_20260726_051503pm"
+        },
+        {
+            "type": "DIR",
+            "path": "race_results/_race_finish_confirmation_install_backup_20260726_071639am"
+        },
+        {
+            "type": "DIR",
+            "path": "race_results/_race_finish_confirmation_install_backup_20260726_092259am"
+        },
+        {
+            "type": "DIR",
+            "path": "race_results/_race_results_dashboard_install_backup_20260726_104138am"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/install_canonical_snapshot_isolation_v001_20260712_012722pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/install_mrl_at_a_glance_v005_20260706_073625pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/install_mrl_wp_images_server_v004_20260723_061206am.php"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/install_mrl_wp_images_server_v006_20260723_032622pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/install_mrl_wp_images_v002_20260722_035840pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/install_mrl_wp_images_v002_20260722_042418pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/install_mrl_wp_images_v003_20260723_020359am.php"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/install_mrl_wp_images_v004_server_fix_20260723_075644am.php"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/install_race_finish_confirmation_v002_20260724_043417pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/install_race_finish_confirmation_v003_20260726_071639am.php"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/install_race_finish_confirmation_v004_20260726_092259am.php"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/install_race_finish_confirmation_v005_20260726_050941pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/install_race_finish_confirmation_v005_v002_20260726_051503pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/install_race_finish_confirmation_v006_20260809_035034pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/install_race_finish_confirmation_v006_20260809_044704pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/install_race_finish_confirmation_v006_20260809_045620pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/install_race_finish_confirmation_v006_20260809_051116pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/install_race_results_dashboard_v022_20260726_104138am.php"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/install_race_results_menu_v001_20260727_022317pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/install_race_results_menu_v002_20260808_092906pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/install_snapshot_companion_generation_v001_20260719_013518pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/install_weekly_standings_v063_20260722_120524pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/install_weekly_standings_v064_20260722_122754pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/install_weekly_standings_v065_20260722_012458pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/install_weekly_standings_v065_20260722_125621pm.php"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/mrl_at_a_glance.php.bak_20260707_050648"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/mrl_wp_images.html.bak_20260723_022938"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/mrl_wp_images.html.bak_20260723_062242"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/mrl_wp_images.html.bak_20260723_080401"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/mrl_wp_images.html.bak_20260723_154346"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/mrl_wp_images_backup_20260818_121429am.html"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/mrl_wp_images_data.php.bak_20260723_022938"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/mrl_wp_images_data.php.bak_20260723_062242"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/mrl_wp_images_data.php.bak_20260723_080401"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/mrl_wp_images_data.php.bak_20260723_154346"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/race_results_classify_revisions.php.bak_20260712_133327"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/race_results_monitor.php.bak_20260719_142948"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/race_results_revision_monitor.php.bak_20260719_142948"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/race_results_snapshot_helper.php.bak_20260712_133327"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/race_results_weekly_winner_diagnostic.php"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/weekly_standings.php.bak_20260722_121415"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/weekly_standings.php.bak_20260722_123340"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/weekly_standings.php.bak_20260722_130225"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/weekly_standings.php.bak_20260722_133355"
+        },
+        {
+            "type": "FILE",
+            "path": "race_results/weekly_standings_release_history_helper.php.bak_20260712_133327"
+        }
+    ]
+}
