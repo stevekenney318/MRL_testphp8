@@ -1,4 +1,13 @@
 <?Php
+/**
+ * submitted_teams_count.php
+ * VERSION: v001
+ * LAST MODIFIED: 8/24/2026 9:45:04 pm
+ *
+ * v001 (8/24/2026 9:45:04 pm)
+ * - SAFETY: Submission-status link points to submitted_teams.php, not team_chart.php.
+ * - PRESERVE: Count/query/message behavior otherwise unchanged.
+ */
 session_start();
 include "config.php"; // Database connection info
 include "config_mrl.php"; // setup variables for current MRL season & segment
@@ -34,7 +43,7 @@ echo "As of $currentTimeIs, $resultcount teams have submitted their picks for $r
     Click <a href="submitted_teams.php" target="_blank" rel="noopener noreferrer">here</a> to see the submission status of all teams. <a href="submitted_teams.php" target="_blank" rel="noopener noreferrer"></a><br><br>***** The <?php echo "$raceYear $segmentName" ?> team chart (with drivers) will appear here at <?php echo "$formLockDate" ?> (refresh browser if necessary) *****
 -->
 
-Click <a href="team_chart.php">here</a> to see the submission status of all teams. <br><br>***** The <?php echo "$raceYear $segmentName" ?> team chart (with drivers) will appear here at <?php echo "$formLockDate" ?> (refresh browser if necessary) *****
+Click <a href="submitted_teams.php" target="_blank" rel="noopener noreferrer">here</a> to see the submission status of all teams. <br><br>***** The <?php echo "$raceYear $segmentName" ?> team chart (with drivers) will appear here at <?php echo "$formLockDate" ?> (refresh browser if necessary) *****
 
 
 <?Php

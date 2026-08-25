@@ -4,14 +4,21 @@ declare(strict_types=1);
 /**
  * team_chart.php
  *
- * VERSION: v017
- * LAST MODIFIED: 8/20/2026 1:59:00 am
+ * VERSION: v018
+ * LAST MODIFIED: 8/24/2026 9:45:04 pm
  *
  * DESCRIPTION:
  * Public Team Chart page with PRG flow, print, spreadsheet export,
  * and render-time LP / RD chart annotations.
  *
  * CHANGELOG:
+ *
+ * v018 (8/24/2026 9:45:04 pm)
+ * - SAFETY: Current-season driver picks remain private until the segment's first points race starts.
+ * - SAFETY: Uses segment_race_ranges + canonical race schedule helper, not legacy formLockDate.
+ * - SAFETY: Direct chart access and spreadsheet export use the same privacy gate.
+ * - SAFETY: Current-season deadline lookup fails closed; previous seasons remain viewable.
+ * - PRESERVE: LP/RD/Approved Exception rendering after deadline.
  *
  * v016 (8/19/2026 7:12:00 pm)
  * - NEW: SEG rows with ADJ history show * Admin-approved regular pick.
@@ -62,6 +69,7 @@ $_SESSION['return_to'] = $_SERVER['REQUEST_URI'] ?? '/team_chart.php';
 require_once $_SERVER['DOCUMENT_ROOT'] . '/config.php';
 require_once $_SERVER['DOCUMENT_ROOT'] . '/config_mrl.php';
 require_once $_SERVER['DOCUMENT_ROOT'] . '/class.user.php';
+require_once __DIR__ . '/race_results/race_schedule_helper.php';
 
 $user_home = new USER();
 
@@ -89,6 +97,60 @@ function valid_year($y): bool {
 
 function valid_segment($s): bool {
     return preg_match('/^S[1-9]\d*$/', (string)$s) === 1;
+}
+
+/**
+ * Canonical normal-pick deadline for a year/segment.
+ * Segment picks become public when that segment's first points race starts.
+ * Returns 0 if the deadline cannot be resolved.
+ */
+function tc_segment_pick_deadline_timestamp($dbo, $dbconnect, string $year, string $segment): int
+{
+    $startRace = 0;
+
+    try {
+        if (isset($dbo) && $dbo instanceof PDO) {
+            $stmt = $dbo->prepare(
+                "SELECT startRace
+                   FROM segment_race_ranges
+                  WHERE raceYear = :year
+                    AND segment = :segment
+                  LIMIT 1"
+            );
+            $stmt->execute([':year'=>$year, ':segment'=>$segment]);
+            $value = $stmt->fetchColumn();
+            $startRace = ($value === false) ? 0 : (int)$value;
+        } elseif (isset($dbconnect) && $dbconnect instanceof mysqli) {
+            $yearInt = (int)$year;
+            $stmt = mysqli_prepare(
+                $dbconnect,
+                "SELECT startRace
+                   FROM segment_race_ranges
+                  WHERE raceYear = ?
+                    AND segment = ?
+                  LIMIT 1"
+            );
+            if ($stmt) {
+                mysqli_stmt_bind_param($stmt, 'is', $yearInt, $segment);
+                mysqli_stmt_execute($stmt);
+                mysqli_stmt_bind_result($stmt, $startRaceDb);
+                if (mysqli_stmt_fetch($stmt)) $startRace = (int)$startRaceDb;
+                mysqli_stmt_close($stmt);
+            }
+        }
+
+        if ($startRace <= 0) return 0;
+
+        $races = mrl_schedule_helper_points_races((int)$year);
+        foreach ($races as $race) {
+            if ((int)($race['race_number'] ?? 0) !== $startRace) continue;
+            return (int)mrl_schedule_helper_race_datetime($race)->getTimestamp();
+        }
+    } catch (Throwable $e) {
+        return 0;
+    }
+
+    return 0;
 }
 
 function tc_marker_symbol(int $index): string
@@ -544,34 +606,32 @@ $segmentNames = [
 ];
 $segmentLabel = $segmentNames[$selectedSegment] ?? $selectedSegment;
 
-// ---------- submission gating (match team.php behavior) ----------
+// ---------- open-pick privacy gating ----------
 $currentRaceYear = isset($raceYear) ? (string)$raceYear : '';
-$currentSegment  = isset($segment)  ? (string)$segment  : '';
-
-$isCurrentSelection = ($selectedYear === $currentRaceYear && $selectedSegment === $currentSegment);
-
-$formLockDateRaw = trim((string)($formLockDate ?? ''));
-$formLockTimeRaw = trim((string)($formLockTime ?? ''));
-
+$userTs = time();
 $lockTs = 0;
-if ($formLockDateRaw !== '') {
-    $lockStr = ($formLockTimeRaw !== '') ? ($formLockDateRaw . ' ' . $formLockTimeRaw) : $formLockDateRaw;
-    $tmp = strtotime($lockStr);
-    $lockTs = ($tmp === false) ? 0 : (int)$tmp;
-}
-
-$userTs = strtotime($currentTimeIs);
-$userTs = ($userTs === false) ? time() : (int)$userTs;
-
 $showSubmittedInsteadOfChart = false;
-if (
-    $hasSelection
-    && $isCurrentSelection
-    && isset($formLocked) && $formLocked === 'no'
-    && $lockTs > 0
-    && $lockTs > $userTs
-) {
-    $showSubmittedInsteadOfChart = true;
+
+/*
+ * Privacy rule:
+ * For the CURRENT season, a segment's driver selections remain private until
+ * that segment's first points race starts. This is independent of the legacy
+ * manual formLockDate and of scoring-vs-pick-segment state.
+ *
+ * Current-season deadline lookup fails CLOSED.
+ * Previous seasons remain normally viewable.
+ */
+if ($hasSelection && $selectedYear === $currentRaceYear) {
+    $lockTs = tc_segment_pick_deadline_timestamp(
+        $dbo ?? null,
+        $dbconnect ?? null,
+        $selectedYear,
+        $selectedSegment
+    );
+
+    if ($lockTs <= 0 || $userTs < $lockTs) {
+        $showSubmittedInsteadOfChart = true;
+    }
 }
 
 $lockTimeDisplay = '';
@@ -580,17 +640,9 @@ $lockDateDisplay = '';
 if ($lockTs > 0) {
     $lockTimeDisplay = date('g:i A', $lockTs);
     $lockDateDisplay = date('n/j/Y', $lockTs);
-} else {
-    if ($formLockTimeRaw !== '') {
-        $lockTimeDisplay = $formLockTimeRaw;
-        $t = strtotime($formLockTimeRaw);
-        if ($t !== false) $lockTimeDisplay = date('g:i A', $t);
-    }
-    if ($formLockDateRaw !== '') {
-        $lockDateDisplay = $formLockDateRaw;
-        $d = strtotime($formLockDateRaw);
-        if ($d !== false) $lockDateDisplay = date('n/j/Y', $d);
-    }
+} elseif ($showSubmittedInsteadOfChart) {
+    $lockTimeDisplay = 'the segment deadline';
+    $lockDateDisplay = '(canonical schedule unavailable)';
 }
 
 // ---------- load picks ----------

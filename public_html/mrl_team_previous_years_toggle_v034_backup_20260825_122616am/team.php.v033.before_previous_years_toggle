@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * team.php
  *
- * VERSION: v034
- * LAST MODIFIED: 8/25/2026 12:26:16 am
+ * VERSION: v033
+ * LAST MODIFIED: 8/24/2026 11:47:20 pm
  *
  * DESCRIPTION:
  * Main universal team landing page for MRL / testphp8.
@@ -13,11 +13,6 @@ declare(strict_types=1);
  * normal picks now and LP / RD form routing later.
  *
  * CHANGELOG:
- *
- * v034 (8/25/2026 12:26:16 am)
- * - UI: Previous Years now uses + / − instead of the native caret.
- * - UI: Previous Years summary typography matches Admin Menu (20pt, normal weight).
- * - PRESERVE: All v033 layout, pick, LP, RP, scoring, privacy, and scheduler behavior.
  *
  * v033 (8/24/2026 11:47:20 pm)
  * - UI: Admin Menu collapsed by default with + / − control; admin-only gate preserved.
@@ -1129,30 +1124,6 @@ $phpMyAdminUrl = $phpMyAdminDb !== ''
         .mrl-user-info-panel{position:relative;box-sizing:border-box;width:100%;margin:18px 0 28px;padding:0;border:0;background:transparent}
         .mrl-user-info-panel::before{content:"";position:absolute;top:-10px;right:calc(10% - 22px);bottom:-10px;left:calc(10% - 22px);border:1px solid #666;border-radius:12px;background:rgba(255,255,255,.018);pointer-events:none;z-index:0}
         .mrl-user-info-panel>*{position:relative;z-index:1}
-
-        /*
-         * v034 Previous Years toggle alignment:
-         * Match the Admin Menu summary typography and +/- behavior.
-         */
-        .mrl-previous-years summary {
-            list-style: none;
-            font-size: 20.0pt;
-            font-weight: normal;
-            line-height: 120%;
-        }
-
-        .mrl-previous-years summary::-webkit-details-marker {
-            display: none;
-        }
-
-        .mrl-previous-years summary::before {
-            content: "+ ";
-            font-weight: normal;
-        }
-
-        .mrl-previous-years[open] summary::before {
-            content: "− ";
-        }
     </style>
 </head>
 

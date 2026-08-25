@@ -5,14 +5,21 @@ declare(strict_types=1);
 /**
  * submit-team-picks.php
  *
- * VERSION: v010
- * LAST MODIFIED: 8/23/2026 2:28:00 pm
+ * VERSION: v011
+ * LAST MODIFIED: 8/24/2026 2:10:33 pm
  *
  * DESCRIPTION:
  * Universal team pick submission handler for MRL / testphp8.
  * Supports normal SEG submissions and LP submissions using the same file.
  *
  * CHANGELOG:
+ *
+ * v011 (8/24/2026 2:10:33 pm)
+ * - FINALIZE: Permanent LP→RP submission bridge after successful TESTPHP8 edge-case validation.
+ * - PRESERVE: LP may be the base source for a Replacement Pick.
+ * - CLEANUP: Removes exact Be Like Biff / AJ Allmendinger / R08 historical test bypass.
+ * - SAFETY: RD deadline enforcement again uses real canonical schedule time only.
+ * - TRACE: Internal script version updated to v011.
  *
  * v010 (8/23/2026 2:28:00 pm)
  * - TESTPHP8 TEMPORARY: Rebuilt the current submit handler directly from the supplied v009 file.
@@ -83,7 +90,7 @@ require_once $_SERVER['DOCUMENT_ROOT'] . '/class.user.php';
 require_once $_SERVER['DOCUMENT_ROOT'] . '/race_results/race_schedule_helper.php';
 
 $user_home = new USER();
-$scriptVersion = 'v006';
+$scriptVersion = 'v011';
 
 if (!$user_home->is_logged_in()) {
     $user_home->redirect('login.php');
@@ -640,43 +647,8 @@ if ($pickTypeOverride === 'RD') {
     }
 
     // Deadline protection belongs on the server too, not just on team.php.
-    // TESTPHP8 LP→RP edge-case fixture may use the controlled historical R08 window.
-    $rdDeadlineOpen = mrl_lp_effective_race_is_open($raceYearInt, $effectiveRace);
-
-    if (!$rdDeadlineOpen) {
-        $rdEdgeMarkers = glob(
-            __DIR__
-            . '/race_results/2026/R07_*/_rd_pending_Be_Like_Biff.lp_rp_edge_marker_20260823_114100am.json'
-        );
-
-        if (is_array($rdEdgeMarkers) && count($rdEdgeMarkers) === 1 && is_file((string)$rdEdgeMarkers[0])) {
-            $rdEdgePendingPath = dirname((string)$rdEdgeMarkers[0]) . '/_rd_pending_Be_Like_Biff.json';
-            $rdEdgeRaw = @file_get_contents($rdEdgePendingPath);
-            $rdEdgePayload = ($rdEdgeRaw !== false) ? json_decode($rdEdgeRaw, true) : null;
-
-            if (
-                is_array($rdEdgePayload)
-                && !empty($rdEdgePayload['test_fixture'])
-                && (string)($rdEdgePayload['fixture_id'] ?? '') === 'BE_LIKE_BIFF_LP_AJ_R06_R07'
-                && (string)($rdEdgePayload['teamName'] ?? '') === 'Be Like Biff'
-                && (string)($rdEdgePayload['segment'] ?? '') === 'S1'
-                && (string)($rdEdgePayload['effective_race'] ?? '') === 'R08'
-                && (string)($rdEdgePayload['source_pick_type'] ?? '') === 'LP'
-                && (int)($rdEdgePayload['qualifier_count'] ?? 0) === 1
-                && (string)($rdEdgePayload['qualifiers'][0]['slot'] ?? '') === 'B'
-                && (string)($rdEdgePayload['qualifiers'][0]['driver'] ?? '') === 'AJ Allmendinger'
-                && $teamName === 'Be Like Biff'
-                && $activeSegment === 'S1'
-                && $effectiveRace === 8
-                && $rdSelectedSlotPost === 'B'
-                && $rdSelectedDriverPost === 'AJ Allmendinger'
-            ) {
-                $rdDeadlineOpen = true;
-            }
-        }
-    }
-
-    if (!$rdDeadlineOpen) {
+    // Permanent behavior uses the real canonical race schedule only.
+    if (!mrl_lp_effective_race_is_open($raceYearInt, $effectiveRace)) {
         mrl_rd_reject();
     }
 
