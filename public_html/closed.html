@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>MRL Development Site Closed</title>
+<style>
+    :root {
+        color-scheme: dark;
+        --bg: #0f1115;
+        --panel: #191c22;
+        --panel-border: #343a46;
+        --text: #f4f5f7;
+        --muted: #aeb6c4;
+        --accent: #e8c787;
+        --button: #245f8f;
+        --button-hover: #2e76ad;
+    }
+
+    * {
+        box-sizing: border-box;
+    }
+
+    html,
+    body {
+        min-height: 100%;
+        margin: 0;
+    }
+
+    body {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 28px;
+        background:
+            radial-gradient(circle at 50% 0%, rgba(62, 85, 120, 0.22), transparent 42%),
+            linear-gradient(180deg, #151820 0%, var(--bg) 68%);
+        color: var(--text);
+        font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .card {
+        width: min(760px, 100%);
+        padding: 54px 48px 46px;
+        border: 1px solid var(--panel-border);
+        border-radius: 22px;
+        background: rgba(25, 28, 34, 0.96);
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
+        text-align: center;
+    }
+
+    .mark {
+        width: 118px;
+        height: 118px;
+        margin: 0 auto 26px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid var(--accent);
+        border-radius: 50%;
+        color: var(--accent);
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 46px;
+        font-weight: 700;
+        line-height: 1;
+        letter-spacing: 0;
+        text-align: center;
+        overflow: hidden;
+    }
+
+    .mark span {
+        display: block;
+        transform: translateY(-1px);
+    }
+
+    h1 {
+        margin: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(36px, 7vw, 58px);
+        font-weight: 500;
+        letter-spacing: 0.02em;
+    }
+
+    .rule {
+        width: 84px;
+        height: 2px;
+        margin: 25px auto;
+        background: var(--accent);
+        opacity: 0.9;
+    }
+
+    h2 {
+        margin: 0 0 18px;
+        font-size: clamp(22px, 4vw, 30px);
+        font-weight: 600;
+    }
+
+    p {
+        max-width: 570px;
+        margin: 0 auto;
+        color: var(--muted);
+        font-size: 18px;
+        line-height: 1.65;
+    }
+
+    .status {
+        margin-top: 26px;
+        color: var(--accent);
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+    }
+
+    .button {
+        display: inline-block;
+        margin-top: 34px;
+        padding: 13px 22px;
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 9px;
+        background: var(--button);
+        color: #fff;
+        text-decoration: none;
+        font-size: 17px;
+        font-weight: 700;
+        transition: background 0.15s ease, transform 0.15s ease;
+    }
+
+    .button:hover,
+    .button:focus {
+        background: var(--button-hover);
+        transform: translateY(-1px);
+    }
+
+    .footer {
+        margin-top: 38px;
+        color: #77808e;
+        font-size: 13px;
+    }
+
+    @media (max-width: 600px) {
+        body {
+            padding: 18px;
+        }
+
+        .card {
+            padding: 40px 24px 34px;
+        }
+
+        .mark {
+            width: 96px;
+            height: 96px;
+            font-size: 38px;
+        }
+
+        p {
+            font-size: 16px;
+        }
+    }
+</style>
+</head>
+<body>
+<main class="card">
+    <div class="mark" aria-hidden="true"><span>MRL</span></div>
+
+    <h1>Manlius Racing League</h1>
+    <div class="rule"></div>
+
+    <h2>Development Site Closed</h2>
+
+    <p>
+        This development sandbox is currently offline.
+        The live Manlius Racing League site remains available as usual.
+    </p>
+
+    <div class="status">Development environment archived</div>
+
+    <a class="button" href="https://manliusracingleague.com/">
+        Go to Manlius Racing League
+    </a>
+
+    <div class="footer">MRL Development Environment</div>
+</main>
+</body>
+</html>
